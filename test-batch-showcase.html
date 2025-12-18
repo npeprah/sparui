@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spar Cards - Test Batch Showcase (Afro-Heritage Theme)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Bebas+Neue&family=Barlow:wght@600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Afro-Heritage Theme Colors */
+            --cream-primary: #FFF5E6;
+            --cream-secondary: #FFE8D6;
+            --cream-tertiary: #FFF9F0;
+
+            --gold-primary: #FFD700;
+            --gold-secondary: #D4AF37;
+            --gold-decorative: #B8860B;
+
+            --fire-red: #FF4500;
+            --dark-green: #2F4F2F;
+            --near-black: #1C1C1C;
+
+            --text-primary: #1C1C1C;
+            --text-secondary: #4A4A4A;
+        }
+
+        body {
+            background: linear-gradient(135deg, #2C1810 0%, #1A0F0A 50%, #0F0805 100%);
+            font-family: 'Barlow', sans-serif;
+            padding: 60px 40px;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 80px;
+            letter-spacing: 8px;
+            background: linear-gradient(135deg, var(--gold-primary), var(--fire-red), var(--gold-secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+
+        .header p {
+            font-size: 24px;
+            color: var(--gold-secondary);
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+
+        .header .subtitle {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 60px;
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        .card-wrapper {
+            perspective: 1500px;
+            animation: floatIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+
+        .card-wrapper:nth-child(1) { animation-delay: 0.1s; }
+        .card-wrapper:nth-child(2) { animation-delay: 0.2s; }
+        .card-wrapper:nth-child(3) { animation-delay: 0.3s; }
+        .card-wrapper:nth-child(4) { animation-delay: 0.4s; }
+        .card-wrapper:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes floatIn {
+            from {
+                opacity: 0;
+                transform: translateY(100px) translateX(-50px) rotateY(-20deg);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) translateX(0) rotateY(0);
+            }
+        }
+
+        .card {
+            width: 280px;
+            height: 420px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            cursor: pointer;
+            margin: 0 auto;
+        }
+
+        .card:hover {
+            transform: translateY(-30px) rotateY(10deg) scale(1.05);
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: linear-gradient(135deg, var(--cream-tertiary) 0%, var(--cream-secondary) 50%, var(--cream-primary) 100%);
+            border-radius: 24px;
+            border: 4px solid var(--gold-primary);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.5),
+                0 0 20px rgba(255, 69, 0, 0.3),
+                inset 0 0 40px rgba(255, 245, 230, 0.8);
+            overflow: hidden;
+        }
+
+        .card:hover .card-inner {
+            box-shadow:
+                0 40px 80px rgba(255, 69, 0, 0.4),
+                0 0 60px rgba(255, 215, 0, 0.6),
+                inset 0 0 30px rgba(255, 215, 0, 0.2);
+        }
+
+        /* Kente Pattern Overlay */
+        .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(251, 192, 45, 0.15) 10px,
+                    rgba(251, 192, 45, 0.15) 20px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(139, 69, 19, 0.12) 10px,
+                    rgba(139, 69, 19, 0.12) 20px
+                ),
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 15px,
+                    rgba(255, 215, 0, 0.10) 15px,
+                    rgba(255, 215, 0, 0.10) 30px
+                );
+            opacity: 0.7;
+            border-radius: 12px;
+            z-index: 1;
+        }
+
+        /* Decorative Corners */
+        .card-corner {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--gold-primary);
+            z-index: 5;
+        }
+
+        .card-corner.top-left {
+            top: 12px;
+            left: 12px;
+            border-right: none;
+            border-bottom: none;
+            border-radius: 20px 0 0 0;
+        }
+
+        .card-corner.bottom-right {
+            bottom: 12px;
+            right: 12px;
+            border-left: none;
+            border-top: none;
+            border-radius: 0 0 20px 0;
+        }
+
+        /* Corner Indicators */
+        .corner-indicator {
+            position: absolute;
+            z-index: 10;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+        }
+
+        .corner-indicator.top-left {
+            top: 20px;
+            left: 20px;
+        }
+
+        .corner-indicator.bottom-right {
+            bottom: 20px;
+            right: 20px;
+            transform: rotate(180deg);
+        }
+
+        .corner-value {
+            font-size: 40px;
+            line-height: 1;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .corner-suit {
+            font-size: 28px;
+            line-height: 1;
+            display: block;
+        }
+
+        /* Central Symbol */
+        .center-symbol {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            font-size: 160px;
+            line-height: 1;
+            animation: suitPulse 2s ease-in-out infinite;
+        }
+
+        .center-symbol.ace {
+            font-size: 200px;
+        }
+
+        @keyframes suitPulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                filter: drop-shadow(0 8px 16px rgba(220, 20, 60, 0.5));
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.05);
+                filter: drop-shadow(0 12px 24px rgba(255, 215, 0, 0.7));
+            }
+        }
+
+        .card:hover .center-symbol {
+            filter: drop-shadow(0 0 40px rgba(255, 215, 0, 1))
+                    drop-shadow(0 0 80px rgba(255, 69, 0, 0.8));
+        }
+
+        /* Suit-Specific Colors */
+        .hearts .corner-value,
+        .hearts .corner-suit,
+        .hearts .center-symbol {
+            color: var(--fire-red);
+            text-shadow: 2px 2px 0 #DC143C, 0 0 10px rgba(255, 69, 0, 0.6);
+        }
+
+        .clubs .corner-value,
+        .clubs .corner-suit,
+        .clubs .center-symbol {
+            color: var(--dark-green);
+            text-shadow: 2px 2px 0 #1A3D1A, 0 0 10px rgba(47, 79, 47, 0.6);
+        }
+
+        .diamonds .corner-value,
+        .diamonds .corner-suit,
+        .diamonds .center-symbol {
+            color: var(--fire-red);
+            text-shadow: 2px 2px 0 #DC143C, 0 0 10px rgba(255, 215, 0, 0.6);
+        }
+
+        .spades .corner-value,
+        .spades .corner-suit,
+        .spades .center-symbol {
+            color: var(--near-black);
+            text-shadow: 2px 2px 0 #000000, 0 0 10px rgba(139, 0, 255, 0.4);
+        }
+
+        /* Face Card Style */
+        .face-card .center-symbol {
+            font-size: 100px;
+            top: 40%;
+        }
+
+        .face-card .face-title {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 4;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 40px;
+            letter-spacing: 4px;
+            text-shadow: 2px 2px 0 var(--text-primary), 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+
+        .face-card .face-description {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 4;
+            font-family: 'Barlow', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            width: 80%;
+            line-height: 1.4;
+            opacity: 0.8;
+        }
+
+        /* Card Label */
+        .card-label {
+            text-align: center;
+            margin-top: 30px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            letter-spacing: 3px;
+            color: var(--gold-primary);
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        }
+
+        .card-type {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Specs Panel */
+        .specs {
+            margin-top: 80px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid var(--gold-primary);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .specs h2 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 48px;
+            letter-spacing: 4px;
+            color: var(--gold-primary);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .spec-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--gold-primary);
+        }
+
+        .spec-item h3 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            letter-spacing: 2px;
+            color: var(--gold-secondary);
+            margin-bottom: 12px;
+        }
+
+        .spec-item p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .spec-item code {
+            background: rgba(255, 215, 0, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--gold-primary);
+            font-size: 14px;
+        }
+
+        .status-banner {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, var(--fire-red), #DC143C);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 50px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            letter-spacing: 3px;
+            box-shadow: 0 10px 30px rgba(255, 69, 0, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+            z-index: 1000;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 48px; }
+            .cards-container { grid-template-columns: 1fr; gap: 40px; }
+            .card { width: 240px; height: 360px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Spar Cards Test Batch</h1>
+        <p class="subtitle">Afro-Heritage Theme • Phase 1 Validation</p>
+        <p>5 Sample Cards to Validate Style Before Full Production</p>
+    </div>
+
+    <div class="cards-container">
+        <!-- 6 of Hearts -->
+        <div class="card-wrapper">
+            <div class="card hearts">
+                <div class="card-inner">
+                    <div class="card-corner top-left"></div>
+                    <div class="card-corner bottom-right"></div>
+
+                    <div class="corner-indicator top-left">
+                        <span class="corner-value">6</span>
+                        <span class="corner-suit">♥</span>
+                    </div>
+
+                    <div class="corner-indicator bottom-right">
+                        <span class="corner-value">6</span>
+                        <span class="corner-suit">♥</span>
+                    </div>
+
+                    <div class="center-symbol">♥</div>
+                </div>
+            </div>
+            <div class="card-label">
+                6 of Hearts
+                <div class="card-type">Number Card Test</div>
+            </div>
+        </div>
+
+        <!-- 10 of Clubs -->
+        <div class="card-wrapper">
+            <div class="card clubs">
+                <div class="card-inner">
+                    <div class="card-corner top-left"></div>
+                    <div class="card-corner bottom-right"></div>
+
+                    <div class="corner-indicator top-left">
+                        <span class="corner-value">10</span>
+                        <span class="corner-suit">♣</span>
+                    </div>
+
+                    <div class="corner-indicator bottom-right">
+                        <span class="corner-value">10</span>
+                        <span class="corner-suit">♣</span>
+                    </div>
+
+                    <div class="center-symbol">♣</div>
+                </div>
+            </div>
+            <div class="card-label">
+                10 of Clubs
+                <div class="card-type">Number Card Test (Different Suit)</div>
+            </div>
+        </div>
+
+        <!-- Jack of Diamonds -->
+        <div class="card-wrapper">
+            <div class="card diamonds face-card">
+                <div class="card-inner">
+                    <div class="card-corner top-left"></div>
+                    <div class="card-corner bottom-right"></div>
+
+                    <div class="corner-indicator top-left">
+                        <span class="corner-value">J</span>
+                        <span class="corner-suit">♦</span>
+                    </div>
+
+                    <div class="corner-indicator bottom-right">
+                        <span class="corner-value">J</span>
+                        <span class="corner-suit">♦</span>
+                    </div>
+
+                    <div class="center-symbol">♦</div>
+                    <div class="face-title" style="color: var(--fire-red);">JACK</div>
+                    <div class="face-description">Young Warrior of Wealth</div>
+                </div>
+            </div>
+            <div class="card-label">
+                Jack of Diamonds
+                <div class="card-type">Face Card Test</div>
+            </div>
+        </div>
+
+        <!-- King of Spades -->
+        <div class="card-wrapper">
+            <div class="card spades face-card">
+                <div class="card-inner">
+                    <div class="card-corner top-left"></div>
+                    <div class="card-corner bottom-right"></div>
+
+                    <div class="corner-indicator top-left">
+                        <span class="corner-value">K</span>
+                        <span class="corner-suit">♠</span>
+                    </div>
+
+                    <div class="corner-indicator bottom-right">
+                        <span class="corner-value">K</span>
+                        <span class="corner-suit">♠</span>
+                    </div>
+
+                    <div class="center-symbol">♠</div>
+                    <div class="face-title" style="color: var(--near-black);">KING</div>
+                    <div class="face-description">Wise Elder of Strategy</div>
+                </div>
+            </div>
+            <div class="card-label">
+                King of Spades
+                <div class="card-type">Face Card Test (Dark Suit)</div>
+            </div>
+        </div>
+
+        <!-- Ace of Hearts -->
+        <div class="card-wrapper">
+            <div class="card hearts">
+                <div class="card-inner">
+                    <div class="card-corner top-left"></div>
+                    <div class="card-corner bottom-right"></div>
+
+                    <div class="corner-indicator top-left">
+                        <span class="corner-value">A</span>
+                        <span class="corner-suit">♥</span>
+                    </div>
+
+                    <div class="corner-indicator bottom-right">
+                        <span class="corner-value">A</span>
+                        <span class="corner-suit">♥</span>
+                    </div>
+
+                    <div class="center-symbol ace">♥</div>
+                </div>
+            </div>
+            <div class="card-label">
+                Ace of Hearts
+                <div class="card-type">Premium Card Test</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="specs">
+        <h2>Afro-Heritage Theme Specifications</h2>
+        <div class="specs-grid">
+            <div class="spec-item">
+                <h3>Dimensions</h3>
+                <p>
+                    <strong>Size:</strong> 512×768px<br>
+                    <strong>Ratio:</strong> 2:3 aspect ratio<br>
+                    <strong>Format:</strong> PNG with alpha<br>
+                    <strong>File Size:</strong> &lt;100KB each
+                </p>
+            </div>
+
+            <div class="spec-item">
+                <h3>Background Colors</h3>
+                <p>
+                    <code>#FFF5E6</code> Cream Primary<br>
+                    <code>#FFE8D6</code> Cream Secondary<br>
+                    <code>#FFF9F0</code> Cream Tertiary<br>
+                    Warm gradient with Kente overlay
+                </p>
+            </div>
+
+            <div class="spec-item">
+                <h3>Border & Accents</h3>
+                <p>
+                    <code>#FFD700</code> Gold Primary<br>
+                    <code>#D4AF37</code> Gold Secondary<br>
+                    <code>#B8860B</code> Gold Decorative<br>
+                    4px solid border, 24px radius
+                </p>
+            </div>
+
+            <div class="spec-item">
+                <h3>Suit Colors</h3>
+                <p>
+                    ♥ Hearts: <code>#FF4500</code> Fire Red<br>
+                    ♦ Diamonds: <code>#FF4500</code> Fire Red<br>
+                    ♣ Clubs: <code>#2F4F2F</code> Dark Green<br>
+                    ♠ Spades: <code>#1C1C1C</code> Near Black
+                </p>
+            </div>
+
+            <div class="spec-item">
+                <h3>Kente Patterns</h3>
+                <p>
+                    <code>rgba(251, 192, 45, 0.15)</code> Gold stripe<br>
+                    <code>rgba(139, 69, 19, 0.12)</code> Brown stripe<br>
+                    <code>rgba(255, 215, 0, 0.10)</code> Gold stripe<br>
+                    <code>rgba(160, 82, 45, 0.08)</code> Sienna stripe
+                </p>
+            </div>
+
+            <div class="spec-item">
+                <h3>Typography</h3>
+                <p>
+                    <strong>Corners:</strong> Orbitron 900, 40px/28px<br>
+                    <strong>Face Title:</strong> Bebas Neue, 40px<br>
+                    <strong>Body:</strong> Barlow 600, 16px<br>
+                    High contrast, arcade energy
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-banner">
+        Phase 1: Test Batch
+    </div>
+
+    <script>
+        // Add subtle floating animation to cards
+        document.querySelectorAll('.card').forEach((card, index) => {
+            card.addEventListener('mouseenter', () => {
+                card.style.animation = 'none';
+            });
+
+            card.addEventListener('mouseleave', () => {
+                setTimeout(() => {
+                    card.style.animation = '';
+                }, 600);
+            });
+        });
+
+        // Log card specs on click
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('click', () => {
+                const label = card.parentElement.querySelector('.card-label').textContent.trim().split('\n')[0];
+                console.log(`Card clicked: ${label}`);
+                console.log('Ready for AI generation with these specs');
+            });
+        });
+    </script>
+</body>
+</html>

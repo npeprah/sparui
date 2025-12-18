@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Specification Templates - Exact Measurements</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #FFD700, #FF4500);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #FFD700;
+            margin-bottom: 60px;
+            font-size: 18px;
+        }
+
+        .spec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 60px;
+            margin-bottom: 60px;
+        }
+
+        .spec-card {
+            background: #2a2a2a;
+            border: 2px solid #FFD700;
+            border-radius: 16px;
+            padding: 40px;
+        }
+
+        .spec-card h2 {
+            color: #FFD700;
+            margin-bottom: 30px;
+            font-size: 32px;
+            text-align: center;
+        }
+
+        .spec-card h3 {
+            color: #FF6347;
+            margin: 30px 0 15px 0;
+            font-size: 20px;
+        }
+
+        svg {
+            width: 100%;
+            height: auto;
+            background: white;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .measurements {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #FFD700;
+            margin: 20px 0;
+        }
+
+        .measurements p {
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            color: #FFD700;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .color-swatch {
+            text-align: center;
+        }
+
+        .color-box {
+            width: 100%;
+            height: 80px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 2px solid #333;
+        }
+
+        .color-label {
+            font-size: 12px;
+            color: #ccc;
+            font-family: 'Courier New', monospace;
+        }
+
+        .notes {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #FFD700;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .notes ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .notes li {
+            margin: 8px 0;
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            .spec-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Card Specification Templates</h1>
+        <div class="subtitle">Exact measurements for AI generation reference - Use these as visual guides</div>
+
+        <div class="spec-grid">
+            <!-- Number Card Template -->
+            <div class="spec-card">
+                <h2>Number Card Template</h2>
+                <p style="text-align: center; color: #ccc; margin-bottom: 20px;">
+                    (6-10 of all suits)
+                </p>
+
+                <svg viewBox="0 0 512 768" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Background -->
+                    <defs>
+                        <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#FFF5E6;stop-opacity:1" />
+                            <stop offset="50%" style="stop-color:#FFE8D6;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#FFF9F0;stop-opacity:1" />
+                        </linearGradient>
+
+                        <pattern id="kente" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <rect width="20" height="20" fill="transparent"/>
+                            <line x1="0" y1="0" x2="0" y2="20" stroke="rgba(229, 57, 53, 0.15)" stroke-width="2"/>
+                            <line x1="0" y1="0" x2="20" y2="0" stroke="rgba(251, 192, 45, 0.1)" stroke-width="2"/>
+                        </pattern>
+                    </defs>
+
+                    <!-- Card background with rounded corners -->
+                    <rect x="4" y="4" width="504" height="760" rx="24" ry="24" fill="url(#bg-gradient)" stroke="#FFD700" stroke-width="4"/>
+
+                    <!-- Kente pattern overlay -->
+                    <rect x="50" y="80" width="412" height="608" rx="12" ry="12" fill="url(#kente)" opacity="0.7"/>
+
+                    <!-- Measurement lines and labels -->
+                    <!-- Overall dimensions -->
+                    <line x1="520" y1="4" x2="520" y2="764" stroke="#FF6347" stroke-width="2" stroke-dasharray="5,5"/>
+                    <text x="530" y="384" fill="#FF6347" font-size="14" font-family="monospace">768px</text>
+
+                    <line x1="4" y1="775" x2="508" y2="775" stroke="#FF6347" stroke-width="2" stroke-dasharray="5,5"/>
+                    <text x="256" y="795" fill="#FF6347" font-size="14" text-anchor="middle" font-family="monospace">512px</text>
+
+                    <!-- Border radius indicator -->
+                    <circle cx="28" cy="28" r="3" fill="#FFD700"/>
+                    <line x1="28" y1="28" x2="28" y2="4" stroke="#FFD700" stroke-width="1"/>
+                    <line x1="28" y1="28" x2="4" y2="28" stroke="#FFD700" stroke-width="1"/>
+                    <text x="35" y="25" fill="#FFD700" font-size="12" font-family="monospace">24px radius</text>
+
+                    <!-- Corner indicator (top-left) -->
+                    <g transform="translate(30, 30)">
+                        <rect x="-5" y="-5" width="70" height="90" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="3,3"/>
+                        <text x="0" y="25" fill="#FF4500" font-size="40" font-weight="900" font-family="Arial">6</text>
+                        <text x="5" y="65" fill="#FF4500" font-size="28" font-weight="900">♥</text>
+                        <text x="75" y="40" fill="#00FFFF" font-size="11" font-family="monospace">40px value</text>
+                        <text x="75" y="65" fill="#00FFFF" font-size="11" font-family="monospace">28px suit</text>
+                    </g>
+
+                    <!-- Corner indicator (bottom-right) - rotated -->
+                    <g transform="translate(482, 738) rotate(180)">
+                        <rect x="-5" y="-5" width="70" height="90" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="3,3"/>
+                        <text x="0" y="25" fill="#FF4500" font-size="40" font-weight="900" font-family="Arial">6</text>
+                        <text x="5" y="65" fill="#FF4500" font-size="28" font-weight="900">♥</text>
+                    </g>
+
+                    <!-- Center symbol -->
+                    <g transform="translate(256, 384)">
+                        <circle cx="0" cy="0" r="85" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5"/>
+                        <text x="0" y="60" fill="#FF4500" font-size="160" text-anchor="middle" font-weight="900">♥</text>
+                        <text x="0" y="-95" fill="#00FFFF" font-size="12" text-anchor="middle" font-family="monospace">160px symbol</text>
+                        <text x="0" y="-108" fill="#00FFFF" font-size="12" text-anchor="middle" font-family="monospace">(60% of card height)</text>
+                    </g>
+
+                    <!-- Border width indicator -->
+                    <line x1="4" y1="50" x2="8" y2="50" stroke="#FFD700" stroke-width="4"/>
+                    <text x="12" y="53" fill="#FFD700" font-size="11" font-family="monospace">4px border</text>
+                </svg>
+
+                <div class="measurements">
+                    <h3>Key Measurements</h3>
+                    <p><strong>Card Dimensions:</strong> 512px × 768px (2:3 ratio)</p>
+                    <p><strong>Border Radius:</strong> 24px (rounded corners)</p>
+                    <p><strong>Border Width:</strong> 4px solid gold (#FFD700)</p>
+                    <p><strong>Corner Value:</strong> 40px (Orbitron Black/900)</p>
+                    <p><strong>Corner Suit:</strong> 28px suit symbol</p>
+                    <p><strong>Corner Position:</strong> 20-30px from edges</p>
+                    <p><strong>Center Symbol:</strong> 160px (60% of card height)</p>
+                    <p><strong>Pattern Opacity:</strong> 10% (subtle background)</p>
+                </div>
+
+                <div class="notes">
+                    <h3>Design Notes</h3>
+                    <ul>
+                        <li>Suit symbol should DOMINATE the card - make it LARGE</li>
+                        <li>Kente pattern should be visible but subtle (background texture only)</li>
+                        <li>Corner indicators readable even at thumbnail size</li>
+                        <li>Gold border must be prominent and metallic</li>
+                        <li>Warm cream background, NOT pure white</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Face Card Template -->
+            <div class="spec-card">
+                <h2>Face Card Template</h2>
+                <p style="text-align: center; color: #ccc; margin-bottom: 20px;">
+                    (Jack, Queen, King of all suits)
+                </p>
+
+                <svg viewBox="0 0 512 768" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Background -->
+                    <rect x="4" y="4" width="504" height="760" rx="24" ry="24" fill="url(#bg-gradient)" stroke="#FFD700" stroke-width="4"/>
+
+                    <!-- Kente pattern (more visible for face cards) -->
+                    <rect x="50" y="80" width="412" height="608" rx="12" ry="12" fill="url(#kente)" opacity="0.85"/>
+
+                    <!-- Corner indicators -->
+                    <g transform="translate(30, 30)">
+                        <text x="0" y="25" fill="#FF4500" font-size="40" font-weight="900" font-family="Arial">K</text>
+                        <text x="5" y="65" fill="#FF4500" font-size="28" font-weight="900">♥</text>
+                    </g>
+
+                    <g transform="translate(482, 738) rotate(180)">
+                        <text x="0" y="25" fill="#FF4500" font-size="40" font-weight="900" font-family="Arial">K</text>
+                        <text x="5" y="65" fill="#FF4500" font-size="28" font-weight="900">♥</text>
+                    </g>
+
+                    <!-- Portrait area -->
+                    <g transform="translate(256, 384)">
+                        <!-- Portrait boundary -->
+                        <rect x="-140" y="-230" width="280" height="460" rx="12" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5"/>
+                        <text x="0" y="-245" fill="#00FFFF" font-size="12" text-anchor="middle" font-family="monospace">Portrait Area: 280×460px</text>
+
+                        <!-- Character circle (head) -->
+                        <circle cx="0" cy="-50" r="90" fill="none" stroke="#00FFFF" stroke-width="2"/>
+                        <text x="0" y="-45" fill="#888" font-size="80" text-anchor="middle">👑</text>
+                        <text x="105" y="-50" fill="#00FFFF" font-size="11" font-family="monospace">Character</text>
+                        <text x="105" y="-38" fill="#00FFFF" font-size="11" font-family="monospace">portrait</text>
+
+                        <!-- Title area -->
+                        <rect x="-100" y="-180" width="200" height="60" fill="none" stroke="#FF6347" stroke-width="1" stroke-dasharray="3,3"/>
+                        <text x="0" y="-140" fill="#FF4500" font-size="48" text-anchor="middle" font-weight="900" font-family="Arial">KING</text>
+                        <text x="0" y="-195" fill="#FF6347" font-size="11" text-anchor="middle" font-family="monospace">Title: 48px Bebas Neue</text>
+
+                        <!-- Rank label -->
+                        <text x="0" y="100" fill="#1C1C1C" font-size="18" text-anchor="middle" font-family="Arial">WISE ELDER</text>
+                        <text x="0" y="120" fill="#00FFFF" font-size="11" text-anchor="middle" font-family="monospace">Rank: 18px Barlow</text>
+                    </g>
+                </svg>
+
+                <div class="measurements">
+                    <h3>Key Measurements</h3>
+                    <p><strong>Portrait Area:</strong> 280px × 460px (60% of card)</p>
+                    <p><strong>Title Font:</strong> 48px Bebas Neue (KING/QUEEN/JACK)</p>
+                    <p><strong>Character Size:</strong> ~180px diameter (head/shoulders)</p>
+                    <p><strong>Rank Label:</strong> 18px Barlow Semi-Bold</p>
+                    <p><strong>Pattern Opacity:</strong> 20% (more visible than number cards)</p>
+                    <p><strong>Corner Indicators:</strong> Same as number cards (40px/28px)</p>
+                </div>
+
+                <div class="notes">
+                    <h3>Character Design Notes</h3>
+                    <ul>
+                        <li><strong>Jack:</strong> Young warrior (20s), athletic, energetic</li>
+                        <li><strong>Queen:</strong> Regal leader (30s), elegant, commanding</li>
+                        <li><strong>King:</strong> Wise elder (40s+), authoritative, powerful</li>
+                        <li>Modern African fashion with geometric patterns</li>
+                        <li>Direct eye contact, frontal pose</li>
+                        <li>Comic book/arcade style, NOT photorealistic</li>
+                        <li>Bold black outlines (4px), cel-shaded rendering</li>
+                        <li>Suit color in clothing, gold accents on regalia</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Ace Card Template -->
+            <div class="spec-card">
+                <h2>Ace Card Template (Premium)</h2>
+                <p style="text-align: center; color: #ccc; margin-bottom: 20px;">
+                    (Aces of Hearts, Clubs, Diamonds - NO Spades Ace)
+                </p>
+
+                <svg viewBox="0 0 512 768" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Background -->
+                    <rect x="3" y="3" width="506" height="762" rx="24" ry="24" fill="url(#bg-gradient)" stroke="#FFD700" stroke-width="6"/>
+
+                    <!-- Enhanced border -->
+                    <rect x="9" y="9" width="494" height="750" rx="20" ry="20" fill="none" stroke="#D4AF37" stroke-width="2"/>
+
+                    <!-- Premium Kente pattern -->
+                    <rect x="50" y="80" width="412" height="608" rx="12" ry="12" fill="url(#kente)" opacity="0.8"/>
+
+                    <!-- Art Deco corner decorations -->
+                    <path d="M 20 20 L 60 20 L 60 30 L 30 30 L 30 60 L 20 60 Z" fill="#FFD700" opacity="0.5"/>
+                    <path d="M 492 748 L 452 748 L 452 738 L 482 738 L 482 708 L 492 708 Z" fill="#FFD700" opacity="0.5"/>
+
+                    <!-- Corner indicators (larger) -->
+                    <g transform="translate(30, 30)">
+                        <rect x="-5" y="-5" width="75" height="95" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="3,3"/>
+                        <text x="0" y="30" fill="#FF4500" font-size="48" font-weight="900" font-family="Arial">A</text>
+                        <text x="5" y="75" fill="#FF4500" font-size="32" font-weight="900">♥</text>
+                        <text x="80" y="40" fill="#00FFFF" font-size="11" font-family="monospace">48px (larger)</text>
+                        <text x="80" y="75" fill="#00FFFF" font-size="11" font-family="monospace">32px suit</text>
+                    </g>
+
+                    <g transform="translate(482, 738) rotate(180)">
+                        <text x="0" y="30" fill="#FF4500" font-size="48" font-weight="900" font-family="Arial">A</text>
+                        <text x="5" y="75" fill="#FF4500" font-size="32" font-weight="900">♥</text>
+                    </g>
+
+                    <!-- Center symbol (EXTRA LARGE) -->
+                    <g transform="translate(256, 384)">
+                        <circle cx="0" cy="0" r="110" fill="none" stroke="#00FFFF" stroke-width="2" stroke-dasharray="5,5"/>
+                        <text x="0" y="75" fill="#FF4500" font-size="192" text-anchor="middle" font-weight="900">♥</text>
+                        <text x="0" y="-125" fill="#00FFFF" font-size="12" text-anchor="middle" font-family="monospace">192px PREMIUM symbol</text>
+                        <text x="0" y="-138" fill="#00FFFF" font-size="12" text-anchor="middle" font-family="monospace">(70% of card height)</text>
+
+                        <!-- Glow indicator -->
+                        <circle cx="0" cy="20" r="125" fill="none" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+                        <text x="0" y="-152" fill="#FFD700" font-size="11" text-anchor="middle" font-family="monospace">Enhanced 12px glow @ 70%</text>
+                    </g>
+
+                    <!-- Border width indicator -->
+                    <line x1="3" y1="50" x2="9" y2="50" stroke="#FFD700" stroke-width="6"/>
+                    <text x="13" y="53" fill="#FFD700" font-size="11" font-family="monospace">6px border</text>
+                </svg>
+
+                <div class="measurements">
+                    <h3>Premium Measurements</h3>
+                    <p><strong>Border Width:</strong> 6px (thicker than other cards)</p>
+                    <p><strong>Border Style:</strong> Gradient #FFD700 → #D4AF37</p>
+                    <p><strong>Corner Value:</strong> 48px (larger than other cards)</p>
+                    <p><strong>Corner Suit:</strong> 32px (larger than other cards)</p>
+                    <p><strong>Center Symbol:</strong> 192px (70% of card, MASSIVE)</p>
+                    <p><strong>Pattern Opacity:</strong> 15% (ornate, more visible)</p>
+                    <p><strong>Glow Effect:</strong> 12px blur @ 70% opacity</p>
+                    <p><strong>Art Deco Corners:</strong> Gold geometric flourishes</p>
+                </div>
+
+                <div class="notes">
+                    <h3>Premium Design Notes</h3>
+                    <ul>
+                        <li>MOST IMPRESSIVE card in the deck - go BIG</li>
+                        <li>Symbol should have gradient mesh (red → orange → gold)</li>
+                        <li>Metallic sheen with reflective highlights</li>
+                        <li>Enhanced neon glow (stronger than other cards)</li>
+                        <li>Slight 3D depth effect with shadow</li>
+                        <li>Art Deco geometric patterns in corners</li>
+                        <li>More ornate Kente pattern than other cards</li>
+                        <li>MAXIMUM visual impact - show-stopping design</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Color Palettes -->
+        <div class="spec-card">
+            <h2>Color Palettes by Suit</h2>
+
+            <h3>Hearts (Passion/Fire)</h3>
+            <div class="color-palette">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FF4500;"></div>
+                    <div class="color-label">#FF4500<br>Fire Red</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FF6347;"></div>
+                    <div class="color-label">#FF6347<br>Orange Red</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFD700;"></div>
+                    <div class="color-label">#FFD700<br>Gold Accent</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFF5E6;"></div>
+                    <div class="color-label">#FFF5E6<br>Cream BG</div>
+                </div>
+            </div>
+
+            <h3>Clubs (Strength/Nature)</h3>
+            <div class="color-palette">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #2F4F2F;"></div>
+                    <div class="color-label">#2F4F2F<br>Dark Green</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #228B22;"></div>
+                    <div class="color-label">#228B22<br>Forest Green</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFD700;"></div>
+                    <div class="color-label">#FFD700<br>Gold Accent</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFF5E6;"></div>
+                    <div class="color-label">#FFF5E6<br>Cream BG</div>
+                </div>
+            </div>
+
+            <h3>Diamonds (Wealth/Prosperity)</h3>
+            <div class="color-palette">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FF4500;"></div>
+                    <div class="color-label">#FF4500<br>Fire Red</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFD700;"></div>
+                    <div class="color-label">#FFD700<br>Gold</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFBF00;"></div>
+                    <div class="color-label">#FFBF00<br>Amber</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFF5E6;"></div>
+                    <div class="color-label">#FFF5E6<br>Cream BG</div>
+                </div>
+            </div>
+
+            <h3>Spades (Wisdom/Strategy)</h3>
+            <div class="color-palette">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #1C1C1C;"></div>
+                    <div class="color-label">#1C1C1C<br>Near Black</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #4A4A4A;"></div>
+                    <div class="color-label">#4A4A4A<br>Dark Gray</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFD700;"></div>
+                    <div class="color-label">#FFD700<br>Gold Accent</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFF5E6;"></div>
+                    <div class="color-label">#FFF5E6<br>Cream BG</div>
+                </div>
+            </div>
+
+            <h3>Kente Pattern Colors (All Suits)</h3>
+            <div class="color-palette">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FBC02D;"></div>
+                    <div class="color-label">#FBC02D<br>Kente Gold</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #8B4513;"></div>
+                    <div class="color-label">#8B4513<br>Kente Brown</div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #A0522D;"></div>
+                    <div class="color-label">#A0522D<br>Kente Tan</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="spec-card">
+            <h2>Quick Reference Checklist</h2>
+            <div class="notes">
+                <h3>Before You Start Generating</h3>
+                <ul>
+                    <li>✅ Card dimensions: 512×768px (2:3 aspect ratio)</li>
+                    <li>✅ Background: Warm cream gradient (NOT pure white)</li>
+                    <li>✅ Border: 4px gold #FFD700 (6px for aces)</li>
+                    <li>✅ Corners: 24px radius for rounded edges</li>
+                    <li>✅ Suit symbol: LARGE and centered (160px for numbers, 192px for aces)</li>
+                    <li>✅ Corner indicators: 40px value + 28px suit (48px/32px for aces)</li>
+                    <li>✅ Kente pattern: Subtle at 10-20% opacity</li>
+                    <li>✅ Style: Bold arcade, cel-shaded, NOT photorealistic</li>
+                    <li>✅ Colors: Match suit palette exactly</li>
+                    <li>✅ Energy: Vibrant and bold, NOT subtle or corporate</li>
+                </ul>
+
+                <h3>After AI Generation</h3>
+                <ul>
+                    <li>✅ Resize to EXACTLY 512×768px</li>
+                    <li>✅ Add/fix corner indicators if needed</li>
+                    <li>✅ Enhance Kente pattern if too subtle</li>
+                    <li>✅ Check gold border is visible</li>
+                    <li>✅ Adjust colors to match theme</li>
+                    <li>✅ Export as PNG-24 with transparency</li>
+                    <li>✅ Compress to <100KB with TinyPNG</li>
+                    <li>✅ Rename properly ([suit]_[value].png)</li>
+                    <li>✅ Save to correct folder</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

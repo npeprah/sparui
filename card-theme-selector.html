@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spar Card Theme Selector - Choose Your Style</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Righteous&family=Orbitron:wght@700;900&family=Barlow:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Barlow', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a, #1a1a2e, #16213e);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .main-title {
+            font-family: 'Righteous', cursive;
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            background: linear-gradient(135deg, #FFD700, #FF4500, #FFD700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            color: #FFD700;
+            letter-spacing: 4px;
+        }
+
+        .instructions {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            text-align: center;
+        }
+
+        .instructions p {
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        /* Theme Selector Buttons */
+        .theme-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px auto;
+            max-width: 1200px;
+        }
+
+        .theme-btn {
+            padding: 15px 30px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+
+        .theme-btn.active {
+            border-color: #FFD700;
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+            transform: scale(1.05);
+        }
+
+        /* Theme specific button colors */
+        .theme-btn[data-theme="afro-heritage"] { border-color: #FBC02D; }
+        .theme-btn[data-theme="neon-arcade"] { border-color: #00FFFF; }
+        .theme-btn[data-theme="sunset-fire"] { border-color: #FF6347; }
+        .theme-btn[data-theme="royal-gold"] { border-color: #8B00FF; }
+        .theme-btn[data-theme="ocean-breeze"] { border-color: #40E0D0; }
+        .theme-btn[data-theme="festival-drums"] { border-color: #FF1493; }
+
+        .theme-btn.active[data-theme="afro-heritage"] {
+            border-color: #FBC02D;
+            box-shadow: 0 0 30px rgba(251, 192, 45, 0.6);
+        }
+        .theme-btn.active[data-theme="neon-arcade"] {
+            border-color: #00FFFF;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+        }
+        .theme-btn.active[data-theme="sunset-fire"] {
+            border-color: #FF6347;
+            box-shadow: 0 0 30px rgba(255, 99, 71, 0.6);
+        }
+        .theme-btn.active[data-theme="royal-gold"] {
+            border-color: #8B00FF;
+            box-shadow: 0 0 30px rgba(139, 0, 255, 0.6);
+        }
+        .theme-btn.active[data-theme="ocean-breeze"] {
+            border-color: #40E0D0;
+            box-shadow: 0 0 30px rgba(64, 224, 208, 0.6);
+        }
+        .theme-btn.active[data-theme="festival-drums"] {
+            border-color: #FF1493;
+            box-shadow: 0 0 30px rgba(255, 20, 147, 0.6);
+        }
+
+        /* Card Showcase */
+        .card-showcase {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            max-width: 1400px;
+            margin: 60px auto;
+            perspective: 2000px;
+        }
+
+        .card {
+            width: 280px;
+            height: 420px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.6s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-20px) scale(1.05);
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .card-border {
+            position: absolute;
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        .border-top-left {
+            top: 6px;
+            left: 6px;
+            width: 50px;
+            height: 50px;
+            border-radius: 16px 0 0 0;
+        }
+
+        .border-bottom-right {
+            bottom: 6px;
+            right: 6px;
+            width: 50px;
+            height: 50px;
+            border-radius: 0 0 16px 0;
+        }
+
+        .corner {
+            position: absolute;
+            z-index: 10;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .corner-top-left {
+            top: 12px;
+            left: 12px;
+        }
+
+        .corner-bottom-right {
+            bottom: 12px;
+            right: 12px;
+            transform: rotate(180deg);
+        }
+
+        .corner-value {
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        .corner-suit {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+
+        .card-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .suit-symbol {
+            font-size: 8rem;
+            position: relative;
+            animation: suitPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes suitPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .face-card .card-center {
+            width: 90%;
+            height: 85%;
+        }
+
+        .character-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+            z-index: 10;
+        }
+
+        .character-icon {
+            font-size: 6rem;
+            margin: 15px 0;
+        }
+
+        .character-desc {
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-align: center;
+            max-width: 180px;
+            line-height: 1.3;
+        }
+
+        .card-label {
+            position: absolute;
+            bottom: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            white-space: nowrap;
+        }
+
+        .theme-description {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-description h3 {
+            font-family: 'Righteous', cursive;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .theme-description p {
+            line-height: 1.8;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .color-swatch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .color-box {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .color-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* ==================== THEME 1: AFRO-HERITAGE ==================== */
+        .theme-afro-heritage .card-inner {
+            background: linear-gradient(135deg, #FFF9F0 0%, #FFE8D6 50%, #FFF5E6 100%);
+            border: 4px solid #FBC02D;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 69, 0, 0.3);
+        }
+
+        .theme-afro-heritage .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(229, 57, 53, 0.15) 10px, rgba(229, 57, 53, 0.15) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(251, 192, 45, 0.1) 10px, rgba(251, 192, 45, 0.1) 20px),
+                repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(255, 69, 0, 0.08) 15px, rgba(255, 69, 0, 0.08) 30px);
+            opacity: 0.7;
+            border-radius: 10px;
+            z-index: 1;
+        }
+
+        .theme-afro-heritage .corner-value {
+            color: #FF4500;
+            text-shadow: 2px 2px 0 #DC143C, 0 0 10px rgba(255, 69, 0, 0.6);
+        }
+
+        .theme-afro-heritage .corner-suit {
+            color: #FF4500;
+        }
+
+        .theme-afro-heritage .suit-symbol {
+            color: #FF4500;
+            filter: drop-shadow(0 6px 12px rgba(220, 20, 60, 0.5));
+        }
+
+        .theme-afro-heritage .character-title {
+            color: #FF4500;
+            text-shadow: 2px 2px 0 #212121, 0 0 15px rgba(255, 215, 0, 0.6);
+        }
+
+        .theme-afro-heritage .character-desc {
+            color: #212121;
+            opacity: 0.8;
+        }
+
+        .theme-afro-heritage .border-top-left {
+            border-top: 3px solid #FFD700;
+            border-left: 3px solid #FFD700;
+            box-shadow: inset 2px 2px 6px rgba(255, 215, 0, 0.4);
+        }
+
+        .theme-afro-heritage .border-bottom-right {
+            border-bottom: 3px solid #FFD700;
+            border-right: 3px solid #FFD700;
+            box-shadow: inset -2px -2px 6px rgba(255, 215, 0, 0.4);
+        }
+
+        .theme-afro-heritage .card-label {
+            color: #FFD700;
+            text-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+        }
+
+        /* ==================== THEME 2: NEON ARCADE ==================== */
+        .theme-neon-arcade .card-inner {
+            background: linear-gradient(135deg, #FFFFFF 0%, #FFF5FF 30%, #FFFAFF 60%, #FFFFFF 100%);
+            border: 4px solid #FFD700;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 255, 255, 0.4), 0 0 40px rgba(255, 0, 255, 0.3);
+        }
+
+        .theme-neon-arcade .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(0, 255, 255, 0.12) 10px, rgba(0, 255, 255, 0.12) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255, 0, 255, 0.10) 10px, rgba(255, 0, 255, 0.10) 20px),
+                repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(204, 255, 0, 0.08) 15px, rgba(204, 255, 0, 0.08) 30px);
+            opacity: 0.9;
+            border-radius: 10px;
+            z-index: 1;
+        }
+
+        .theme-neon-arcade .corner-value {
+            background: linear-gradient(135deg, #FF4500, #FF00FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(255, 0, 85, 0.8)) drop-shadow(0 0 12px rgba(255, 69, 0, 0.8));
+        }
+
+        .theme-neon-arcade .corner-suit {
+            color: #FF00FF;
+            filter: drop-shadow(0 0 8px rgba(255, 20, 147, 0.8));
+        }
+
+        .theme-neon-arcade .suit-symbol {
+            background: linear-gradient(135deg, #FF4500, #FF00FF, #00FFFF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 6px 15px rgba(255, 0, 85, 0.7)) drop-shadow(0 0 30px rgba(0, 255, 255, 0.5));
+        }
+
+        .theme-neon-arcade .character-title {
+            background: linear-gradient(90deg, #FF4500, #FF00FF, #00FFFF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5)) drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+        }
+
+        .theme-neon-arcade .character-desc {
+            background: linear-gradient(135deg, #FF00FF, #00FFFF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-neon-arcade .border-top-left {
+            border-top: 3px solid #00FFFF;
+            border-left: 3px solid #00FFFF;
+            box-shadow: inset 2px 2px 10px rgba(0, 255, 255, 0.6);
+            animation: neonPulse1 2s ease-in-out infinite;
+        }
+
+        .theme-neon-arcade .border-bottom-right {
+            border-bottom: 3px solid #FF00FF;
+            border-right: 3px solid #FF00FF;
+            box-shadow: inset -2px -2px 10px rgba(255, 0, 255, 0.6);
+            animation: neonPulse2 2s ease-in-out infinite 0.5s;
+        }
+
+        @keyframes neonPulse1 {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; box-shadow: inset 2px 2px 16px rgba(0, 255, 255, 1); }
+        }
+
+        @keyframes neonPulse2 {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; box-shadow: inset -2px -2px 16px rgba(255, 0, 255, 1); }
+        }
+
+        .theme-neon-arcade .card-label {
+            background: linear-gradient(90deg, #00FFFF, #CCFF00, #FF00FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 8px rgba(0, 255, 255, 0.8));
+        }
+
+        /* ==================== THEME 3: SUNSET FIRE ==================== */
+        .theme-sunset-fire .card-inner {
+            background: linear-gradient(135deg, #FFF5E1 0%, #FFDAB9 30%, #FFE4C4 60%, #FFF5E1 100%);
+            border: 4px solid #FF8C00;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 99, 71, 0.5);
+        }
+
+        .theme-sunset-fire .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(255, 99, 71, 0.12) 10px, rgba(255, 99, 71, 0.12) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255, 140, 0, 0.10) 10px, rgba(255, 140, 0, 0.10) 20px),
+                repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(255, 215, 0, 0.08) 15px, rgba(255, 215, 0, 0.08) 30px);
+            opacity: 0.8;
+            border-radius: 10px;
+            z-index: 1;
+        }
+
+        .theme-sunset-fire .corner-value {
+            background: linear-gradient(135deg, #FF4500, #FF8C00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(220, 20, 60, 0.6)) drop-shadow(0 0 10px rgba(255, 140, 0, 0.8));
+        }
+
+        .theme-sunset-fire .corner-suit {
+            color: #FF6347;
+            filter: drop-shadow(0 0 8px rgba(255, 99, 71, 0.8));
+        }
+
+        .theme-sunset-fire .suit-symbol {
+            background: linear-gradient(135deg, #FF4500, #FF6347, #FFD700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 6px 15px rgba(255, 69, 0, 0.6)) drop-shadow(0 0 25px rgba(255, 140, 0, 0.5));
+        }
+
+        .theme-sunset-fire .character-title {
+            background: linear-gradient(90deg, #FF4500, #FF6347, #FF8C00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(139, 0, 0, 0.4)) drop-shadow(0 0 15px rgba(255, 140, 0, 0.8));
+        }
+
+        .theme-sunset-fire .character-desc {
+            background: linear-gradient(135deg, #FF6347, #FF8C00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-sunset-fire .border-top-left {
+            border-top: 3px solid #FFD700;
+            border-left: 3px solid #FFD700;
+            box-shadow: inset 2px 2px 8px rgba(255, 215, 0, 0.5);
+        }
+
+        .theme-sunset-fire .border-bottom-right {
+            border-bottom: 3px solid #FF8C00;
+            border-right: 3px solid #FF8C00;
+            box-shadow: inset -2px -2px 8px rgba(255, 140, 0, 0.5);
+        }
+
+        .theme-sunset-fire .card-label {
+            background: linear-gradient(90deg, #FF6347, #FF8C00, #FFD700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 8px rgba(255, 140, 0, 0.6));
+        }
+
+        /* ==================== THEME 4: ROYAL GOLD ==================== */
+        .theme-royal-gold .card-inner {
+            background: linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 30%, #3a1f5d 60%, #1a0a2e 100%);
+            border: 4px solid #FFD700;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7), 0 0 30px rgba(139, 0, 255, 0.5), 0 0 50px rgba(255, 215, 0, 0.3);
+        }
+
+        .theme-royal-gold .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(255, 215, 0, 0.15) 10px, rgba(255, 215, 0, 0.15) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(139, 0, 255, 0.12) 10px, rgba(139, 0, 255, 0.12) 20px),
+                repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(218, 165, 32, 0.10) 15px, rgba(218, 165, 32, 0.10) 30px);
+            opacity: 0.8;
+            border-radius: 10px;
+            z-index: 1;
+        }
+
+        .theme-royal-gold .corner-value {
+            background: linear-gradient(135deg, #FFD700, #DAA520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(139, 0, 255, 0.6)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.9));
+        }
+
+        .theme-royal-gold .corner-suit {
+            color: #FFD700;
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.9));
+        }
+
+        .theme-royal-gold .suit-symbol {
+            background: linear-gradient(135deg, #FFD700, #8B00FF, #DAA520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 6px 15px rgba(139, 0, 255, 0.7)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.6));
+        }
+
+        .theme-royal-gold .character-title {
+            background: linear-gradient(90deg, #FFD700, #8B00FF, #DAA520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.8)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.9));
+        }
+
+        .theme-royal-gold .character-desc {
+            background: linear-gradient(135deg, #FFD700, #DAA520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-royal-gold .border-top-left {
+            border-top: 3px solid #FFD700;
+            border-left: 3px solid #FFD700;
+            box-shadow: inset 2px 2px 10px rgba(255, 215, 0, 0.6);
+        }
+
+        .theme-royal-gold .border-bottom-right {
+            border-bottom: 3px solid #8B00FF;
+            border-right: 3px solid #8B00FF;
+            box-shadow: inset -2px -2px 10px rgba(139, 0, 255, 0.6);
+        }
+
+        .theme-royal-gold .card-label {
+            background: linear-gradient(90deg, #FFD700, #8B00FF, #DAA520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 10px rgba(255, 215, 0, 0.8));
+        }
+
+        /* ==================== THEME 5: OCEAN BREEZE ==================== */
+        .theme-ocean-breeze .card-inner {
+            background: linear-gradient(135deg, #E0FFFF 0%, #AFEEEE 30%, #B0E0E6 60%, #E0FFFF 100%);
+            border: 4px solid #20B2AA;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(64, 224, 208, 0.5);
+        }
+
+        .theme-ocean-breeze .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(64, 224, 208, 0.12) 10px, rgba(64, 224, 208, 0.12) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(0, 206, 209, 0.10) 10px, rgba(0, 206, 209, 0.10) 20px),
+                repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(32, 178, 170, 0.08) 15px, rgba(32, 178, 170, 0.08) 30px);
+            opacity: 0.8;
+            border-radius: 10px;
+            z-index: 1;
+        }
+
+        .theme-ocean-breeze .corner-value {
+            background: linear-gradient(135deg, #008B8B, #20B2AA);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(0, 139, 139, 0.6)) drop-shadow(0 0 10px rgba(64, 224, 208, 0.8));
+        }
+
+        .theme-ocean-breeze .corner-suit {
+            color: #00CED1;
+            filter: drop-shadow(0 0 8px rgba(0, 206, 209, 0.8));
+        }
+
+        .theme-ocean-breeze .suit-symbol {
+            background: linear-gradient(135deg, #008B8B, #40E0D0, #7FFFD4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 6px 15px rgba(0, 139, 139, 0.6)) drop-shadow(0 0 25px rgba(64, 224, 208, 0.5));
+        }
+
+        .theme-ocean-breeze .character-title {
+            background: linear-gradient(90deg, #008B8B, #40E0D0, #20B2AA);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(0, 100, 100, 0.5)) drop-shadow(0 0 15px rgba(64, 224, 208, 0.8));
+        }
+
+        .theme-ocean-breeze .character-desc {
+            background: linear-gradient(135deg, #00CED1, #40E0D0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-ocean-breeze .border-top-left {
+            border-top: 3px solid #40E0D0;
+            border-left: 3px solid #40E0D0;
+            box-shadow: inset 2px 2px 8px rgba(64, 224, 208, 0.5);
+        }
+
+        .theme-ocean-breeze .border-bottom-right {
+            border-bottom: 3px solid #20B2AA;
+            border-right: 3px solid #20B2AA;
+            box-shadow: inset -2px -2px 8px rgba(32, 178, 170, 0.5);
+        }
+
+        .theme-ocean-breeze .card-label {
+            background: linear-gradient(90deg, #40E0D0, #7FFFD4, #00CED1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 8px rgba(64, 224, 208, 0.6));
+        }
+
+        /* ==================== THEME 6: FESTIVAL DRUMS ==================== */
+        .theme-festival-drums .card-inner {
+            background: linear-gradient(135deg, #FFF8DC 0%, #FFEFD5 20%, #FFE4E1 40%, #E6E6FA 60%, #F0FFF0 80%, #FFF8DC 100%);
+            border: 4px solid #FF1493;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 20, 147, 0.4);
+        }
+
+        .theme-festival-drums .card-inner::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 10px, rgba(255, 20, 147, 0.12) 10px, rgba(255, 20, 147, 0.12) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255, 215, 0, 0.10) 10px, rgba(255, 215, 0, 0.10) 20px),
+                repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(50, 205, 50, 0.08) 15px, rgba(50, 205, 50, 0.08) 30px),
+                repeating-linear-gradient(-45deg, transparent, transparent 12px, rgba(138, 43, 226, 0.08) 12px, rgba(138, 43, 226, 0.08) 24px);
+            opacity: 0.8;
+            border-radius: 10px;
+            z-index: 1;
+        }
+
+        .theme-festival-drums .corner-value {
+            background: linear-gradient(135deg, #FF1493, #FFD700, #32CD32);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(2px 2px 0 rgba(255, 20, 147, 0.6)) drop-shadow(0 0 10px rgba(255, 215, 0, 0.7));
+        }
+
+        .theme-festival-drums .corner-suit {
+            background: linear-gradient(135deg, #FF1493, #8A2BE2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 8px rgba(255, 20, 147, 0.8));
+        }
+
+        .theme-festival-drums .suit-symbol {
+            background: linear-gradient(135deg, #FF1493, #FFD700, #32CD32, #8A2BE2);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: rainbowShift 3s ease infinite;
+            filter: drop-shadow(0 6px 15px rgba(255, 20, 147, 0.6)) drop-shadow(0 0 25px rgba(255, 215, 0, 0.4));
+        }
+
+        @keyframes rainbowShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .theme-festival-drums .character-title {
+            background: linear-gradient(90deg, #FF1493, #FFD700, #32CD32, #8A2BE2);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: rainbowShift 3s ease infinite;
+            filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.4)) drop-shadow(0 0 15px rgba(255, 20, 147, 0.8));
+        }
+
+        .theme-festival-drums .character-desc {
+            background: linear-gradient(135deg, #FF1493, #FFD700, #32CD32);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .theme-festival-drums .border-top-left {
+            border-top: 3px solid #FFD700;
+            border-left: 3px solid #FFD700;
+            box-shadow: inset 2px 2px 8px rgba(255, 215, 0, 0.5);
+        }
+
+        .theme-festival-drums .border-bottom-right {
+            border-bottom: 3px solid #FF1493;
+            border-right: 3px solid #FF1493;
+            box-shadow: inset -2px -2px 8px rgba(255, 20, 147, 0.5);
+        }
+
+        .theme-festival-drums .card-label {
+            background: linear-gradient(90deg, #FF1493, #FFD700, #32CD32, #8A2BE2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 8px rgba(255, 20, 147, 0.6));
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .card-showcase {
+                flex-direction: column;
+                gap: 60px;
+            }
+
+            .card {
+                width: 240px;
+                height: 360px;
+            }
+
+            .suit-symbol {
+                font-size: 6rem;
+            }
+
+            .theme-selector {
+                flex-direction: column;
+            }
+
+            .theme-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="main-title">🃏 SPAR THEME SELECTOR 🃏</h1>
+        <p class="subtitle">Choose Your Perfect Card Design</p>
+    </div>
+
+    <div class="instructions">
+        <p><strong>👇 Click a theme below to preview the card designs</strong></p>
+        <p>Compare all 6 options and select the one that captures the arcade energy you envision for Spar</p>
+    </div>
+
+    <div class="theme-selector">
+        <button class="theme-btn active" data-theme="afro-heritage">
+            1. Afro-Heritage<br><small>(Original - Warm & Cultural)</small>
+        </button>
+        <button class="theme-btn" data-theme="neon-arcade">
+            2. Neon Arcade<br><small>(Electric Bright)</small>
+        </button>
+        <button class="theme-btn" data-theme="sunset-fire">
+            3. Sunset Fire<br><small>(Warm Vibrant)</small>
+        </button>
+        <button class="theme-btn" data-theme="royal-gold">
+            4. Royal Gold<br><small>(Luxe Regal)</small>
+        </button>
+        <button class="theme-btn" data-theme="ocean-breeze">
+            5. Ocean Breeze<br><small>(Cool Refreshing)</small>
+        </button>
+        <button class="theme-btn" data-theme="festival-drums">
+            6. Festival Drums<br><small>(Multi-Color Celebration)</small>
+        </button>
+    </div>
+
+    <div class="card-showcase" id="cardShowcase">
+        <!-- 6 of Hearts -->
+        <div class="card">
+            <div class="card-inner">
+                <div class="card-border border-top-left"></div>
+                <div class="card-border border-bottom-right"></div>
+                <div class="corner corner-top-left">
+                    <div class="corner-value">6</div>
+                    <div class="corner-suit">♥</div>
+                </div>
+                <div class="corner corner-bottom-right">
+                    <div class="corner-value">6</div>
+                    <div class="corner-suit">♥</div>
+                </div>
+                <div class="card-center">
+                    <div class="suit-symbol">♥</div>
+                </div>
+            </div>
+            <div class="card-label">6 OF HEARTS</div>
+        </div>
+
+        <!-- King of Hearts -->
+        <div class="card face-card">
+            <div class="card-inner">
+                <div class="card-border border-top-left"></div>
+                <div class="card-border border-bottom-right"></div>
+                <div class="corner corner-top-left">
+                    <div class="corner-value">K</div>
+                    <div class="corner-suit">♥</div>
+                </div>
+                <div class="corner corner-bottom-right">
+                    <div class="corner-value">K</div>
+                    <div class="corner-suit">♥</div>
+                </div>
+                <div class="card-center">
+                    <div class="character-title">KING</div>
+                    <div class="character-icon">👑</div>
+                    <div class="character-icon" style="font-size: 4.5rem; margin: -15px 0;">♥</div>
+                    <div class="character-desc">
+                        WISE ELDER<br>
+                        POWERFUL AUTHORITY<br>
+                        ANCESTRAL WISDOM
+                    </div>
+                </div>
+            </div>
+            <div class="card-label">KING OF HEARTS</div>
+        </div>
+
+        <!-- Ace of Hearts -->
+        <div class="card">
+            <div class="card-inner">
+                <div class="card-border border-top-left"></div>
+                <div class="card-border border-bottom-right"></div>
+                <div class="corner corner-top-left">
+                    <div class="corner-value">A</div>
+                    <div class="corner-suit">♥</div>
+                </div>
+                <div class="corner corner-bottom-right">
+                    <div class="corner-value">A</div>
+                    <div class="corner-suit">♥</div>
+                </div>
+                <div class="card-center">
+                    <div class="suit-symbol" style="font-size: 9rem;">♥</div>
+                </div>
+            </div>
+            <div class="card-label">ACE OF HEARTS</div>
+        </div>
+    </div>
+
+    <div class="theme-description" id="themeDescription">
+        <h3 id="themeName">1. Afro-Heritage (Original)</h3>
+        <p id="themeDesc">Warm, earthy tones with cream backgrounds and traditional Kente-inspired patterns. Gold accents and fire-red suit symbols create a cultural yet vibrant aesthetic. This is the FIRST version created - combines African heritage with modern card game design.</p>
+
+        <div class="color-palette" id="colorPalette">
+            <div class="color-swatch">
+                <div class="color-box" style="background: #FFF5E6;"></div>
+                <span class="color-name">Cream Base</span>
+            </div>
+            <div class="color-swatch">
+                <div class="color-box" style="background: #FF4500;"></div>
+                <span class="color-name">Fire Red</span>
+            </div>
+            <div class="color-swatch">
+                <div class="color-box" style="background: #FFD700;"></div>
+                <span class="color-name">Gold</span>
+            </div>
+            <div class="color-swatch">
+                <div class="color-box" style="background: #FBC02D;"></div>
+                <span class="color-name">Warm Gold</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const themes = {
+            'afro-heritage': {
+                name: '1. Afro-Heritage (Original)',
+                desc: 'Warm, earthy tones with cream backgrounds and traditional Kente-inspired patterns. Gold accents and fire-red suit symbols create a cultural yet vibrant aesthetic. This is the FIRST version created - combines African heritage with modern card game design.',
+                colors: [
+                    { color: '#FFF5E6', name: 'Cream Base' },
+                    { color: '#FF4500', name: 'Fire Red' },
+                    { color: '#FFD700', name: 'Gold' },
+                    { color: '#FBC02D', name: 'Warm Gold' }
+                ]
+            },
+            'neon-arcade': {
+                name: '2. Neon Arcade',
+                desc: 'Pure electric energy with bright white backgrounds and neon cyan, magenta, and lime accents. Intense glow effects and rainbow gradients create maximum arcade vibrancy. Multiple neon border animations add dynamic visual interest.',
+                colors: [
+                    { color: '#FFFFFF', name: 'Bright White' },
+                    { color: '#00FFFF', name: 'Neon Cyan' },
+                    { color: '#FF00FF', name: 'Neon Magenta' },
+                    { color: '#CCFF00', name: 'Electric Lime' }
+                ]
+            },
+            'sunset-fire': {
+                name: '3. Sunset Fire',
+                desc: 'Warm and vibrant with peach/coral backgrounds reminiscent of sunset skies. Orange, red, and gold gradients create fire-inspired energy while maintaining brightness. Perfect balance between warmth and high energy.',
+                colors: [
+                    { color: '#FFDAB9', name: 'Peach' },
+                    { color: '#FF6347', name: 'Tomato Red' },
+                    { color: '#FF8C00', name: 'Dark Orange' },
+                    { color: '#FFD700', name: 'Gold' }
+                ]
+            },
+            'royal-gold': {
+                name: '4. Royal Gold',
+                desc: 'Luxurious deep purple backgrounds with bright gold and amber accents. Regal aesthetic inspired by African royalty with maximum contrast. Purple and gold create a premium, prestigious feel perfect for high-stakes gameplay.',
+                colors: [
+                    { color: '#2d1b4e', name: 'Royal Purple' },
+                    { color: '#FFD700', name: 'Bright Gold' },
+                    { color: '#8B00FF', name: 'Deep Purple' },
+                    { color: '#DAA520', name: 'Goldenrod' }
+                ]
+            },
+            'ocean-breeze': {
+                name: '5. Ocean Breeze',
+                desc: 'Cool and refreshing with turquoise and aqua tones. Light blue backgrounds with teal and seafoam accents create energetic coastal vibes. Fresh, clean aesthetic that feels modern and invigorating.',
+                colors: [
+                    { color: '#E0FFFF', name: 'Light Cyan' },
+                    { color: '#40E0D0', name: 'Turquoise' },
+                    { color: '#20B2AA', name: 'Light Sea Green' },
+                    { color: '#00CED1', name: 'Dark Turquoise' }
+                ]
+            },
+            'festival-drums': {
+                name: '6. Festival Drums',
+                desc: 'Celebration energy with multi-color gradients and rainbow suit symbols. Each card element features different vibrant colors (pink, gold, green, purple) with animated rainbow shifts. Maximum color variety and festive feel.',
+                colors: [
+                    { color: '#FF1493', name: 'Hot Pink' },
+                    { color: '#FFD700', name: 'Gold' },
+                    { color: '#32CD32', name: 'Lime Green' },
+                    { color: '#8A2BE2', name: 'Blue Violet' }
+                ]
+            }
+        };
+
+        const showcase = document.getElementById('cardShowcase');
+        const themeName = document.getElementById('themeName');
+        const themeDesc = document.getElementById('themeDesc');
+        const colorPalette = document.getElementById('colorPalette');
+        const themeButtons = document.querySelectorAll('.theme-btn');
+
+        function switchTheme(themeKey) {
+            // Remove all theme classes
+            showcase.className = 'card-showcase';
+
+            // Add selected theme class
+            showcase.classList.add(`theme-${themeKey}`);
+
+            // Update description
+            const theme = themes[themeKey];
+            themeName.textContent = theme.name;
+            themeDesc.textContent = theme.desc;
+
+            // Update color palette
+            colorPalette.innerHTML = theme.colors.map(c => `
+                <div class="color-swatch">
+                    <div class="color-box" style="background: ${c.color};"></div>
+                    <span class="color-name">${c.name}</span>
+                </div>
+            `).join('');
+
+            // Update active button
+            themeButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-theme="${themeKey}"]`).classList.add('active');
+        }
+
+        // Add click handlers
+        themeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchTheme(btn.dataset.theme);
+            });
+        });
+
+        // Initialize with afro-heritage theme
+        switchTheme('afro-heritage');
+    </script>
+</body>
+</html>
