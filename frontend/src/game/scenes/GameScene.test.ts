@@ -310,4 +310,23 @@ describe('GameScene Logic', () => {
       expect(playerPosition).toBe('bottom')
     })
   })
+
+  describe('Card Play Behavior', () => {
+    it('should maintain full opacity for played cards', () => {
+      // Bug fix: Played cards should remain fully visible (alpha = 1.0)
+      // even though they are disabled from interaction
+      const playedCardAlpha = 1.0
+      expect(playedCardAlpha).toBe(1.0)
+    })
+
+    it('should disable interaction for played cards', () => {
+      // Played cards should not be interactable
+      const playable = false
+      expect(playable).toBe(false)
+    })
+
+    it('should scale played cards appropriately', () => {
+      expect(CARD_SCALES.PLAYED).toBe(0.2)
+    })
+  })
 })

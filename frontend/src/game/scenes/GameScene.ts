@@ -2,6 +2,12 @@ import Phaser from 'phaser'
 import { CardSprite } from '../sprites/CardSprite'
 import type { Suit, Rank } from '../../store/types'
 import { CARD_SCALES, CARD_DIMENSIONS } from '../constants/cards'
+import {
+  createDealAnimation,
+  createPlayAnimation,
+  calculateDealStagger,
+} from '../utils/animations'
+import { emitSoundEvent, triggerHaptic } from '../constants/animations'
 
 /**
  * Player position around the table
@@ -251,6 +257,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Animate card from deck to player hand
+   * Uses new animation utilities with rotation and sound effects
    */
   private animateCardToHand(card: CardSprite, position: PlayerPosition, index: number): void {
     const handPosition = this.getHandPosition(position)
@@ -264,13 +271,19 @@ export class GameScene extends Phaser.Scene {
     const targetX = startX + index * (cardWidth + this.layout.handSpacing)
     const targetY = handPosition.y
 
-    // Animate card movement
+    // Calculate stagger delay
+    const delay = calculateDealStagger(index)
+
+    // Create deal animation with rotation
+    const dealConfig = createDealAnimation(card, targetX, targetY, delay)
+
+    // Add animation with sound effect and completion callback
     this.tweens.add({
-      targets: card,
-      x: targetX,
-      y: targetY,
-      duration: 400,
-      ease: 'Cubic.easeOut',
+      ...dealConfig,
+      onStart: () => {
+        // Emit sound event for card deal
+        emitSoundEvent(this, 'CARD_DEAL')
+      },
       onComplete: () => {
         // Flip face up if bottom player
         if (position === 'bottom') {
@@ -278,6 +291,11 @@ export class GameScene extends Phaser.Scene {
           card.setPlayable(true) // Make playable for testing
         }
         card.updateOriginalY(targetY)
+
+        // Haptic feedback on mobile for bottom player
+        if (position === 'bottom') {
+          triggerHaptic('LIGHT')
+        }
       },
     })
   }
@@ -326,6 +344,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Play a card to the center play area
+   * Uses new animation utilities with sound effects and haptic feedback
    */
   private playCard(card: CardSprite, fromPosition: PlayerPosition): void {
     // Remove from hand
@@ -335,11 +354,11 @@ export class GameScene extends Phaser.Scene {
       hand.splice(cardIndex, 1)
     }
 
-    // Deselect and disable
+    // Deselect and disable, but maintain full visibility
     card.setSelected(false)
-    card.setPlayable(false)
+    card.setPlayable(false, true) // maintainVisibility = true for played cards
 
-    // Animate to play area
+    // Calculate target position in play area
     const { width, height } = this.cameras.main
     const centerX = width / 2
     const centerY = height / 2
@@ -364,15 +383,21 @@ export class GameScene extends Phaser.Scene {
         break
     }
 
+    // Create play animation with random rotation
+    const playConfig = createPlayAnimation(card, targetX, targetY, CARD_SCALES.PLAYED)
+
+    // Add animation with sound effect and haptic feedback
     this.tweens.add({
-      targets: card,
-      x: targetX,
-      y: targetY,
-      scaleX: CARD_SCALES.PLAYED,
-      scaleY: CARD_SCALES.PLAYED,
-      rotation: (Math.random() - 0.5) * 0.2, // Slight random rotation
-      duration: 400,
-      ease: 'Cubic.easeOut',
+      ...playConfig,
+      onStart: () => {
+        // Emit sound event for card play
+        emitSoundEvent(this, 'CARD_PLAY')
+
+        // Haptic feedback on mobile for bottom player
+        if (fromPosition === 'bottom') {
+          triggerHaptic('CARD_PLAY')
+        }
+      },
     })
 
     // Store in played cards

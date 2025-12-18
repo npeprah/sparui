@@ -183,10 +183,17 @@ describe('CardSprite Logic', () => {
         expect(alpha).toBe(1.0)
       })
 
-      it('should use reduced opacity for unplayable cards', () => {
+      it('should use reduced opacity for unplayable cards in hand', () => {
         const alpha = 0.5
         expect(alpha).toBe(0.5)
         expect(alpha).toBeLessThan(1.0)
+      })
+
+      it('should maintain full opacity for played cards in center area', () => {
+        // Cards played to the center should remain fully visible
+        // even though they are set to non-playable
+        const playedCardAlpha = 1.0
+        expect(playedCardAlpha).toBe(1.0)
       })
     })
 

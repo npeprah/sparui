@@ -1,6 +1,14 @@
 import Phaser from 'phaser'
 import type { Suit, Rank } from '../../store/types'
 import { getCardAssetKey } from '../constants/cards'
+import {
+  createFlipAnimation,
+  createWinPulseAnimation,
+  createLoseFadeAnimation,
+  createCollectAnimation,
+  calculateCollectStagger,
+} from '../utils/animations'
+import { emitSoundEvent, triggerHaptic, GLOW_CONFIG } from '../constants/animations'
 
 /**
  * CardSprite - Interactive card game object
@@ -81,8 +89,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
   /**
    * Set whether the card is playable
+   * @param playable - Whether the card can be played
+   * @param maintainVisibility - If true, keeps alpha at 1.0 even when not playable (for played cards)
    */
-  public setPlayable(playable: boolean): this {
+  public setPlayable(playable: boolean, maintainVisibility: boolean = false): this {
     this._playable = playable
 
     if (playable) {
@@ -90,8 +100,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.setTint(0xffffff) // Remove any tint
       this.setInteractive()
     } else {
-      this.setAlpha(0.5)
-      this.setTint(0x888888) // Gray tint
+      // If maintainVisibility is true, keep card fully visible
+      // This is used for played cards in the center area
+      this.setAlpha(maintainVisibility ? 1.0 : 0.5)
+      this.setTint(maintainVisibility ? 0xffffff : 0x888888)
       this.disableInteractive()
     }
 
@@ -128,18 +140,44 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * Flip card face down/up
+   * Flip card face down/up with animated 3D-like rotation
+   * @param faceDown - Whether to flip the card face down
+   * @param animated - Whether to animate the flip (default: true)
    */
-  public setFaceDown(faceDown: boolean): this {
+  public setFaceDown(faceDown: boolean, animated: boolean = true): this {
     this._faceDown = faceDown
 
-    // TODO: Flip animation (Phase 6)
-    // For now, just change texture
-    if (faceDown) {
-      this.setTexture('card_back')
-    } else {
-      this.setTexture(getCardAssetKey(this.suit, this.rank))
+    // If no animation, just swap texture immediately
+    if (!animated) {
+      if (faceDown) {
+        this.setTexture('card_back')
+      } else {
+        this.setTexture(getCardAssetKey(this.suit, this.rank))
+      }
+      return this
     }
+
+    // Create flip animation (two-part: scale down, then scale up)
+    const [scaleDownConfig, scaleUpConfig] = createFlipAnimation(this, () => {
+      // Midpoint callback: swap texture when card is "sideways"
+      if (faceDown) {
+        this.setTexture('card_back')
+      } else {
+        this.setTexture(getCardAssetKey(this.suit, this.rank))
+      }
+
+      // Emit sound event for flip
+      emitSoundEvent(this.scene, 'CARD_FLIP')
+    })
+
+    // Chain the animations: scale down, then scale up
+    this.scene.tweens.add({
+      ...scaleDownConfig,
+      onComplete: () => {
+        // After scale down completes, scale back up
+        this.scene.tweens.add(scaleUpConfig)
+      },
+    })
 
     return this
   }
@@ -272,6 +310,99 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
    */
   public updateOriginalY(y: number): void {
     this.originalY = y
+  }
+
+  /**
+   * Animate card as winning card
+   * Pulse animation with intensified gold glow
+   */
+  public animateWin(): this {
+    // Remove any existing glow
+    if (this.glowEffect) {
+      this.glowEffect.destroy()
+      this.glowEffect = undefined
+    }
+
+    // Create intense win glow
+    this.glowEffect = this.scene.add.graphics()
+    this.glowEffect.lineStyle(
+      GLOW_CONFIG.WIN.thickness,
+      GLOW_CONFIG.WIN.color,
+      GLOW_CONFIG.WIN.alpha
+    )
+    this.glowEffect.strokeRoundedRect(
+      this.x - this.displayWidth / 2 - GLOW_CONFIG.WIN.padding,
+      this.y - this.displayHeight / 2 - GLOW_CONFIG.WIN.padding,
+      this.displayWidth + GLOW_CONFIG.WIN.padding * 2,
+      this.displayHeight + GLOW_CONFIG.WIN.padding * 2,
+      12
+    )
+    this.glowEffect.setDepth(this.depth - 1)
+
+    // Pulse glow
+    this.scene.tweens.add({
+      targets: this.glowEffect,
+      alpha: { from: 1, to: 0.6 },
+      duration: 400,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    })
+
+    // Pulse card scale
+    const pulseConfig = createWinPulseAnimation(this)
+    this.scene.tweens.add(pulseConfig)
+
+    // Emit sound and haptic
+    emitSoundEvent(this.scene, 'WIN_ROUND')
+    triggerHaptic('WIN')
+
+    return this
+  }
+
+  /**
+   * Animate card as losing card
+   * Fade and shrink animation
+   */
+  public animateLose(): this {
+    // Remove any glow effects
+    if (this.glowEffect) {
+      this.glowEffect.destroy()
+      this.glowEffect = undefined
+    }
+
+    // Create lose fade/shrink animation
+    const loseConfig = createLoseFadeAnimation(this)
+    this.scene.tweens.add(loseConfig)
+
+    // Emit sound and haptic
+    emitSoundEvent(this.scene, 'LOSE_ROUND')
+    triggerHaptic('LOSE')
+
+    return this
+  }
+
+  /**
+   * Animate card collection to winner's position
+   * @param targetX - Destination X coordinate
+   * @param targetY - Destination Y coordinate
+   * @param cardIndex - Index for stagger delay
+   */
+  public animateCollect(targetX: number, targetY: number, cardIndex: number = 0): this {
+    // Calculate stagger delay
+    const delay = calculateCollectStagger(cardIndex)
+
+    // Create collection animation
+    const collectConfig = createCollectAnimation(this, targetX, targetY, delay)
+    this.scene.tweens.add({
+      ...collectConfig,
+      onComplete: () => {
+        // Destroy card after collection
+        this.destroy()
+      },
+    })
+
+    return this
   }
 
   /**
