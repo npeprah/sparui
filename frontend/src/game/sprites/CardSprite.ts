@@ -39,7 +39,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   // Drag state
   private isDragging: boolean = false
   private dragStartY: number = 0
-  private dragThreshold: number = 100 // pixels
+  private dragStartX: number = 0
+  private dragThreshold: number = 100 // pixels (upward drag to play)
+  private clickThreshold: number = 10 // pixels (below this = click, not drag)
   private originalDepth: number = 1
 
   constructor(
@@ -87,20 +89,22 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.onHoverExit()
     })
 
-    // Click/tap (only if not dragging)
+    // Pointer down - start tracking for click or drag
     this.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this._playable) return
-      this.onDragStart(pointer)
+      this.onPointerDown(pointer)
     })
 
+    // Pointer move - if moved beyond threshold, treat as drag
     this.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this._playable || !this.isDragging) return
-      this.onDragMove(pointer)
+      if (!this._playable) return
+      this.onPointerMove(pointer)
     })
 
-    this.on('pointerup', () => {
-      if (!this._playable || !this.isDragging) return
-      this.onDragEnd()
+    // Pointer up - determine if click or drag completion
+    this.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (!this._playable) return
+      this.onPointerUp(pointer)
     })
 
     // Cancel drag if pointer leaves card
@@ -337,82 +341,112 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * Drag gesture: Start drag
+   * Pointer down - start tracking for potential click or drag
    */
-  private onDragStart(pointer: Phaser.Input.Pointer): void {
-    this.isDragging = true
+  private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    // Store starting position
     this.dragStartY = pointer.y
+    this.dragStartX = pointer.x
     this.originalDepth = this.depth
 
-    // Raise card above others
-    this.setDepth(100)
-
-    // Light haptic feedback
-    triggerHaptic('LIGHT')
-
-    // Scale up slightly
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: this.scaleX * 1.1,
-      scaleY: this.scaleY * 1.1,
-      duration: 100,
-      ease: 'Cubic.easeOut',
-    })
+    // Don't set isDragging yet - wait for movement
+    // This allows us to distinguish between click and drag
   }
 
   /**
-   * Drag gesture: Update position while dragging
+   * Pointer move - determine if this is a drag gesture
    */
-  private onDragMove(pointer: Phaser.Input.Pointer): void {
+  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+    const deltaX = pointer.x - this.dragStartX
     const deltaY = pointer.y - this.dragStartY
-    const dragDistance = Math.abs(deltaY)
+    const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
-    // Only allow upward drag
-    if (deltaY < 0) {
-      // Constrain drag to reasonable bounds
-      const maxDrag = -150
-      const clampedDelta = Math.max(deltaY, maxDrag)
+    // If moved beyond click threshold, treat as drag
+    if (!this.isDragging && totalDistance > this.clickThreshold) {
+      // Start drag
+      this.isDragging = true
 
-      // Update position
-      this.y = this.originalY + clampedDelta
+      // Raise card above others
+      this.setDepth(100)
 
-      // Visual feedback when threshold reached
-      if (dragDistance >= this.dragThreshold) {
-        // Add glow to indicate ready to play
-        if (!this.glowEffect) {
-          this.showDragGlow()
-        }
-        // Medium haptic feedback (once)
-        if (dragDistance === this.dragThreshold) {
-          triggerHaptic('MEDIUM')
-        }
-      } else {
-        // Remove glow if below threshold
-        if (this.glowEffect) {
-          this.hideDragGlow()
+      // Light haptic feedback
+      triggerHaptic('LIGHT')
+
+      // Scale up slightly
+      this.scene.tweens.add({
+        targets: this,
+        scaleX: this.scaleX * 1.1,
+        scaleY: this.scaleY * 1.1,
+        duration: 100,
+        ease: 'Cubic.easeOut',
+      })
+    }
+
+    // If dragging, update position
+    if (this.isDragging) {
+      const dragDistance = Math.abs(deltaY)
+
+      // Only allow upward drag
+      if (deltaY < 0) {
+        // Constrain drag to reasonable bounds
+        const maxDrag = -150
+        const clampedDelta = Math.max(deltaY, maxDrag)
+
+        // Update position
+        this.y = this.originalY + clampedDelta
+
+        // Visual feedback when threshold reached
+        if (dragDistance >= this.dragThreshold) {
+          // Add glow to indicate ready to play
+          if (!this.glowEffect) {
+            this.showDragGlow()
+          }
+          // Medium haptic feedback (once)
+          if (dragDistance === this.dragThreshold) {
+            triggerHaptic('MEDIUM')
+          }
+        } else {
+          // Remove glow if below threshold
+          if (this.glowEffect) {
+            this.hideDragGlow()
+          }
         }
       }
     }
   }
 
   /**
-   * Drag gesture: Release and check if card should be played
+   * Pointer up - determine if this was a click or drag gesture
    */
-  private onDragEnd(): void {
-    const deltaY = this.y - this.originalY
-    const dragDistance = Math.abs(deltaY)
+  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+    const deltaX = pointer.x - this.dragStartX
+    const deltaY = pointer.y - this.dragStartY
+    const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
-    if (dragDistance >= this.dragThreshold) {
-      // Play the card
-      this.hideDragGlow()
-      triggerHaptic('CARD_PLAY')
-      this.onCardDragPlay?.(this)
-    } else {
-      // Return to original position
-      this.returnToOriginalPosition()
+    // If never entered drag mode and distance is small, treat as click
+    if (!this.isDragging && totalDistance <= this.clickThreshold) {
+      // This is a click!
+      triggerHaptic('LIGHT')
+      this.onCardClick?.(this)
+      return
     }
 
-    this.isDragging = false
+    // Otherwise, this was a drag gesture
+    if (this.isDragging) {
+      const dragDistanceY = Math.abs(this.y - this.originalY)
+
+      if (dragDistanceY >= this.dragThreshold) {
+        // Play the card via drag
+        this.hideDragGlow()
+        triggerHaptic('CARD_PLAY')
+        this.onCardDragPlay?.(this)
+      } else {
+        // Return to original position
+        this.returnToOriginalPosition()
+      }
+
+      this.isDragging = false
+    }
   }
 
   /**

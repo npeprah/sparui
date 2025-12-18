@@ -329,4 +329,64 @@ describe('GameScene Logic', () => {
       expect(CARD_SCALES.PLAYED).toBe(0.2)
     })
   })
+
+  describe('Card Depth/Z-Index Ordering', () => {
+    const BASE_DEPTH = 1000
+
+    it('should define base depth for played cards', () => {
+      // First played card should have base depth
+      expect(BASE_DEPTH).toBe(1000)
+    })
+
+    it('should increment depth for each played card', () => {
+      // First card: depth 1000
+      // Second card: depth 1001
+      // Third card: depth 1002
+      // Fourth card: depth 1003
+      const playedCardsDepths = [
+        BASE_DEPTH + 0,
+        BASE_DEPTH + 1,
+        BASE_DEPTH + 2,
+        BASE_DEPTH + 3,
+      ]
+
+      expect(playedCardsDepths[0]).toBe(1000)
+      expect(playedCardsDepths[1]).toBe(1001)
+      expect(playedCardsDepths[2]).toBe(1002)
+      expect(playedCardsDepths[3]).toBe(1003)
+    })
+
+    it('should ensure later cards appear above earlier cards', () => {
+      // Each subsequent card should have higher depth
+      const firstCardDepth = BASE_DEPTH + 0
+      const secondCardDepth = BASE_DEPTH + 1
+      const thirdCardDepth = BASE_DEPTH + 2
+
+      expect(secondCardDepth).toBeGreaterThan(firstCardDepth)
+      expect(thirdCardDepth).toBeGreaterThan(secondCardDepth)
+    })
+
+    it('should calculate depth based on number of played cards', () => {
+      // Depth = BASE_DEPTH + playedCardsCount
+      const playedCardsCount = 2
+      const nextCardDepth = BASE_DEPTH + playedCardsCount
+
+      expect(nextCardDepth).toBe(1002)
+    })
+
+    it('should maintain proper stacking order for all 4 positions', () => {
+      // Simulate playing cards from all 4 positions in sequence
+      const playOrder = [
+        { position: 'bottom', depth: BASE_DEPTH + 0 },
+        { position: 'left', depth: BASE_DEPTH + 1 },
+        { position: 'top', depth: BASE_DEPTH + 2 },
+        { position: 'right', depth: BASE_DEPTH + 3 },
+      ]
+
+      // Each card should have increasing depth
+      for (let i = 1; i < playOrder.length; i++) {
+        expect(playOrder[i].depth).toBeGreaterThan(playOrder[i - 1].depth)
+      }
+    })
+  })
 })

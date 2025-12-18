@@ -36,11 +36,17 @@ interface LayoutConfig {
  * Main game scene - handles card display, interaction, and gameplay
  */
 export class GameScene extends Phaser.Scene {
+  // Depth constants for z-index ordering
+  private static readonly BASE_PLAYED_CARD_DEPTH = 1000
+
   // Player hands (bottom = current player)
   private playerHands: Map<PlayerPosition, CardSprite[]> = new Map()
 
   // Cards in play area (center of table)
   private playedCards: Map<PlayerPosition, CardSprite> = new Map()
+
+  // Depth counter for played cards (tracks number of cards played in current round)
+  private playedCardDepthCounter: number = 0
 
   // Layout configuration
   private layout: LayoutConfig = {
@@ -107,9 +113,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Cleanup when scene is destroyed
+   * Cleanup when scene is shut down
    */
-  destroy() {
+  shutdown() {
     this.cleanupSubscriptions()
     this.fpsCounter?.destroy()
 
@@ -121,8 +127,6 @@ export class GameScene extends Phaser.Scene {
       }
     })
     this.activeParticleEmitters = []
-
-    super.destroy()
   }
 
   /**
@@ -444,6 +448,12 @@ export class GameScene extends Phaser.Scene {
     card.setSelected(false)
     card.setPlayable(false, true) // maintainVisibility = true for played cards
 
+    // Set depth to ensure proper stacking (higher = on top)
+    // Each played card should appear above previous cards
+    const cardDepth = GameScene.BASE_PLAYED_CARD_DEPTH + this.playedCardDepthCounter
+    card.setDepth(cardDepth)
+    this.playedCardDepthCounter++
+
     // Calculate target position in play area
     const { width, height } = this.cameras.main
     const centerX = width / 2
@@ -501,6 +511,9 @@ export class GameScene extends Phaser.Scene {
       card.destroy()
     })
     this.playedCards.clear()
+
+    // Reset depth counter for next round
+    this.playedCardDepthCounter = 0
   }
 
   /**

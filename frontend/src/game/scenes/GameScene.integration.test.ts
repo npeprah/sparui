@@ -1,15 +1,40 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { useGameStore } from '../../store/gameStore'
 import { usePlayerStore } from '../../store/playerStore'
 import type { Player, Card } from '../../store/types'
 import { mapPlayersToPositions } from '../utils/playerPositions'
 import { getPlayableCards } from '../utils/sparRules'
+import {
+  MockWebSocket,
+  createMockPlayer,
+  createMockCard,
+  simulateGameStart,
+  simulateCardPlay,
+  simulateRoundWon,
+  simulateGameEnded,
+  simulateTurnChange,
+  simulateTimerUpdate,
+  simulateDisconnect,
+  simulateReconnect,
+} from '../../test/mocks/mockWebSocket'
 
 /**
  * Integration tests for GameScene state synchronization
  * Note: These tests verify state sync logic without instantiating Phaser
  */
 describe('GameScene - State Integration Logic', () => {
+  let mockSocket: MockWebSocket
+
+  beforeEach(() => {
+    mockSocket = new MockWebSocket()
+  })
+
+  afterEach(() => {
+    mockSocket.clearListeners()
+    mockSocket.clearEmitted()
+  })
+
+describe('GameScene - Basic State Tests', () => {
   beforeEach(() => {
     // Reset stores
     useGameStore.getState().resetGame()
@@ -211,4 +236,303 @@ describe('GameScene - State Integration Logic', () => {
       expect(playableCards.length).toBe(2)
     })
   })
+})
+
+/**
+ * Extended Integration Tests - Full Game Flows with Mock WebSocket
+ */
+describe('GameScene - Full Game Flow Integration', () => {
+  let mockSocket: MockWebSocket
+
+  beforeEach(() => {
+    mockSocket = new MockWebSocket()
+    useGameStore.getState().resetGame()
+    usePlayerStore.getState().resetGameState()
+    usePlayerStore.getState().setPlayerId('p1')
+  })
+
+  afterEach(() => {
+    mockSocket.clearListeners()
+    mockSocket.clearEmitted()
+  })
+
+  describe('2-Player Game Flow', () => {
+    it('should complete full 5-round game with 2 players', async () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      // Game start
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+
+      // Update store manually (in real app, WebSocket handler does this)
+      useGameStore.getState().setGamePhase('playing')
+      useGameStore.getState().addPlayer(player1)
+      useGameStore.getState().addPlayer(player2)
+      useGameStore.getState().setLeader('p1')
+
+      // Verify game started
+      expect(useGameStore.getState().gamePhase).toBe('playing')
+      expect(useGameStore.getState().leaderId).toBe('p1')
+
+      // Simulate 5 rounds
+      for (let round = 1; round <= 5; round++) {
+        // Player 1 plays card
+        const card1 = createMockCard('hearts', '7', `card-${round}-p1`)
+        simulateCardPlay(mockSocket, 'p1', card1, 'hearts')
+
+        // Player 2 plays card
+        const card2 = createMockCard('hearts', '6', `card-${round}-p2`)
+        simulateCardPlay(mockSocket, 'p2', card2, 'hearts')
+
+        // Player 1 wins (higher card)
+        simulateRoundWon(mockSocket, 'p1', 'Alice', card1, 1, { p1: round, p2: 0 })
+
+        // Wait for round cleanup
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        useGameStore.getState().nextRound()
+      }
+
+      // Game ends
+      simulateGameEnded(mockSocket, 'p1', 'Alice', { p1: 5, p2: 0 })
+
+      // Verify game ended
+      const finalPhase = useGameStore.getState().gamePhase
+      expect(finalPhase).toBe('finished')
+    })
+
+    it('should enforce suit-following rules', () => {
+      const hand: Card[] = [
+        createMockCard('hearts', '7', 'h7'),
+        createMockCard('clubs', '8', 'c8'),
+      ]
+
+      usePlayerStore.getState().setHand(hand)
+      usePlayerStore.getState().setIsMyTurn(true)
+
+      // No suit led yet - all cards playable
+      let playableCards = getPlayableCards(hand, null)
+      expect(playableCards.length).toBe(2)
+
+      // Hearts led - only hearts cards playable
+      playableCards = getPlayableCards(hand, 'hearts')
+      expect(playableCards.length).toBe(1)
+      expect(playableCards[0].suit).toBe('hearts')
+    })
+
+    it('should validate round winner calculation', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+
+      // Player 1 plays 7 of hearts
+      const card1 = createMockCard('hearts', '7')
+      simulateCardPlay(mockSocket, 'p1', card1, 'hearts')
+
+      // Player 2 plays Ace of hearts (higher)
+      const card2 = createMockCard('hearts', 'A')
+      simulateCardPlay(mockSocket, 'p2', card2, 'hearts')
+
+      // Player 2 should win (Ace > 7)
+      simulateRoundWon(mockSocket, 'p2', 'Bob', card2, 1, { p1: 0, p2: 1 })
+
+      // Verify scores
+      const gameState = useGameStore.getState()
+      const p2Score = gameState.players.find((p) => p.id === 'p2')?.score
+      expect(p2Score).toBe(1)
+    })
+  })
+
+  describe('4-Player Game Flow', () => {
+    it('should complete game with 4 players', () => {
+      const players = [
+        createMockPlayer('p1', 'Alice'),
+        createMockPlayer('p2', 'Bob'),
+        createMockPlayer('p3', 'Charlie'),
+        createMockPlayer('p4', 'Diana'),
+      ]
+
+      simulateGameStart(mockSocket, players, 'p1')
+
+      expect(useGameStore.getState().players.length).toBe(4)
+      expect(useGameStore.getState().gamePhase).toBe('playing')
+    })
+
+    it('should handle turn rotation correctly for 4 players', async () => {
+      const players = [
+        createMockPlayer('p1', 'Alice'),
+        createMockPlayer('p2', 'Bob'),
+        createMockPlayer('p3', 'Charlie'),
+        createMockPlayer('p4', 'Diana'),
+      ]
+
+      simulateGameStart(mockSocket, players, 'p1')
+
+      // Turn rotation: p1 → p2 → p3 → p4 → p1
+      const turnOrder = ['p1', 'p2', 'p3', 'p4']
+
+      for (const playerId of turnOrder) {
+        simulateTurnChange(mockSocket, playerId, 15)
+
+        // Verify correct player's turn
+        const isMyTurn = usePlayerStore.getState().isMyTurn
+        expect(isMyTurn).toBe(playerId === 'p1')
+      }
+    })
+
+    it('should map all 4 players to positions correctly', () => {
+      const players = [
+        createMockPlayer('p1', 'Alice'),
+        createMockPlayer('p2', 'Bob'),
+        createMockPlayer('p3', 'Charlie'),
+        createMockPlayer('p4', 'Diana'),
+      ]
+
+      const positionMap = mapPlayersToPositions(players, 'p1')
+
+      // Current player (p1) should be bottom
+      expect(positionMap.get('bottom')).toBe('p1')
+      // Others distributed to left, top, right
+      expect(positionMap.size).toBe(4)
+    })
+  })
+
+  describe('Disconnect/Reconnect Scenarios', () => {
+    it('should handle player disconnect mid-game', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+
+      // Simulate disconnect
+      simulateDisconnect(mockSocket)
+
+      // Verify socket disconnected
+      expect(mockSocket.connected).toBe(false)
+    })
+
+    it('should handle reconnection and restore game state', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+
+      // Play a card before disconnect
+      const card1 = createMockCard('hearts', '7')
+      simulateCardPlay(mockSocket, 'p1', card1, 'hearts')
+
+      // Disconnect
+      simulateDisconnect(mockSocket)
+      expect(mockSocket.connected).toBe(false)
+
+      // Reconnect
+      simulateReconnect(mockSocket)
+      expect(mockSocket.connected).toBe(true)
+
+      // Game state should persist
+      const playedCards = useGameStore.getState().playedCards
+      expect(playedCards.size).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Turn Timer Scenarios', () => {
+    it('should countdown timer correctly', async () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+      simulateTurnChange(mockSocket, 'p1', 15)
+
+      // Simulate timer countdown
+      for (let time = 15; time > 10; time--) {
+        simulateTimerUpdate(mockSocket, time)
+        expect(useGameStore.getState().timeRemaining).toBe(time)
+      }
+    })
+
+    it('should handle timer expiration', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+      simulateTurnChange(mockSocket, 'p1', 15)
+
+      // Countdown to 0
+      simulateTimerUpdate(mockSocket, 0)
+
+      // Verify timer expired
+      expect(useGameStore.getState().timeRemaining).toBe(0)
+    })
+  })
+
+  describe('Invalid Move Handling', () => {
+    it('should prevent playing out of turn', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      const hand = [createMockCard('hearts', '7', 'h7')]
+      usePlayerStore.getState().setHand(hand)
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+
+      // It's player 2's turn, not player 1
+      simulateTurnChange(mockSocket, 'p2', 15)
+
+      // Verify player 1 cannot play (isMyTurn = false)
+      expect(usePlayerStore.getState().isMyTurn).toBe(false)
+    })
+
+    it('should prevent playing wrong suit when player has correct suit', () => {
+      const hand: Card[] = [
+        createMockCard('hearts', '7', 'h7'),
+        createMockCard('clubs', '8', 'c8'),
+      ]
+
+      usePlayerStore.getState().setHand(hand)
+      usePlayerStore.getState().setIsMyTurn(true)
+
+      // Hearts led
+      const playableCards = getPlayableCards(hand, 'hearts')
+
+      // Only hearts cards should be playable
+      expect(playableCards.length).toBe(1)
+      expect(playableCards[0].suit).toBe('hearts')
+    })
+  })
+
+  describe('Edge Cases', () => {
+    it('should handle empty player list gracefully', () => {
+      simulateGameStart(mockSocket, [], 'p1')
+
+      // Game should not crash
+      expect(useGameStore.getState().players.length).toBe(0)
+    })
+
+    it('should handle invalid leader ID', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'invalid-id')
+
+      // Game should still start
+      expect(useGameStore.getState().gamePhase).toBe('playing')
+      expect(useGameStore.getState().leaderId).toBe('invalid-id')
+    })
+
+    it('should handle rapid phase changes', () => {
+      const player1 = createMockPlayer('p1', 'Alice')
+      const player2 = createMockPlayer('p2', 'Bob')
+
+      simulateGameStart(mockSocket, [player1, player2], 'p1')
+
+      // Rapid card plays
+      simulateCardPlay(mockSocket, 'p1', createMockCard('hearts', '7'), 'hearts')
+      simulateCardPlay(mockSocket, 'p2', createMockCard('hearts', '8'), 'hearts')
+      simulateRoundWon(mockSocket, 'p2', 'Bob', createMockCard('hearts', '8'), 1, { p1: 0, p2: 1 })
+
+      // Should not crash
+      expect(useGameStore.getState().gamePhase).toBe('playing')
+    })
+  })
+})
 })
