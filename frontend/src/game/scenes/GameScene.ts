@@ -391,6 +391,10 @@ export class GameScene extends Phaser.Scene {
         card.setPosition(targetX, handPosition.y)
         card.updateOriginalY(handPosition.y)
         card.setScale(this.layout.cardScale)
+
+        // Set depth so cards to the right overlap cards to the left
+        // Higher index = higher depth = appears on top and receives pointer events
+        card.setDepth(index)
       })
     })
   }

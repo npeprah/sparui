@@ -44,6 +44,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private clickThreshold: number = 10 // pixels (below this = click, not drag)
   private originalDepth: number = 1
 
+  // Scene-level event handlers (for tracking pointer when card moves during drag)
+  private sceneMoveHandler?: (pointer: Phaser.Input.Pointer) => void
+  private sceneUpHandler?: (pointer: Phaser.Input.Pointer) => void
+
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -95,24 +99,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.onPointerDown(pointer)
     })
 
-    // Pointer move - if moved beyond threshold, treat as drag
-    this.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this._playable) return
-      this.onPointerMove(pointer)
-    })
-
-    // Pointer up - determine if click or drag completion
-    this.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      if (!this._playable) return
-      this.onPointerUp(pointer)
-    })
-
-    // Cancel drag if pointer leaves card
-    this.on('pointerout', () => {
-      if (this.isDragging) {
-        this.cancelDrag()
-      }
-    })
+    // For drag tracking, we need to use scene-level events because when the card
+    // moves during drag, it's no longer under the pointer and stops receiving events.
+    // These will be registered/unregistered in onPointerDown/onPointerUp.
   }
 
   /**
@@ -351,6 +340,36 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
     // Don't set isDragging yet - wait for movement
     // This allows us to distinguish between click and drag
+
+    // Register scene-level handlers to track pointer even when card moves
+    this.sceneMoveHandler = (p: Phaser.Input.Pointer) => {
+      if (!this._playable) return
+      this.onPointerMove(p)
+    }
+
+    this.sceneUpHandler = (p: Phaser.Input.Pointer) => {
+      if (!this._playable) return
+      this.onPointerUp(p)
+      // Unregister scene handlers after pointer up
+      this.unregisterSceneHandlers()
+    }
+
+    this.scene.input.on('pointermove', this.sceneMoveHandler)
+    this.scene.input.on('pointerup', this.sceneUpHandler)
+  }
+
+  /**
+   * Unregister scene-level pointer handlers
+   */
+  private unregisterSceneHandlers(): void {
+    if (this.sceneMoveHandler) {
+      this.scene.input.off('pointermove', this.sceneMoveHandler)
+      this.sceneMoveHandler = undefined
+    }
+    if (this.sceneUpHandler) {
+      this.scene.input.off('pointerup', this.sceneUpHandler)
+      this.sceneUpHandler = undefined
+    }
   }
 
   /**
@@ -604,6 +623,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
    * Cleanup when card is destroyed
    */
   public destroy(fromScene?: boolean): void {
+    // Clean up scene-level event handlers
+    this.unregisterSceneHandlers()
+
     if (this.hoverTween) {
       this.hoverTween.stop()
     }
