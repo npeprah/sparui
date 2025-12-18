@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { usePlayerStore, useUIStore, useLobbyStore } from '../store'
 import { socketService } from '../services/socketService'
 import { Button, Modal } from '../components/ui'
+import { PlayerProfile, PulseButton } from '../components/home'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { pageVariants, staggerContainer, staggerItem, getVariants } from '../utils/animations'
 
 function HomePage() {
@@ -21,6 +23,9 @@ function HomePage() {
   const addNotification = useUIStore((state) => state.addNotification)
 
   const { setIsConnecting, reset: resetLobby } = useLobbyStore()
+
+  // Responsive breakpoints
+  const { isMobile, isTablet } = useMediaQuery()
 
   // Generate player ID if not exists
   const getOrCreatePlayerId = () => {
@@ -110,98 +115,113 @@ function HomePage() {
 
   return (
     <motion.div
-      className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 text-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+      className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8 bg-gradient-to-br from-deepPurple via-gray-900 to-gray-900"
       variants={page}
       initial="initial"
       animate="animate"
       exit="exit"
     >
-      {/* Title with stagger animation */}
-      <motion.div variants={container} initial="hidden" animate="visible">
-        <motion.h1
-          className="text-4xl sm:text-5xl md:text-6xl font-bold mb-3 md:mb-4 bg-gradient-to-r from-fireRed via-gold to-iceBlue bg-clip-text text-transparent"
-          variants={item}
+      <div className="w-full max-w-6xl mx-auto">
+        {/* Title with stagger animation */}
+        <motion.div variants={container} initial="hidden" animate="visible" className="text-center mb-8 md:mb-12">
+          <motion.h1
+            className="text-5xl sm:text-6xl md:text-7xl font-black mb-3 md:mb-4 bg-gradient-to-r from-fireRed via-gold to-iceBlue bg-clip-text text-transparent drop-shadow-lg"
+            variants={item}
+          >
+            SPAR
+          </motion.h1>
+          <motion.p className="text-xl sm:text-2xl text-iceBlue font-bold tracking-wide" variants={item}>
+            Ghanaian Card Game
+          </motion.p>
+        </motion.div>
+
+        {/* Main Content Grid */}
+        <motion.div
+          className={`grid gap-6 md:gap-8 ${
+            isMobile
+              ? 'grid-cols-1'
+              : isTablet
+                ? 'grid-cols-1 lg:grid-cols-2'
+                : 'grid-cols-1 lg:grid-cols-[1.2fr_1fr]'
+          }`}
+          variants={container}
+          initial="hidden"
+          animate="visible"
         >
-          SPAR
-        </motion.h1>
-        <motion.p className="text-lg sm:text-xl text-iceBlue mb-6 md:mb-8" variants={item}>
-          Ghanaian Card Game
-        </motion.p>
-      </motion.div>
+          {/* Left Column: Player Profile + Menu */}
+          <motion.div variants={item} className="space-y-6">
+            {/* Player Profile */}
+            <PlayerProfile
+              playerName={playerName}
+              totalGames={totalGames}
+              totalWins={totalWins}
+              onEditProfile={openSettings}
+            />
 
-      {/* Buttons with stagger animation */}
-      <motion.div
-        className="flex flex-col gap-3 md:gap-4 w-full max-w-md"
-        variants={container}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div variants={item}>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleQuickMatch}
-            fullWidth
-            disabled={isCreatingLobby || isJoiningLobby}
-          >
-            Quick Match
-          </Button>
-        </motion.div>
-        <motion.div variants={item}>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={handleCreatePrivateGame}
-            fullWidth
-            disabled={isCreatingLobby || isJoiningLobby}
-          >
-            {isCreatingLobby ? 'Creating...' : 'Create Private Game'}
-          </Button>
-        </motion.div>
-        <motion.div variants={item}>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={() => setShowJoinModal(true)}
-            fullWidth
-            disabled={isCreatingLobby || isJoiningLobby}
-          >
-            Join Private Game
-          </Button>
-        </motion.div>
-        <motion.div variants={item}>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handlePlayVsAI}
-            fullWidth
-            disabled={isCreatingLobby || isJoiningLobby}
-            className="bg-iceBlue hover:bg-opacity-80 text-gray-900"
-          >
-            Play vs AI
-          </Button>
-        </motion.div>
-        <motion.div variants={item}>
-          <Button variant="ghost" size="lg" onClick={openSettings} fullWidth>
-            Settings
-          </Button>
-        </motion.div>
-      </motion.div>
+            {/* Primary Action: Quick Match with Pulse Animation */}
+            <PulseButton disabled={isCreatingLobby || isJoiningLobby}>
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleQuickMatch}
+                fullWidth
+                disabled={isCreatingLobby || isJoiningLobby}
+                className="shadow-lg shadow-fireRed/50 hover:shadow-xl hover:shadow-fireRed/60 transition-shadow"
+                aria-label="Start Quick Match - Find a random opponent"
+              >
+                <span className="text-2xl font-black tracking-wide">⚡ QUICK MATCH ⚡</span>
+              </Button>
+            </PulseButton>
+          </motion.div>
 
-      {/* Player stats with fade in */}
-      <motion.div
-        className="mt-6 md:mt-8 flex gap-4 md:gap-8 text-xs md:text-sm text-gray-400"
-        variants={item}
-        initial="hidden"
-        animate="visible"
-      >
-        <div>
-          <p className="font-bold text-white">{playerName}</p>
-          <p>
-            Wins: {totalWins} / {totalGames}
-          </p>
-        </div>
-      </motion.div>
+          {/* Right Column: Game Mode Buttons */}
+          <motion.div variants={item} className="flex flex-col gap-3 md:gap-4">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handleCreatePrivateGame}
+              fullWidth
+              disabled={isCreatingLobby || isJoiningLobby}
+              className="shadow-md shadow-deepPurple/30 hover:shadow-lg hover:shadow-deepPurple/50 transition-shadow"
+              aria-label="Create a private game room"
+            >
+              {isCreatingLobby ? '⏳ Creating...' : '🎮 Create Private Game'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => setShowJoinModal(true)}
+              fullWidth
+              disabled={isCreatingLobby || isJoiningLobby}
+              className="shadow-md shadow-deepPurple/30 hover:shadow-lg hover:shadow-deepPurple/50 transition-shadow"
+              aria-label="Join a friend's private game"
+            >
+              🔗 Join Private Game
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handlePlayVsAI}
+              fullWidth
+              disabled={isCreatingLobby || isJoiningLobby}
+              className="bg-gradient-to-r from-iceBlue to-blue-400 hover:from-iceBlue/90 hover:to-blue-400/90 text-gray-900 shadow-md shadow-iceBlue/30 hover:shadow-lg hover:shadow-iceBlue/50 transition-shadow font-bold"
+              aria-label="Play against computer AI"
+            >
+              🤖 Play vs AI
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={openSettings}
+              fullWidth
+              className="hover:bg-gray-700/50 transition-colors"
+              aria-label="Open settings"
+            >
+              ⚙️ Settings
+            </Button>
+          </motion.div>
+        </motion.div>
+      </div>
 
       {/* Join Room Modal */}
       <Modal isOpen={showJoinModal} onClose={() => setShowJoinModal(false)} title="Join Private Game" size="sm">

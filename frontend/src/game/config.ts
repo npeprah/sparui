@@ -1,13 +1,14 @@
 import Phaser from 'phaser'
-import { TestScene } from './scenes/TestScene'
+import { PreloadScene } from './scenes/PreloadScene'
+import { GameScene } from './scenes/GameScene'
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'phaser-game',
   width: 1280,
   height: 720,
-  backgroundColor: '#1a1a1a',
-  scene: [TestScene],
+  backgroundColor: '#0a5f38', // Table green
+  scene: [PreloadScene, GameScene],
   physics: {
     default: 'arcade',
     arcade: {

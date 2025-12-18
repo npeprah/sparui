@@ -1,20 +1,8 @@
 // Shared type definitions for stores
 
 export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades'
-export type Rank =
-  | '2'
-  | '3'
-  | '4'
-  | '5'
-  | '6'
-  | '7'
-  | '8'
-  | '9'
-  | '10'
-  | 'J'
-  | 'Q'
-  | 'K'
-  | 'A'
+// Spar deck ranks: 6-10, J, Q, K, A (Note: Spades has no 6 or A)
+export type Rank = '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A'
 
 export interface Card {
   suit: Suit

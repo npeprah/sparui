@@ -121,6 +121,27 @@ func (c *Card) IsStrongerThan(other *Card) bool {
 	return c.Value.Rank() > other.Value.Rank()
 }
 
+// CompareValue compares the value of this card with another card
+// Returns: 1 if this card is stronger, -1 if weaker, 0 if equal
+// Only compares cards of the same suit
+func (c *Card) CompareValue(other Card) int {
+	// Cards can only be compared if they're the same suit
+	if c.Suit != other.Suit {
+		return 0
+	}
+
+	thisRank := c.Value.Rank()
+	otherRank := other.Value.Rank()
+
+	if thisRank > otherRank {
+		return 1
+	}
+	if thisRank < otherRank {
+		return -1
+	}
+	return 0
+}
+
 // IsLowCard checks if the card is a 6 or 7 (eligible for dry declaration)
 func (c *Card) IsLowCard() bool {
 	return c.Value == Six || c.Value == Seven

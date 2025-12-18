@@ -172,6 +172,31 @@ func TestCard(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("Card CompareValue", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			card1    Card
+			card2    Card
+			expected int
+		}{
+			{"Ace > King (same suit)", Card{Hearts, Ace}, Card{Hearts, King}, 1},
+			{"King < Ace (same suit)", Card{Hearts, King}, Card{Hearts, Ace}, -1},
+			{"Same card value", Card{Hearts, Seven}, Card{Hearts, Seven}, 0},
+			{"Different suits - not comparable", Card{Hearts, Ace}, Card{Diamonds, Six}, 0},
+			{"Six < Ace (same suit)", Card{Clubs, Six}, Card{Clubs, Ace}, -1},
+			{"Queen > Nine (same suit)", Card{Spades, Queen}, Card{Spades, Nine}, 1},
+			{"Nine > Seven (same suit)", Card{Diamonds, Nine}, Card{Diamonds, Seven}, 1},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				if got := tt.card1.CompareValue(tt.card2); got != tt.expected {
+					t.Errorf("Card.CompareValue() = %v, want %v", got, tt.expected)
+				}
+			})
+		}
+	})
 }
 
 // TestDryCard tests the DryCard type and bonus points

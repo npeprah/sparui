@@ -379,3 +379,103 @@ func (e *Engine) UpdateGameState(ctx context.Context, state *entity.GameState) {
 		"round", state.CurrentRound,
 	)
 }
+
+// CalculateRoundWinner determines the winner of the current round
+// Returns the player ID of the winner
+// Winner is determined by the highest card of the led suit
+// If no player has the led suit (all played different suits), leader wins by default
+func (e *Engine) CalculateRoundWinner(ctx context.Context) (string, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.state == nil {
+		return "", fmt.Errorf("game state not initialized")
+	}
+
+	// Validate round is complete
+	if !e.state.AllPlayersPlayed() {
+		return "", fmt.Errorf("not all players have played their cards")
+	}
+
+	// Validate we have played cards
+	if len(e.state.PlayedCards) == 0 {
+		return "", fmt.Errorf("no cards have been played")
+	}
+
+	// Validate led suit is set
+	if e.state.LedSuit == nil {
+		return "", fmt.Errorf("led suit not set")
+	}
+
+	ledSuit := *e.state.LedSuit
+
+	// Find all cards matching the led suit
+	var ledSuitCards []entity.PlayedCard
+	for _, playedCard := range e.state.PlayedCards {
+		if playedCard.Card.Suit == ledSuit {
+			ledSuitCards = append(ledSuitCards, playedCard)
+		}
+	}
+
+	// If no one has the led suit, leader wins by default
+	if len(ledSuitCards) == 0 {
+		slog.Info("No player has led suit - leader wins by default",
+			"leaderID", e.state.LeaderID,
+			"ledSuit", ledSuit,
+		)
+		e.state.RoundWinner = e.state.LeaderID
+		return e.state.LeaderID, nil
+	}
+
+	// Find the highest card of the led suit
+	winningCard := ledSuitCards[0]
+	for _, playedCard := range ledSuitCards[1:] {
+		if playedCard.Card.CompareValue(winningCard.Card) > 0 {
+			winningCard = playedCard
+		}
+	}
+
+	// Set the round winner in state
+	e.state.RoundWinner = winningCard.PlayerID
+
+	slog.Info("Round winner calculated",
+		"winnerID", winningCard.PlayerID,
+		"winningCard", winningCard.Card.String(),
+		"ledSuit", ledSuit,
+	)
+
+	return winningCard.PlayerID, nil
+}
+
+// ResetRoundState prepares the game state for the next round
+// Clears played cards, led suit, and player flags
+func (e *Engine) ResetRoundState(ctx context.Context) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.state == nil {
+		return
+	}
+
+	// Clear played cards
+	e.state.PlayedCards = []entity.PlayedCard{}
+
+	// Clear led suit
+	e.state.LedSuit = nil
+
+	// Reset player flags
+	for i := range e.state.Players {
+		e.state.Players[i].HasPlayedCard = false
+		// Note: We keep LastPlayedCard for display purposes
+		// Note: We keep RoundWinner for next round leader determination
+	}
+
+	// Update timestamp
+	e.state.UpdatedAt = time.Now()
+
+	slog.Info("Round state reset",
+		"gameId", e.state.GameID,
+		"currentRound", e.state.CurrentRound,
+		"roundWinner", e.state.RoundWinner,
+	)
+}

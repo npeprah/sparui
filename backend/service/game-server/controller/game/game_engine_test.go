@@ -1217,6 +1217,335 @@ func TestValidateTurnOrderEdgeCases(t *testing.T) {
 	})
 }
 
+// TestCalculateRoundWinner tests round winner calculation
+func TestCalculateRoundWinner(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupState     func() *entity.GameState
+		expectedWinner string
+		expectError    bool
+	}{
+		{
+			name: "leader wins with highest led suit card",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Hearts
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+						{ID: "player-3", Username: "Charlie", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},   // Winner - highest hearts
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Hearts, Value: entity.King}},  // Second
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},    // Not led suit
+					},
+				}
+			},
+			expectedWinner: "player-1",
+			expectError:    false,
+		},
+		{
+			name: "non-leader wins with highest led suit card",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Diamonds
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+						{ID: "player-3", Username: "Charlie", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Diamonds, Value: entity.Seven}}, // Led suit but low
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Diamonds, Value: entity.Ace}},   // Winner - highest diamonds
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.King}},     // Not led suit
+					},
+				}
+			},
+			expectedWinner: "player-2",
+			expectError:    false,
+		},
+		{
+			name: "no player has led suit - leader wins default",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Hearts
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Six}},  // Led hearts
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},   // No hearts - leader wins
+					},
+				}
+			},
+			expectedWinner: "player-1",
+			expectError:    false,
+		},
+		{
+			name: "all non-leaders play different suits - leader wins default",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Spades
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+						{ID: "player-3", Username: "Charlie", IsLeader: false, HasPlayedCard: true},
+						{ID: "player-4", Username: "Diana", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Spades, Value: entity.Seven}},   // Led spades
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},      // No spades
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},     // No spades
+						{PlayerID: "player-4", Card: entity.Card{Suit: entity.Diamonds, Value: entity.Ace}},   // No spades
+					},
+				}
+			},
+			expectedWinner: "player-1",
+			expectError:    false,
+		},
+		{
+			name: "multiple players follow suit - highest value wins",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Clubs
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+						{ID: "player-3", Username: "Charlie", IsLeader: false, HasPlayedCard: true},
+						{ID: "player-4", Username: "Diana", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Clubs, Value: entity.Nine}},   // 9 clubs
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Seven}},  // 7 clubs
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.King}},   // King clubs - Winner!
+						{PlayerID: "player-4", Card: entity.Card{Suit: entity.Clubs, Value: entity.Queen}},  // Queen clubs
+					},
+				}
+			},
+			expectedWinner: "player-3",
+			expectError:    false,
+		},
+		{
+			name: "ace beats king (card hierarchy test)",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Diamonds
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Diamonds, Value: entity.King}}, // King diamonds
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Diamonds, Value: entity.Ace}},  // Ace diamonds - Winner!
+					},
+				}
+			},
+			expectedWinner: "player-2",
+			expectError:    false,
+		},
+		{
+			name: "2-player game - simple win",
+			setupState: func() *entity.GameState {
+				ledSuit := entity.Hearts
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      &ledSuit,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Six}},   // 6 hearts
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Hearts, Value: entity.Seven}}, // 7 hearts - Winner!
+					},
+				}
+			},
+			expectedWinner: "player-2",
+			expectError:    false,
+		},
+		{
+			name: "error - no played cards",
+			setupState: func() *entity.GameState {
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true},
+					},
+					PlayedCards: []entity.PlayedCard{},
+				}
+			},
+			expectedWinner: "",
+			expectError:    true,
+		},
+		{
+			name: "error - nil led suit",
+			setupState: func() *entity.GameState {
+				return &entity.GameState{
+					GameID:       "game-1",
+					Phase:        entity.PhasePlaying,
+					CurrentRound: 1,
+					LeaderID:     "player-1",
+					LedSuit:      nil,
+					Players: []entity.GamePlayer{
+						{ID: "player-1", Username: "Alice", IsLeader: true},
+					},
+					PlayedCards: []entity.PlayedCard{
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},
+					},
+				}
+			},
+			expectedWinner: "",
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine := NewEngine()
+			state := tt.setupState()
+			engine.SetGameState(state)
+
+			winnerID, err := engine.CalculateRoundWinner(context.Background())
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+				if winnerID != tt.expectedWinner {
+					t.Errorf("expected winner '%s', got '%s'", tt.expectedWinner, winnerID)
+				}
+			}
+		})
+	}
+}
+
+// TestCalculateRoundWinnerEdgeCases tests edge cases
+func TestCalculateRoundWinnerEdgeCases(t *testing.T) {
+	t.Run("nil state", func(t *testing.T) {
+		engine := NewEngine()
+		_, err := engine.CalculateRoundWinner(context.Background())
+		if err == nil {
+			t.Error("expected error with nil state")
+		}
+	})
+
+	t.Run("not all players have played", func(t *testing.T) {
+		engine := NewEngine()
+		ledSuit := entity.Hearts
+		state := &entity.GameState{
+			GameID:       "game-1",
+			Phase:        entity.PhasePlaying,
+			CurrentRound: 1,
+			LeaderID:     "player-1",
+			LedSuit:      &ledSuit,
+			Players: []entity.GamePlayer{
+				{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true},
+				{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: false}, // Not played yet
+			},
+			PlayedCards: []entity.PlayedCard{
+				{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},
+			},
+		}
+		engine.SetGameState(state)
+
+		_, err := engine.CalculateRoundWinner(context.Background())
+		if err == nil {
+			t.Error("expected error when not all players have played")
+		}
+	})
+}
+
+// TestResetRoundState tests resetting state for next round
+func TestResetRoundState(t *testing.T) {
+	engine := NewEngine()
+	ledSuit := entity.Hearts
+	state := &entity.GameState{
+		GameID:       "game-1",
+		Phase:        entity.PhasePlaying,
+		CurrentRound: 1,
+		LeaderID:     "player-1",
+		LedSuit:      &ledSuit,
+		RoundWinner:  "player-2",
+		Players: []entity.GamePlayer{
+			{ID: "player-1", Username: "Alice", IsLeader: true, HasPlayedCard: true, LastPlayedCard: &entity.Card{Suit: entity.Hearts, Value: entity.Ace}},
+			{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true, LastPlayedCard: &entity.Card{Suit: entity.Hearts, Value: entity.King}},
+		},
+		PlayedCards: []entity.PlayedCard{
+			{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},
+			{PlayerID: "player-2", Card: entity.Card{Suit: entity.Hearts, Value: entity.King}},
+		},
+	}
+	engine.SetGameState(state)
+
+	engine.ResetRoundState(context.Background())
+
+	updatedState := engine.GetGameState()
+
+	// Check played cards cleared
+	if len(updatedState.PlayedCards) != 0 {
+		t.Errorf("expected 0 played cards, got %d", len(updatedState.PlayedCards))
+	}
+
+	// Check led suit cleared
+	if updatedState.LedSuit != nil {
+		t.Error("expected led suit to be nil after reset")
+	}
+
+	// Check players' HasPlayedCard reset
+	for _, player := range updatedState.Players {
+		if player.HasPlayedCard {
+			t.Errorf("player %s should not have HasPlayedCard set after reset", player.ID)
+		}
+	}
+
+	// Check round winner preserved (for next round leader determination)
+	if updatedState.RoundWinner != "player-2" {
+		t.Error("round winner should be preserved for next round")
+	}
+}
+
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
