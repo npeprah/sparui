@@ -385,8 +385,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       // Start drag
       this.isDragging = true
 
-      // Raise card above others
-      this.setDepth(100)
+      // Raise card above everything (played cards are at depth 1000+)
+      // Use depth 2000 to ensure dragged card is always on top
+      this.setDepth(2000)
 
       // Light haptic feedback
       triggerHaptic('LIGHT')
