@@ -34,6 +34,13 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   // Event callbacks
   public onCardClick?: (card: CardSprite) => void
   public onCardHover?: (card: CardSprite) => void
+  public onCardDragPlay?: (card: CardSprite) => void
+
+  // Drag state
+  private isDragging: boolean = false
+  private dragStartY: number = 0
+  private dragThreshold: number = 100 // pixels
+  private originalDepth: number = 1
 
   constructor(
     scene: Phaser.Scene,
@@ -64,26 +71,43 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * Setup interactive behaviors (hover, click, touch)
+   * Setup interactive behaviors (hover, click, touch, drag)
    */
   private setupInteractions(): void {
     // Hover enter
     this.on('pointerover', () => {
-      if (!this._playable) return
+      if (!this._playable || this.isDragging) return
       this.onHoverEnter()
       this.onCardHover?.(this)
     })
 
     // Hover exit
     this.on('pointerout', () => {
-      if (!this._playable) return
+      if (!this._playable || this.isDragging) return
       this.onHoverExit()
     })
 
-    // Click/tap
-    this.on('pointerdown', () => {
+    // Click/tap (only if not dragging)
+    this.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this._playable) return
-      this.onCardClick?.(this)
+      this.onDragStart(pointer)
+    })
+
+    this.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!this._playable || !this.isDragging) return
+      this.onDragMove(pointer)
+    })
+
+    this.on('pointerup', () => {
+      if (!this._playable || !this.isDragging) return
+      this.onDragEnd()
+    })
+
+    // Cancel drag if pointer leaves card
+    this.on('pointerout', () => {
+      if (this.isDragging) {
+        this.cancelDrag()
+      }
     })
   }
 
@@ -310,6 +334,143 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
    */
   public updateOriginalY(y: number): void {
     this.originalY = y
+  }
+
+  /**
+   * Drag gesture: Start drag
+   */
+  private onDragStart(pointer: Phaser.Input.Pointer): void {
+    this.isDragging = true
+    this.dragStartY = pointer.y
+    this.originalDepth = this.depth
+
+    // Raise card above others
+    this.setDepth(100)
+
+    // Light haptic feedback
+    triggerHaptic('LIGHT')
+
+    // Scale up slightly
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: this.scaleX * 1.1,
+      scaleY: this.scaleY * 1.1,
+      duration: 100,
+      ease: 'Cubic.easeOut',
+    })
+  }
+
+  /**
+   * Drag gesture: Update position while dragging
+   */
+  private onDragMove(pointer: Phaser.Input.Pointer): void {
+    const deltaY = pointer.y - this.dragStartY
+    const dragDistance = Math.abs(deltaY)
+
+    // Only allow upward drag
+    if (deltaY < 0) {
+      // Constrain drag to reasonable bounds
+      const maxDrag = -150
+      const clampedDelta = Math.max(deltaY, maxDrag)
+
+      // Update position
+      this.y = this.originalY + clampedDelta
+
+      // Visual feedback when threshold reached
+      if (dragDistance >= this.dragThreshold) {
+        // Add glow to indicate ready to play
+        if (!this.glowEffect) {
+          this.showDragGlow()
+        }
+        // Medium haptic feedback (once)
+        if (dragDistance === this.dragThreshold) {
+          triggerHaptic('MEDIUM')
+        }
+      } else {
+        // Remove glow if below threshold
+        if (this.glowEffect) {
+          this.hideDragGlow()
+        }
+      }
+    }
+  }
+
+  /**
+   * Drag gesture: Release and check if card should be played
+   */
+  private onDragEnd(): void {
+    const deltaY = this.y - this.originalY
+    const dragDistance = Math.abs(deltaY)
+
+    if (dragDistance >= this.dragThreshold) {
+      // Play the card
+      this.hideDragGlow()
+      triggerHaptic('CARD_PLAY')
+      this.onCardDragPlay?.(this)
+    } else {
+      // Return to original position
+      this.returnToOriginalPosition()
+    }
+
+    this.isDragging = false
+  }
+
+  /**
+   * Cancel drag and return card to original position
+   */
+  private cancelDrag(): void {
+    if (!this.isDragging) return
+
+    this.isDragging = false
+    this.hideDragGlow()
+    this.returnToOriginalPosition()
+  }
+
+  /**
+   * Animate card return to original position
+   */
+  private returnToOriginalPosition(): void {
+    this.scene.tweens.add({
+      targets: this,
+      y: this.originalY,
+      scaleX: this.scaleX / 1.1,
+      scaleY: this.scaleY / 1.1,
+      duration: 200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        this.setDepth(this.originalDepth)
+      },
+    })
+  }
+
+  /**
+   * Show drag glow (threshold reached)
+   */
+  private showDragGlow(): void {
+    if (this.glowEffect) {
+      this.glowEffect.destroy()
+    }
+
+    this.glowEffect = this.scene.add.graphics()
+    this.glowEffect.lineStyle(4, 0x00ff00, 1) // Green glow = ready to play
+    this.glowEffect.strokeRoundedRect(
+      this.x - this.displayWidth / 2 - 4,
+      this.y - this.displayHeight / 2 - 4,
+      this.displayWidth + 8,
+      this.displayHeight + 8,
+      12
+    )
+    this.glowEffect.setDepth(this.depth - 1)
+  }
+
+  /**
+   * Hide drag glow
+   */
+  private hideDragGlow(): void {
+    if (this.glowEffect) {
+      this.glowEffect.destroy()
+      this.glowEffect = undefined
+    }
   }
 
   /**

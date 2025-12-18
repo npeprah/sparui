@@ -6,6 +6,7 @@ import {
   getCardAssetPath,
   CARD_BACK_KEY,
 } from '../constants/cards'
+import { createParticleTextures } from '../utils/particles'
 
 export class PreloadScene extends Phaser.Scene {
   private loadingText?: Phaser.GameObjects.Text
@@ -21,6 +22,7 @@ export class PreloadScene extends Phaser.Scene {
     this.setupLoadingEvents()
     this.loadCardAssets()
     this.createCardBackTexture()
+    this.createParticleTextures()
   }
 
   /**
@@ -161,6 +163,13 @@ export class PreloadScene extends Phaser.Scene {
     this.time.delayedCall(500, () => {
       this.scene.start('GameScene')
     })
+  }
+
+  /**
+   * Create particle textures programmatically
+   */
+  private createParticleTextures(): void {
+    createParticleTextures(this)
   }
 
   /**
