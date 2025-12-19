@@ -7,6 +7,7 @@ import {
   CARD_BACK_KEY,
 } from '../constants/cards'
 import { createParticleTextures } from '../utils/particles'
+import { AudioManager } from '../../services/audioManager'
 
 export class PreloadScene extends Phaser.Scene {
   private loadingText?: Phaser.GameObjects.Text
@@ -21,8 +22,34 @@ export class PreloadScene extends Phaser.Scene {
     this.createLoadingUI()
     this.setupLoadingEvents()
     this.loadCardAssets()
+    this.loadSoundAssets()
+  }
+
+  create() {
+    console.log('[PreloadScene] create() called - creating programmatic textures')
+
+    // Create programmatic textures after loading completes
     this.createCardBackTexture()
     this.createParticleTextures()
+
+    console.log('[PreloadScene] Programmatic textures created')
+
+    // Verify audio files in cache
+    this.verifyAudioCache()
+
+    // Verify card textures in cache
+    this.verifyCardCache()
+
+    // Clean up loading UI
+    this.loadingText?.destroy()
+    this.progressBar?.destroy()
+    this.progressBox?.destroy()
+
+    // Transition to game scene after a short delay
+    this.time.delayedCall(500, () => {
+      console.log('[PreloadScene] Starting GameScene...')
+      this.scene.start('GameScene')
+    })
   }
 
   /**
@@ -52,15 +79,37 @@ export class PreloadScene extends Phaser.Scene {
    * Setup loading progress event handlers
    */
   private setupLoadingEvents(): void {
+    console.log('[PreloadScene] Setting up loader event handlers')
     this.load.on('progress', this.onLoadProgress, this)
     this.load.on('complete', this.onLoadComplete, this)
     this.load.on('loaderror', this.onLoadError, this)
+    this.load.on('filecomplete', this.onFileComplete, this)
+    this.load.on('start', this.onLoadStart, this)
+  }
+
+  /**
+   * Callback when loader starts
+   */
+  private onLoadStart(): void {
+    console.log('[PreloadScene] Loader started')
+  }
+
+  /**
+   * Callback when individual file completes
+   */
+  private onFileComplete(key: string, type: string): void {
+    if (type === 'audio') {
+      console.log(`[PreloadScene] Audio file loaded: ${key}`)
+    } else if (type === 'image') {
+      console.log(`[PreloadScene] Image file loaded: ${key}`)
+    }
   }
 
   /**
    * Load all 34 card assets
    */
   private loadCardAssets(): void {
+    console.log('[PreloadScene] ===== LOADING CARD ASSETS =====')
     let loadedCount = 0
     const totalCards = 34
 
@@ -71,15 +120,34 @@ export class PreloadScene extends Phaser.Scene {
         const key = getCardAssetKey(suit, rank)
         const path = getCardAssetPath(suit, rank)
 
+        console.log(`[PreloadScene] Loading card: ${key} from ${path}`)
         this.load.image(key, path)
         loadedCount++
       }
     }
 
+    console.log(`[PreloadScene] Queued ${loadedCount} cards for loading`)
+
     // Verify we're loading exactly 34 cards
     if (loadedCount !== totalCards) {
-      console.warn(`Expected to load ${totalCards} cards, but loading ${loadedCount}`)
+      console.warn(`[PreloadScene] Expected to load ${totalCards} cards, but loading ${loadedCount}`)
     }
+  }
+
+  /**
+   * Load all sound assets using AudioManager
+   */
+  private loadSoundAssets(): void {
+    console.log('[PreloadScene] ===== LOADING SOUND ASSETS =====')
+    console.log('[PreloadScene] Scene:', this.scene.key)
+    console.log('[PreloadScene] Loader exists:', !!this.load)
+
+    const audioManager = AudioManager.getInstance()
+    audioManager.preload(this)
+
+    console.log('[PreloadScene] AudioManager.preload() called')
+    console.log('[PreloadScene] Loader files in queue:', this.load.list.size)
+    console.log('[PreloadScene] Loader total files:', this.load.totalToLoad)
   }
 
   /**
@@ -87,6 +155,7 @@ export class PreloadScene extends Phaser.Scene {
    * Simple placeholder with Kente-inspired pattern
    */
   private createCardBackTexture(): void {
+    console.log('[PreloadScene] Creating card_back texture...')
     const width = 512
     const height = 768
 
@@ -128,6 +197,10 @@ export class PreloadScene extends Phaser.Scene {
     // Generate texture
     graphics.generateTexture(CARD_BACK_KEY, width, height)
     graphics.destroy()
+
+    // Verify texture was created
+    const textureExists = this.textures.exists(CARD_BACK_KEY)
+    console.log(`[PreloadScene] card_back texture created: ${textureExists}`)
   }
 
   /**
@@ -149,20 +222,104 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * Load complete callback - transition to game scene
+   * Load complete callback - just log completion
+   * NOTE: Scene transition happens in create() method
    */
   private onLoadComplete(): void {
-    console.log('All assets loaded successfully (34 cards + card back)')
+    console.log('[PreloadScene] ===== ALL ASSETS LOADED =====')
+    console.log('[PreloadScene] Total files loaded:', this.load.totalComplete)
+    console.log('[PreloadScene] Expected: 34 cards + 16 sounds = 50 total (card_back created in create())')
+  }
 
-    // Clean up loading UI
-    this.loadingText?.destroy()
-    this.progressBar?.destroy()
-    this.progressBox?.destroy()
+  /**
+   * Verify that audio files are in Phaser's cache
+   */
+  private verifyAudioCache(): void {
+    console.log('[PreloadScene] ===== VERIFYING AUDIO CACHE =====')
 
-    // Transition to game scene after a short delay
-    this.time.delayedCall(500, () => {
-      this.scene.start('GameScene')
+    const expectedSounds = [
+      'sound:card_deal',
+      'sound:card_flip',
+      'sound:card_play',
+      'sound:card_hover',
+      'sound:card_shuffle',
+      'sound:card_collect',
+      'sound:win_round',
+      'sound:lose_round',
+      'sound:game_victory',
+      'sound:game_defeat',
+      'sound:dry_declaration',
+      'sound:show_dry_declaration',
+      'sound:fire_streak',
+      'sound:freeze_effect',
+      'sound:invalid_move',
+      'sound:phase_transition',
+    ]
+
+    let foundCount = 0
+    let missingCount = 0
+
+    expectedSounds.forEach((key) => {
+      const exists = this.cache.audio.exists(key)
+      if (exists) {
+        foundCount++
+        console.log(`[PreloadScene] ✓ ${key} - IN CACHE`)
+      } else {
+        missingCount++
+        console.error(`[PreloadScene] ✗ ${key} - NOT IN CACHE`)
+      }
     })
+
+    console.log(`[PreloadScene] Audio cache verification: ${foundCount}/${expectedSounds.length} found`)
+    if (missingCount > 0) {
+      console.error(`[PreloadScene] ERROR: ${missingCount} audio files missing from cache!`)
+    }
+  }
+
+  /**
+   * Verify that card textures are in Phaser's cache
+   */
+  private verifyCardCache(): void {
+    console.log('[PreloadScene] ===== VERIFYING CARD TEXTURE CACHE =====')
+
+    let foundCount = 0
+    let missingCount = 0
+    const missingCards: string[] = []
+
+    // Check all 34 cards
+    for (const suit of ALL_SUITS) {
+      const validRanks = getValidRanksForSuit(suit)
+      for (const rank of validRanks) {
+        const key = getCardAssetKey(suit, rank)
+        const exists = this.textures.exists(key)
+
+        if (exists) {
+          foundCount++
+          console.log(`[PreloadScene] ✓ ${key} - IN TEXTURE CACHE`)
+        } else {
+          missingCount++
+          missingCards.push(key)
+          console.error(`[PreloadScene] ✗ ${key} - NOT IN TEXTURE CACHE`)
+        }
+      }
+    }
+
+    // Check card back
+    const cardBackExists = this.textures.exists(CARD_BACK_KEY)
+    if (cardBackExists) {
+      foundCount++
+      console.log(`[PreloadScene] ✓ ${CARD_BACK_KEY} - IN TEXTURE CACHE`)
+    } else {
+      missingCount++
+      missingCards.push(CARD_BACK_KEY)
+      console.error(`[PreloadScene] ✗ ${CARD_BACK_KEY} - NOT IN TEXTURE CACHE`)
+    }
+
+    console.log(`[PreloadScene] Card cache verification: ${foundCount}/35 found`)
+    if (missingCount > 0) {
+      console.error(`[PreloadScene] ERROR: ${missingCount} card textures missing from cache!`)
+      console.error('[PreloadScene] Missing cards:', missingCards)
+    }
   }
 
   /**
