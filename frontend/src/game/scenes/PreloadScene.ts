@@ -141,13 +141,27 @@ export class PreloadScene extends Phaser.Scene {
     console.log('[PreloadScene] ===== LOADING SOUND ASSETS =====')
     console.log('[PreloadScene] Scene:', this.scene.key)
     console.log('[PreloadScene] Loader exists:', !!this.load)
+    console.log('[PreloadScene] Loader.isLoading():', this.load.isLoading())
+    console.log('[PreloadScene] Loader.isReady():', this.load.isReady())
 
-    const audioManager = AudioManager.getInstance()
-    audioManager.preload(this)
+    try {
+      const audioManager = AudioManager.getInstance()
+      console.log('[PreloadScene] AudioManager instance obtained, calling preload()...')
 
-    console.log('[PreloadScene] AudioManager.preload() called')
-    console.log('[PreloadScene] Loader files in queue:', this.load.list.size)
-    console.log('[PreloadScene] Loader total files:', this.load.totalToLoad)
+      // Force reload in development to handle React StrictMode double-mounting
+      const isDevelopment = import.meta.env.DEV
+      console.log('[PreloadScene] Development mode:', isDevelopment)
+
+      audioManager.preload(this, isDevelopment)
+      console.log('[PreloadScene] AudioManager.preload() returned successfully')
+    } catch (error) {
+      console.error('[PreloadScene] ERROR calling AudioManager.preload():', error)
+    }
+
+    console.log('[PreloadScene] After AudioManager.preload():')
+    console.log('[PreloadScene] - Loader files in queue:', this.load.list.size)
+    console.log('[PreloadScene] - Loader total files:', this.load.totalToLoad)
+    console.log('[PreloadScene] - Loader total complete:', this.load.totalComplete)
   }
 
   /**
@@ -333,6 +347,14 @@ export class PreloadScene extends Phaser.Scene {
    * Error callback - log failed asset loads
    */
   private onLoadError(file: Phaser.Loader.File): void {
-    console.error(`Failed to load asset: ${file.key} from ${file.url}`)
+    console.error('[PreloadScene] ===== LOAD ERROR =====')
+    console.error('[PreloadScene] Failed to load asset:', {
+      key: file.key,
+      type: file.type,
+      url: file.url,
+      src: file.src,
+      state: file.state,
+    })
+    console.error('[PreloadScene] File object:', file)
   }
 }

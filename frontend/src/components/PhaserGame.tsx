@@ -1,40 +1,32 @@
 import { useEffect, useRef } from 'react'
 import Phaser from 'phaser'
 import { gameConfig } from '../game/config'
+import { AudioManager } from '../services/audioManager'
 
 function PhaserGame() {
   const gameRef = useRef<Phaser.Game | null>(null)
 
   useEffect(() => {
-    // Create Phaser game instance
+    console.log('[PhaserGame] useEffect running, gameRef.current:', !!gameRef.current)
+
     if (!gameRef.current) {
+      console.log('[PhaserGame] Creating new Phaser.Game instance')
       gameRef.current = new Phaser.Game(gameConfig)
+      console.log('[PhaserGame] Phaser.Game instance created')
+    } else {
+      console.log('[PhaserGame] Phaser.Game instance already exists, skipping creation')
     }
 
-    // HMR disposal - destroy game instance before hot reload
-    // This prevents asset corruption when Vite hot-reloads the component
-    if (import.meta.hot) {
-      import.meta.hot.dispose(() => {
-        if (gameRef.current) {
-          console.log('[HMR] Destroying Phaser game instance before hot reload')
-          gameRef.current.destroy(true, false)
-          gameRef.current = null
-        }
-      })
-
-      // Force full page reload on HMR for Phaser-related files
-      // This is the safest approach as Phaser state can be complex
-      import.meta.hot.accept(() => {
-        console.log('[HMR] Phaser component updated - forcing full reload')
-        window.location.reload()
-      })
-    }
-
-    // Cleanup on unmount
     return () => {
+      console.log('[PhaserGame] Cleanup function running')
       if (gameRef.current) {
-        gameRef.current.destroy(true, false)
+        console.log('[PhaserGame] Destroying Phaser.Game instance')
+        gameRef.current.destroy(true)
         gameRef.current = null
+
+        // Reset AudioManager singleton to allow fresh initialization
+        console.log('[PhaserGame] Resetting AudioManager singleton')
+        AudioManager.resetInstance()
       }
     }
   }, [])

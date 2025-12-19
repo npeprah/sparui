@@ -23,8 +23,8 @@ export const ALL_RANKS: readonly Rank[] = [
 // Spades only has 7 cards (no 6 or A)
 export const SPADES_RANKS: readonly Rank[] = ['7', '8', '9', '10', 'J', 'Q', 'K'] as const
 
-// Card asset path structure
-export const CARD_ASSET_BASE_PATH = '/assets/cards'
+// Card asset path structure (no leading slash - relative to public directory)
+export const CARD_ASSET_BASE_PATH = 'assets/cards'
 
 /**
  * Generate the asset key for a card
