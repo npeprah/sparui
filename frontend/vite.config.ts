@@ -12,5 +12,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    hmr: {
+      // Configure HMR behavior
+      overlay: true,
+    },
+  },
+  optimizeDeps: {
+    // Exclude Phaser from optimization to prevent HMR issues
+    exclude: ['phaser'],
   },
 })
