@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -72,14 +73,22 @@ var hub = &Hub{
 // Global room manager
 var roomManager *room.Manager
 
+// Global matchmaking queue manager
+var matchmakingQueue *matchmaking.QueueManager
+
 // Global repositories
 var userRepository *userrepo.Repository
 
 // Global connection manager
 var connectionManager *ConnectionManager
 
-// Global matchmaking queue
-var matchmakingQueue *matchmaking.QueueManager
+// Global context for matchmaking worker
+var matchmakingCtx context.Context
+var matchmakingCancel context.CancelFunc
+
+// Global games map stores active game states by room code
+var games = make(map[string]*entity.GameState)
+var gamesMu sync.RWMutex
 
 func init() {
 	go hub.Run()
@@ -87,6 +96,8 @@ func init() {
 	roomManager = room.NewManager()
 	// Initialize connection manager with 60 second reconnection timeout
 	connectionManager = NewConnectionManager(hub, 60*time.Second)
+	// Initialize matchmaking queue manager
+	matchmakingQueue = matchmaking.NewQueueManager(roomManager)
 }
 
 // InitWebSocket initializes the WebSocket service with dependencies
@@ -98,7 +109,22 @@ func InitWebSocket(database *db.DB) {
 	// Initialize room manager with repository
 	roomManager = room.NewManagerWithRepository(roomRepository)
 
+	// Re-initialize matchmaking queue with updated room manager
+	matchmakingQueue = matchmaking.NewQueueManager(roomManager)
+
+	// Start matchmaking background worker
+	matchmakingCtx, matchmakingCancel = context.WithCancel(context.Background())
+	go matchmakingQueue.Start(matchmakingCtx)
+
 	slog.Info("WebSocket service initialized with database dependencies")
+}
+
+// ShutdownWebSocket gracefully shuts down the WebSocket service
+func ShutdownWebSocket() {
+	if matchmakingCancel != nil {
+		matchmakingCancel()
+	}
+	slog.Info("WebSocket service shut down")
 }
 
 // Run starts the hub's main loop
@@ -268,6 +294,18 @@ func (c *Client) handleMessage(msg Message) {
 		c.handleJoinLobby(msg.Data)
 	case "lobby:leave":
 		c.handleLeaveLobby(msg.Data)
+	case "lobby:ready":
+		c.handlePlayerReady(msg.Data)
+	case "lobby:start_game":
+		c.handleStartGame(msg.Data)
+	case "game:restart":
+		c.handleRestartGame(msg.Data)
+	case "matchmaking:join":
+		c.handleMatchmakingJoin(msg.Data)
+	case "matchmaking:leave":
+		c.handleMatchmakingLeave(msg.Data)
+	case "matchmaking:status":
+		c.handleMatchmakingStatus(msg.Data)
 	default:
 		slog.Warn("Unknown event type", "event", msg.Event)
 	}
@@ -329,19 +367,611 @@ func min(a, b int) int {
 	return b
 }
 
+// mapFrontendRankToBackend converts frontend rank format to backend value format
+// Frontend uses: J, Q, K, A (uppercase single letters)
+// Backend uses: jack, queen, king, ace (lowercase full words)
+func mapFrontendRankToBackend(rank string) string {
+	switch rank {
+	case "J":
+		return "jack"
+	case "Q":
+		return "queen"
+	case "K":
+		return "king"
+	case "A":
+		return "ace"
+	default:
+		// Numbers (6, 7, 8, 9, 10) are the same in both formats
+		return rank
+	}
+}
+
 func (c *Client) handlePlayCard(data json.RawMessage) {
-	// TODO: Parse card data, validate, update game state, broadcast to room
-	slog.Info("Play card event", "clientId", c.ID)
+	slog.Info("Play card event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Parse request
+	var req struct {
+		Card struct {
+			Suit  string `json:"suit"`
+			Value string `json:"value"` // Backend format
+			Rank  string `json:"rank"`  // Frontend format
+		} `json:"card"`
+	}
+	if err := json.Unmarshal(data, &req); err != nil {
+		slog.Error("Failed to parse play card request", "error", err)
+		c.sendError("game:play_error", "Invalid request format")
+		return
+	}
+
+	// Handle frontend using "rank" instead of "value"
+	cardValue := req.Card.Value
+	if cardValue == "" {
+		cardValue = req.Card.Rank
+	}
+
+	// Map frontend rank format (J, Q, K, A) to backend format (jack, queen, king, ace)
+	cardValue = mapFrontendRankToBackend(cardValue)
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to play card", "clientId", c.ID)
+		c.sendError("game:play_error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("game:play_error", "Not in a room")
+		return
+	}
+
+	// Get game state
+	gamesMu.Lock()
+	defer gamesMu.Unlock()
+
+	gameState, exists := games[c.RoomID]
+	if !exists {
+		slog.Error("Game state not found", "roomCode", c.RoomID)
+		c.sendError("game:play_error", "Game not found")
+		return
+	}
+
+	// Validate game is in playing phase
+	if gameState.Phase != entity.PhasePlaying {
+		c.sendError("game:play_error", "Game is not in playing phase")
+		return
+	}
+
+	// Get player from game state
+	player := gameState.GetPlayer(c.PlayerID)
+	if player == nil {
+		slog.Error("Player not found in game state", "playerId", c.PlayerID, "roomCode", c.RoomID)
+		c.sendError("game:play_error", "Player not found in game")
+		return
+	}
+
+	// Validate it's the player's turn
+	if gameState.CurrentTurn != c.PlayerID {
+		slog.Warn("Player attempted to play out of turn",
+			"playerId", c.PlayerID,
+			"currentTurn", gameState.CurrentTurn)
+		c.sendError("game:play_error", "Not your turn")
+		return
+	}
+
+	// Validate player hasn't already played this round
+	if player.HasPlayedCard {
+		slog.Warn("Player attempted to play twice in same round", "playerId", c.PlayerID)
+		c.sendError("game:play_error", "Already played this round")
+		return
+	}
+
+	// Parse and validate card
+	card := &entity.Card{
+		Suit:  entity.Suit(req.Card.Suit),
+		Value: entity.Value(cardValue),
+	}
+
+	if !card.IsValid() {
+		slog.Warn("Invalid card attempted", "playerId", c.PlayerID, "card", card.String())
+		c.sendError("game:play_error", "Invalid card")
+		return
+	}
+
+	// Validate player has this card in their hand
+	if !player.HasCard(card) {
+		slog.Warn("Player attempted to play card not in hand",
+			"playerId", c.PlayerID,
+			"card", card.String())
+		c.sendError("game:play_error", "Card not in your hand")
+		return
+	}
+
+	// Validate suit following rules (if not leading)
+	if gameState.LedSuit != nil {
+		// A suit has been led - must follow if player has that suit
+		if player.HasSuit(*gameState.LedSuit) && card.Suit != *gameState.LedSuit {
+			slog.Warn("Player must follow suit",
+				"playerId", c.PlayerID,
+				"ledSuit", *gameState.LedSuit,
+				"playedSuit", card.Suit)
+			c.sendError("game:play_error", "Must follow suit")
+			return
+		}
+	} else {
+		// Leading the round - set the led suit
+		gameState.LedSuit = &card.Suit
+		slog.Info("Led suit set", "suit", card.Suit, "playerId", c.PlayerID)
+	}
+
+	// All validations passed - update game state
+
+	// Remove card from player's hand
+	if !player.RemoveCard(card) {
+		slog.Error("Failed to remove card from hand", "playerId", c.PlayerID, "card", card.String())
+		c.sendError("game:play_error", "Failed to play card")
+		return
+	}
+
+	// Mark player as having played
+	player.HasPlayedCard = true
+	player.LastPlayedCard = card
+	player.PlayedAt = time.Now()
+
+	// Add card to played cards
+	playedCard := entity.PlayedCard{
+		Card:     *card,
+		PlayerID: c.PlayerID,
+		PlayedAt: time.Now(),
+		IsOnFire: player.IsOnFire,
+		IsFrozen: false, // TODO: Implement freeze logic
+	}
+	gameState.PlayedCards = append(gameState.PlayedCards, playedCard)
+
+	// Determine next turn
+	nextPlayer := gameState.GetNextPlayer()
+	if nextPlayer != nil {
+		gameState.CurrentTurn = nextPlayer.ID
+		gameState.TurnStartTime = time.Now()
+		slog.Info("Turn advanced", "nextPlayer", nextPlayer.ID)
+	} else {
+		// All players have played - round is complete
+		gameState.CurrentTurn = ""
+		slog.Info("Round complete - all players have played", "roomCode", c.RoomID)
+	}
+
+	gameState.UpdatedAt = time.Now()
+
+	slog.Info("Card played successfully",
+		"playerId", c.PlayerID,
+		"card", card.String(),
+		"playedCardsCount", len(gameState.PlayedCards),
+		"allPlayed", gameState.AllPlayersPlayed(),
+		"nextTurn", gameState.CurrentTurn,
+	)
+
+	// Prepare broadcast payload with frontend-formatted cards
+	broadcastPayload := map[string]interface{}{
+		"event": "cardPlayed",
+		"data": map[string]interface{}{
+			"playerId":      c.PlayerID,
+			"card":          convertCardToFrontendFormat(card),
+			"playedCards":   convertPlayedCardsToFrontendFormat(gameState.PlayedCards),
+			"currentTurn":   gameState.CurrentTurn,
+			"ledSuit":       gameState.LedSuit,
+			"roundComplete": gameState.AllPlayersPlayed(),
+		},
+	}
+
+	// Count clients in room for logging
+	c.Hub.mu.RLock()
+	clientsInRoom := 0
+	for client := range c.Hub.Clients {
+		if client.RoomID == c.RoomID {
+			clientsInRoom++
+		}
+	}
+	c.Hub.mu.RUnlock()
+
+	slog.Info("Broadcasting card played event to room",
+		"roomCode", c.RoomID,
+		"event", "cardPlayed",
+		"playerId", c.PlayerID,
+		"card", card.String(),
+		"clientsInRoom", clientsInRoom,
+	)
+
+	// Broadcast card played event to all players in room (including sender)
+	c.broadcastToRoomIncludingSelf(c.RoomID, broadcastPayload)
+
+	slog.Info("Card played broadcast completed",
+		"roomCode", c.RoomID,
+		"playerId", c.PlayerID,
+		"clientsInRoom", clientsInRoom,
+	)
+
+	// Handle round completion if all players have played
+	if gameState.AllPlayersPlayed() {
+		c.handleRoundCompletion(gameState)
+	}
+}
+
+// handleRoundCompletion calculates the winner, awards points, and prepares for the next round
+func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
+	slog.Info("Processing round completion", "roomCode", c.RoomID, "round", gameState.CurrentRound)
+
+	// Calculate round winner (highest card of led suit wins)
+	winnerID := c.calculateRoundWinner(gameState)
+	if winnerID == "" {
+		slog.Error("Failed to calculate round winner", "roomCode", c.RoomID)
+		return
+	}
+
+	// Set round winner
+	gameState.RoundWinner = winnerID
+
+	// Track round wins (NOT accumulating points - just counting tricks won)
+	winner := gameState.GetPlayer(winnerID)
+	if winner != nil {
+		winner.RoundsWon++
+		slog.Info("Round won", "winnerId", winnerID, "roundsWon", winner.RoundsWon)
+	}
+
+	// Check if game is over (all cards have been played)
+	gameOver := false
+	gameWinnerID := ""
+
+	// Game ends only when all cards have been played (all hands empty)
+	allHandsEmpty := true
+	for _, player := range gameState.Players {
+		if len(player.Hand) > 0 {
+			allHandsEmpty = false
+			break
+		}
+	}
+
+	if allHandsEmpty {
+		gameOver = true
+		gameState.Phase = entity.PhaseGameOver
+
+		// The leader at game end (winner of the last trick) wins the game
+		gameWinnerID = gameState.LeaderID
+
+		slog.Info("Game over - all cards played",
+			"winnerId", gameWinnerID,
+			"totalRounds", gameState.CurrentRound,
+		)
+	}
+
+	// Broadcast roundWon event
+	roundWonPayload := map[string]interface{}{
+		"event": "roundWon",
+		"data": map[string]interface{}{
+			"winnerId":     winnerID,
+			"isDry":        false, // TODO: Implement dry detection
+			"isShowDry":    false, // TODO: Implement show dry detection
+			"currentRound": gameState.CurrentRound,
+			"roundsWon":    c.getPlayerRoundsWon(gameState),
+			"gameOver":     gameOver,
+		},
+	}
+	c.broadcastToRoomIncludingSelf(c.RoomID, roundWonPayload)
+
+	slog.Info("Round won event broadcast",
+		"roomCode", c.RoomID,
+		"winnerId", winnerID,
+		"round", gameState.CurrentRound,
+	)
+
+	// If game is over, broadcast gameEnded event
+	if gameOver {
+		c.handleGameOver(gameState, gameWinnerID)
+		return
+	}
+
+	// Prepare for next round (reset state)
+	gameState.CurrentRound++
+	gameState.PlayedCards = []entity.PlayedCard{}
+	gameState.LedSuit = nil
+	gameState.RoundWinner = ""
+
+	// Reset player round state
+	for i := range gameState.Players {
+		gameState.Players[i].HasPlayedCard = false
+		gameState.Players[i].LastPlayedCard = nil
+	}
+
+	// Winner becomes the new leader and goes first
+	gameState.LeaderID = winnerID
+	for i := range gameState.Players {
+		gameState.Players[i].IsLeader = (gameState.Players[i].ID == winnerID)
+	}
+	gameState.CurrentTurn = winnerID
+	gameState.TurnStartTime = time.Now()
+	gameState.UpdatedAt = time.Now()
+
+	slog.Info("Round reset complete - ready for next round",
+		"roomCode", c.RoomID,
+		"newRound", gameState.CurrentRound,
+		"newLeader", winnerID,
+		"currentTurn", gameState.CurrentTurn,
+	)
+
+	// Broadcast turn changed event so frontend knows who plays next
+	turnChangedPayload := map[string]interface{}{
+		"event": "turnChanged",
+		"data": map[string]interface{}{
+			"currentPlayerId": winnerID,
+			"timeRemaining":   15, // Leader gets 15 seconds
+		},
+	}
+	c.broadcastToRoomIncludingSelf(c.RoomID, turnChangedPayload)
+}
+
+// calculateRoundWinner determines the winner based on highest card of led suit
+func (c *Client) calculateRoundWinner(gameState *entity.GameState) string {
+	if gameState.LedSuit == nil || len(gameState.PlayedCards) == 0 {
+		return gameState.LeaderID // Fallback to leader
+	}
+
+	ledSuit := *gameState.LedSuit
+
+	// Find all cards matching the led suit
+	var ledSuitCards []entity.PlayedCard
+	for _, playedCard := range gameState.PlayedCards {
+		if playedCard.Card.Suit == ledSuit {
+			ledSuitCards = append(ledSuitCards, playedCard)
+		}
+	}
+
+	// If no one has the led suit, leader wins by default
+	if len(ledSuitCards) == 0 {
+		slog.Info("No player has led suit - leader wins by default",
+			"leaderID", gameState.LeaderID,
+			"ledSuit", ledSuit,
+		)
+		return gameState.LeaderID
+	}
+
+	// Find the highest card of the led suit
+	winningCard := ledSuitCards[0]
+	for _, playedCard := range ledSuitCards[1:] {
+		if playedCard.Card.CompareValue(winningCard.Card) > 0 {
+			winningCard = playedCard
+		}
+	}
+
+	slog.Info("Round winner calculated",
+		"winnerID", winningCard.PlayerID,
+		"winningCard", winningCard.Card.String(),
+		"ledSuit", ledSuit,
+	)
+
+	return winningCard.PlayerID
+}
+
+// getPlayerRoundsWon returns a map of player IDs to rounds won
+func (c *Client) getPlayerRoundsWon(gameState *entity.GameState) map[string]int {
+	roundsWon := make(map[string]int)
+	for _, player := range gameState.Players {
+		roundsWon[player.ID] = player.RoundsWon
+	}
+	return roundsWon
+}
+
+// handleGameOver broadcasts the game ended event
+func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string) {
+	finalRoundsWon := c.getPlayerRoundsWon(gameState)
+
+	// Get winner details
+	winner := gameState.GetPlayer(winnerID)
+	winnerName := "Unknown"
+	winnerRoundsWon := 0
+	if winner != nil {
+		winnerName = winner.Username
+		winnerRoundsWon = winner.RoundsWon
+	}
+
+	slog.Info("Game over",
+		"roomCode", c.RoomID,
+		"winnerId", winnerID,
+		"winnerName", winnerName,
+		"roundsWon", winnerRoundsWon,
+		"totalRounds", gameState.CurrentRound,
+	)
+
+	gameEndedPayload := map[string]interface{}{
+		"event": "gameEnded",
+		"data": map[string]interface{}{
+			"winnerId":       winnerID,
+			"winnerName":     winnerName,
+			"winnerScore":    winnerRoundsWon, // Rounds won is the final score
+			"finalRoundsWon": finalRoundsWon,
+			"totalRounds":    gameState.CurrentRound,
+		},
+	}
+	c.broadcastToRoomIncludingSelf(c.RoomID, gameEndedPayload)
 }
 
 func (c *Client) handleDeclareDry(data json.RawMessage) {
-	// TODO: Parse dry declaration, validate, update game state
-	slog.Info("Declare dry event", "clientId", c.ID)
+	slog.Info("Declare dry event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Parse request
+	var req struct {
+		Card struct {
+			Suit  string `json:"suit"`
+			Value string `json:"value"`
+		} `json:"card"`
+		IsShown bool `json:"isShown"`
+	}
+	if err := json.Unmarshal(data, &req); err != nil {
+		slog.Error("Failed to parse declare dry request", "error", err)
+		c.sendError("game:dry_error", "Invalid request format")
+		return
+	}
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to declare dry", "clientId", c.ID)
+		c.sendError("game:dry_error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("game:dry_error", "Not in a room")
+		return
+	}
+
+	// Get room to access game state
+	room, err := roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
+		c.sendError("game:dry_error", "Room not found")
+		return
+	}
+
+	// Check if game is active
+	if room.Status != entity.StatusInProgress {
+		c.sendError("game:dry_error", "Game is not active")
+		return
+	}
+
+	// TODO: Get game state from room/game manager
+	// For now, this is a placeholder response
+	// In a complete implementation, we would:
+	// 1. Get the active GameState for this room
+	// 2. Create a DryCardHandler with that game state
+	// 3. Validate and execute the dry declaration
+	// 4. Broadcast the declaration to all players in the room
+
+	// Convert request card to entity.Card
+	card := &entity.Card{
+		Suit:  entity.Suit(req.Card.Suit),
+		Value: entity.Value(req.Card.Value),
+	}
+
+	// Validate card
+	if !card.IsValid() {
+		c.sendError("game:dry_error", "Invalid card")
+		return
+	}
+
+	// Send success response with frontend-formatted card
+	c.sendJSON(map[string]interface{}{
+		"event": "game:dry_declared",
+		"data": map[string]interface{}{
+			"playerId": c.PlayerID,
+			"card":     convertCardToFrontendFormat(card),
+			"isShown":  req.IsShown,
+			"message":  "Dry card declared successfully",
+		},
+	})
+
+	// Broadcast to other players in room with frontend-formatted card
+	c.broadcastToRoom(c.RoomID, map[string]interface{}{
+		"event": "game:player_declared_dry",
+		"data": map[string]interface{}{
+			"playerId": c.PlayerID,
+			"isShown":  req.IsShown,
+			// Only include card details if shown (in frontend format)
+			"card": func() interface{} {
+				if req.IsShown {
+					return convertCardToFrontendFormat(card)
+				}
+				return nil
+			}(),
+		},
+	})
+
+	slog.Info("Dry card declared",
+		"playerId", c.PlayerID,
+		"roomCode", c.RoomID,
+		"card", card.String(),
+		"isShown", req.IsShown,
+	)
 }
 
 func (c *Client) handleFlagPlayer(data json.RawMessage) {
-	// TODO: Parse flag data, validate challenge, resolve
-	slog.Info("Flag player event", "clientId", c.ID)
+	slog.Info("Flag player event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Parse request
+	var req struct {
+		TargetPlayerID string `json:"targetPlayerId"`
+		RoundIndex     int    `json:"roundIndex"`
+		CardIndex      int    `json:"cardIndex"`
+	}
+	if err := json.Unmarshal(data, &req); err != nil {
+		slog.Error("Failed to parse flag player request", "error", err)
+		c.sendError("game:challenge_error", "Invalid request format")
+		return
+	}
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to flag", "clientId", c.ID)
+		c.sendError("game:challenge_error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("game:challenge_error", "Not in a room")
+		return
+	}
+
+	// Get room to access game state
+	room, err := roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
+		c.sendError("game:challenge_error", "Room not found")
+		return
+	}
+
+	// Check if game is active
+	if room.Status != entity.StatusInProgress {
+		c.sendError("game:challenge_error", "Game is not active")
+		return
+	}
+
+	// TODO: Get game state from room/game manager
+	// For now, this is a placeholder response
+	// In a complete implementation, we would:
+	// 1. Get the active GameState for this room
+	// 2. Create a ChallengeHandler with that game state
+	// 3. Validate and execute the challenge
+	// 4. Broadcast the challenge result to all players in the room
+
+	// Placeholder: Simulate challenge processing
+	// ctx := context.Background()
+	// handler := game.NewChallengeHandler(gameState)
+	// result, err := handler.HandleChallenge(ctx, c.PlayerID, req.TargetPlayerID, req.RoundIndex, req.CardIndex)
+
+	// For now, send acknowledgment
+	c.sendJSON(map[string]interface{}{
+		"event": "game:challenge_received",
+		"data": map[string]interface{}{
+			"challengerId": c.PlayerID,
+			"targetId":     req.TargetPlayerID,
+			"roundIndex":   req.RoundIndex,
+			"cardIndex":    req.CardIndex,
+			"message":      "Challenge received and being processed",
+		},
+	})
+
+	// TODO: Broadcast challenge result to all players
+	// c.broadcastToRoom(c.RoomID, map[string]interface{}{
+	//   "event": "game:challenge_result",
+	//   "data": result,
+	// })
+
+	slog.Info("Challenge processed",
+		"challengerId", c.PlayerID,
+		"targetId", req.TargetPlayerID,
+		"roomCode", c.RoomID,
+		"roundIndex", req.RoundIndex,
+		"cardIndex", req.CardIndex,
+	)
 }
 
 func (c *Client) handleCreateLobby(data json.RawMessage) {
@@ -383,9 +1013,12 @@ func (c *Client) handleCreateLobby(data json.RawMessage) {
 
 	// Send success response to creator
 	c.sendJSON(map[string]interface{}{
-		"event": "lobby:room_created",
+		"event": "room:created",
 		"data": map[string]interface{}{
-			"room": room,
+			"roomCode":   room.RoomCode,
+			"hostId":     room.HostID,
+			"maxPlayers": room.MaxPlayers,
+			"settings":   room.Settings,
 		},
 	})
 
@@ -459,20 +1092,23 @@ func (c *Client) handleJoinLobby(data json.RawMessage) {
 	// Assign client to room
 	c.RoomID = room.RoomCode
 
-	// Send room state to joiner
+	// Send success event to joiner with full room data
 	c.sendJSON(map[string]interface{}{
-		"event": "lobby:room_state",
+		"event": "room:player_joined",
 		"data": map[string]interface{}{
-			"room": room,
+			"roomCode": room.RoomCode,
+			"players":  room.Players,
+			"player":   room.Players[len(room.Players)-1], // The player who just joined
 		},
 	})
 
-	// Broadcast player joined to all room members
+	// Broadcast player joined to all OTHER room members
 	c.broadcastToRoom(room.RoomCode, map[string]interface{}{
-		"event": "lobby:player_joined",
+		"event": "room:player_joined",
 		"data": map[string]interface{}{
-			"player": room.Players[len(room.Players)-1], // Last player added
-			"room":   room,
+			"roomCode": room.RoomCode,
+			"players":  room.Players,
+			"player":   room.Players[len(room.Players)-1],
 		},
 	})
 
@@ -538,6 +1174,315 @@ func (c *Client) handleLeaveLobby(data json.RawMessage) {
 	slog.Info("Player left lobby successfully", "roomCode", roomCode, "playerId", c.PlayerID)
 }
 
+func (c *Client) handlePlayerReady(data json.RawMessage) {
+	slog.Info("Player ready event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Parse request
+	var req struct {
+		IsReady bool `json:"isReady"`
+	}
+	if err := json.Unmarshal(data, &req); err != nil {
+		slog.Error("Failed to parse player ready request", "error", err)
+		c.sendError("lobby:error", "Invalid request format")
+		return
+	}
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to set ready", "clientId", c.ID)
+		c.sendError("lobby:error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("lobby:error", "Not in a room")
+		return
+	}
+
+	// Get room
+	room, err := roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Room not found")
+		return
+	}
+
+	// Update player ready state in room
+	ctx := context.Background()
+	err = roomManager.SetPlayerReady(ctx, c.RoomID, c.PlayerID, req.IsReady)
+	if err != nil {
+		slog.Error("Failed to set player ready", "error", err, "roomCode", c.RoomID, "playerId", c.PlayerID)
+		c.sendError("lobby:error", "Failed to update ready state")
+		return
+	}
+
+	// Get updated room
+	room, err = roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get updated room", "error", err, "roomCode", c.RoomID)
+		return
+	}
+
+	// Check if all players are ready
+	allReady := true
+	for _, player := range room.Players {
+		if !player.IsReady {
+			allReady = false
+			break
+		}
+	}
+
+	// Broadcast ready state to all players in room
+	c.broadcastToRoomIncludingSelf(c.RoomID, map[string]interface{}{
+		"event": "room:player_ready",
+		"data": map[string]interface{}{
+			"playerId": c.PlayerID,
+			"isReady":  req.IsReady,
+			"allReady": allReady,
+			"players":  room.Players,
+		},
+	})
+
+	slog.Info("Player ready state updated", "roomCode", c.RoomID, "playerId", c.PlayerID, "isReady", req.IsReady, "allReady", allReady)
+}
+
+func (c *Client) handleStartGame(data json.RawMessage) {
+	slog.Info("Start game event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to start game", "clientId", c.ID)
+		c.sendError("lobby:error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("lobby:error", "Not in a room")
+		return
+	}
+
+	// Get room
+	room, err := roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Room not found")
+		return
+	}
+
+	// Validate player is host
+	if room.HostID != c.PlayerID {
+		c.sendError("lobby:error", "Only the host can start the game")
+		return
+	}
+
+	// Validate all players are ready
+	for _, player := range room.Players {
+		if !player.IsReady {
+			c.sendError("lobby:error", "All players must be ready before starting")
+			return
+		}
+	}
+
+	// Validate minimum players
+	if len(room.Players) < 2 {
+		c.sendError("lobby:error", "Need at least 2 players to start")
+		return
+	}
+
+	// Update room status to in-progress
+	ctx := context.Background()
+	err = roomManager.StartGame(ctx, c.RoomID)
+	if err != nil {
+		slog.Error("Failed to start game", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Failed to start game")
+		return
+	}
+
+	// Initialize game state with shuffled deck and dealt cards
+	gameState, err := initializeGameState(room)
+	if err != nil {
+		slog.Error("Failed to initialize game state", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Failed to initialize game")
+		return
+	}
+
+	// Store game state in thread-safe map
+	gamesMu.Lock()
+	games[c.RoomID] = gameState
+	gamesMu.Unlock()
+
+	slog.Info("Game state initialized",
+		"roomCode", c.RoomID,
+		"gameId", gameState.GameID,
+		"playerCount", len(gameState.Players),
+		"cardsDealt", len(gameState.Players)*5,
+	)
+
+	// Broadcast game started with frontend-formatted game state to all players
+	c.broadcastToRoomIncludingSelf(c.RoomID, map[string]interface{}{
+		"event": "game:started",
+		"data": map[string]interface{}{
+			"roomCode":  c.RoomID,
+			"gameState": convertGameStateToFrontendFormat(gameState),
+		},
+	})
+
+	slog.Info("Game started successfully",
+		"roomCode", c.RoomID,
+		"gameId", gameState.GameID,
+		"playerCount", len(room.Players),
+	)
+}
+
+func (c *Client) handleRestartGame(data json.RawMessage) {
+	slog.Info("Restart game event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to restart game", "clientId", c.ID)
+		c.sendError("lobby:error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("lobby:error", "Not in a room")
+		return
+	}
+
+	// Get room
+	room, err := roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Room not found")
+		return
+	}
+
+	// Validate player is host
+	if room.HostID != c.PlayerID {
+		c.sendError("lobby:error", "Only the host can restart the game")
+		return
+	}
+
+	// 1. Delete old game state
+	gamesMu.Lock()
+	delete(games, c.RoomID)
+	gamesMu.Unlock()
+	slog.Info("Old game state deleted", "roomCode", c.RoomID)
+
+	// 2. Reset room status to allow starting a new game
+	room.Status = entity.StatusReady
+	room.StartedAt = nil
+	room.UpdatedAt = time.Now()
+
+	// 3. Reset all player ready states to true (they were already playing)
+	for i := range room.Players {
+		room.Players[i].IsReady = true
+	}
+
+	slog.Info("Room reset for restart",
+		"roomCode", c.RoomID,
+		"status", room.Status,
+		"playerCount", len(room.Players))
+
+	// 4. Initialize new game state
+	gameState, err := initializeGameState(room)
+	if err != nil {
+		slog.Error("Failed to initialize game state", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Failed to initialize game")
+		return
+	}
+
+	// Update room status to in-progress
+	room.Status = entity.StatusInProgress
+	now := time.Now()
+	room.StartedAt = &now
+	room.UpdatedAt = now
+
+	// Store game state
+	gamesMu.Lock()
+	games[c.RoomID] = gameState
+	gamesMu.Unlock()
+
+	slog.Info("Game restarted successfully",
+		"roomCode", c.RoomID,
+		"gameId", gameState.GameID,
+		"playerCount", len(gameState.Players))
+
+	// Broadcast game restarted event with full game state
+	c.broadcastToRoomIncludingSelf(c.RoomID, map[string]interface{}{
+		"event": "game:restarted",
+		"data": map[string]interface{}{
+			"roomCode":  c.RoomID,
+			"gameState": convertGameStateToFrontendFormat(gameState),
+		},
+	})
+}
+
+// initializeGameState creates a new game state with shuffled deck and dealt cards
+func initializeGameState(room *entity.Room) (*entity.GameState, error) {
+	// Create and shuffle deck
+	deck := entity.NewDeck()
+	deck.Shuffle()
+
+	// Deal cards to players
+	hands, err := deck.Deal(len(room.Players))
+	if err != nil {
+		return nil, fmt.Errorf("failed to deal cards: %w", err)
+	}
+
+	// Convert room players to game players with dealt hands
+	gamePlayers := make([]entity.GamePlayer, len(room.Players))
+	for i, player := range room.Players {
+		gamePlayers[i] = entity.GamePlayer{
+			ID:             player.ID,
+			Username:       player.Username,
+			Avatar:         player.Avatar,
+			Hand:           hands[i],
+			DryCard:        nil,
+			Score:          0,
+			RoundsWon:      0,
+			WinStreak:      0,
+			IsLeader:       i == 0, // First player is initial leader
+			IsOnFire:       false,
+			HasPlayedCard:  false,
+			LastPlayedCard: nil,
+		}
+	}
+
+	// Generate unique game ID
+	now := time.Now()
+	gameID := fmt.Sprintf("game-%s-%d", room.RoomCode, now.Unix())
+
+	// Create game state
+	gameState := &entity.GameState{
+		GameID:           gameID,
+		RoomCode:         room.RoomCode,
+		TotalRounds:      5,
+		PointsToWin:      room.Settings.PointsToWin,
+		Phase:            entity.PhasePlaying,
+		Players:          gamePlayers,
+		LeaderID:         gamePlayers[0].ID,
+		CurrentTurn:      gamePlayers[0].ID,
+		CurrentRound:     1,
+		LedSuit:          nil,
+		PlayedCards:      []entity.PlayedCard{},
+		RoundWinner:      "",
+		TurnStartTime:    now,
+		TurnTimeLimit:    30,
+		TurnExpired:      false,
+		FireStreakPlayer: "",
+		FreezeTriggered:  false,
+		StartedAt:        now,
+		CompletedAt:      nil,
+		UpdatedAt:        now,
+	}
+
+	return gameState, nil
+}
+
 // sendJSON sends a JSON message to the client
 func (c *Client) sendJSON(data interface{}) {
 	message, err := json.Marshal(data)
@@ -558,7 +1503,7 @@ func (c *Client) sendError(event string, errorMsg string) {
 	})
 }
 
-// broadcastToRoom sends a message to all clients in a specific room
+// broadcastToRoom sends a message to all clients in a specific room (excluding sender)
 func (c *Client) broadcastToRoom(roomCode string, data interface{}) {
 	message, err := json.Marshal(data)
 	if err != nil {
@@ -580,8 +1525,153 @@ func (c *Client) broadcastToRoom(roomCode string, data interface{}) {
 	}
 }
 
+// broadcastToRoomIncludingSelf sends a message to all clients in a room (including sender)
+func (c *Client) broadcastToRoomIncludingSelf(roomCode string, data interface{}) {
+	message, err := json.Marshal(data)
+	if err != nil {
+		slog.Error("Failed to marshal room broadcast message", "error", err)
+		return
+	}
+
+	c.Hub.mu.RLock()
+	defer c.Hub.mu.RUnlock()
+
+	sentCount := 0
+	failedCount := 0
+
+	for client := range c.Hub.Clients {
+		if client.RoomID == roomCode {
+			select {
+			case client.Send <- message:
+				sentCount++
+				slog.Debug("Message sent to client",
+					"clientId", client.ID,
+					"playerId", client.PlayerID,
+					"roomCode", roomCode,
+				)
+			default:
+				failedCount++
+				slog.Warn("Failed to send message to client",
+					"clientId", client.ID,
+					"playerId", client.PlayerID,
+					"roomCode", roomCode,
+				)
+			}
+		}
+	}
+
+	slog.Info("Room broadcast summary",
+		"roomCode", roomCode,
+		"sentCount", sentCount,
+		"failedCount", failedCount,
+	)
+}
+
 // generateClientID generates a unique client ID
 func generateClientID() string {
 	// TODO: Use UUID or more robust ID generation
 	return time.Now().Format("20060102150405")
+}
+
+// Matchmaking event handlers
+
+func (c *Client) handleMatchmakingJoin(data json.RawMessage) {
+	slog.Info("Matchmaking join event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to join matchmaking", "clientId", c.ID)
+		c.sendError("matchmaking:error", "Authentication required")
+		return
+	}
+
+	// Check if player is already in a game room
+	if c.RoomID != "" {
+		c.sendError("matchmaking:error", "Cannot join matchmaking while in a game room")
+		return
+	}
+
+	// Get username from user repository or use PlayerID as fallback
+	username := c.PlayerID
+	if userRepository != nil {
+		user, err := userRepository.FindByID(context.Background(), c.PlayerID)
+		if err == nil && user != nil {
+			username = user.Username
+		}
+	}
+
+	// Join matchmaking queue
+	err := matchmakingQueue.JoinQueue(c.PlayerID, username, c)
+	if err != nil {
+		slog.Error("Failed to join matchmaking queue",
+			"playerId", c.PlayerID,
+			"error", err)
+		c.sendError("matchmaking:error", "Failed to join matchmaking queue: "+err.Error())
+		return
+	}
+
+	slog.Info("Player joined matchmaking queue successfully",
+		"playerId", c.PlayerID,
+		"username", username)
+}
+
+func (c *Client) handleMatchmakingLeave(data json.RawMessage) {
+	slog.Info("Matchmaking leave event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to leave matchmaking", "clientId", c.ID)
+		c.sendError("matchmaking:error", "Authentication required")
+		return
+	}
+
+	// Leave matchmaking queue
+	err := matchmakingQueue.LeaveQueue(c.PlayerID)
+	if err != nil {
+		slog.Error("Failed to leave matchmaking queue",
+			"playerId", c.PlayerID,
+			"error", err)
+		c.sendError("matchmaking:error", "Failed to leave matchmaking queue: "+err.Error())
+		return
+	}
+
+	slog.Info("Player left matchmaking queue successfully", "playerId", c.PlayerID)
+}
+
+func (c *Client) handleMatchmakingStatus(data json.RawMessage) {
+	slog.Info("Matchmaking status event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player requested matchmaking status", "clientId", c.ID)
+		c.sendError("matchmaking:error", "Authentication required")
+		return
+	}
+
+	// Get queue status
+	status := matchmakingQueue.GetQueueStatus(c.PlayerID)
+
+	// Send status response
+	c.sendJSON(map[string]interface{}{
+		"event": "matchmaking:status",
+		"data":  status,
+	})
+
+	slog.Info("Sent matchmaking status", "playerId", c.PlayerID, "status", status)
+}
+
+// SendJSON sends a JSON message to the client
+// This implements the matchmaking.ClientConnection interface
+func (c *Client) SendJSON(data interface{}) error {
+	message, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	select {
+	case c.Send <- message:
+		return nil
+	default:
+		return fmt.Errorf("client send channel full")
+	}
 }
