@@ -485,8 +485,8 @@ export class GameScene extends Phaser.Scene {
    */
   /**
    * Deal cards from backend game state
-   * This method reads the current player's hand from the game store
-   * and deals those cards to the player's position on screen
+   * This method deals cards for ALL players - current player gets face-up cards,
+   * opponents get face-down cards to properly represent the game state visually
    */
   private dealCardsFromBackendState(): void {
     console.log('[GameScene] ===== DEALING CARDS FROM BACKEND STATE =====')
@@ -498,55 +498,53 @@ export class GameScene extends Phaser.Scene {
     console.log('[GameScene] Current player ID:', currentPlayerId)
     console.log('[GameScene] Game state players:', gameState.players)
     console.log('[GameScene] Number of players in game state:', gameState.players.length)
-    console.log('[GameScene] Game phase:', gameState.gamePhase)
-    console.log('[GameScene] Room code:', gameState.roomCode)
+    console.log('[GameScene] Position map:', Array.from(this.positionMap.entries()))
 
-    // Log all players in game state
-    gameState.players.forEach((player, index) => {
-      console.log(`[GameScene] Player ${index}:`, {
-        id: player.id,
-        name: player.name,
-        handSize: player.hand?.length || 0,
-        hasHand: !!player.hand,
-      })
+    // Deal cards for ALL players
+    let dealDelay = 0
+    gameState.players.forEach((player) => {
+      const position = this.getPlayerPositionById(player.id)
+
+      if (!position) {
+        console.error(`[GameScene] No position found for player ${player.id}`)
+        return
+      }
+
+      console.log(`[GameScene] Dealing cards for player ${player.id} at position ${position}`)
+
+      if (player.id === currentPlayerId) {
+        // Current player - deal face-up cards from their hand
+        if (!player.hand || player.hand.length === 0) {
+          console.error('[GameScene] Current player has no hand!')
+          return
+        }
+
+        console.log(`[GameScene] Dealing ${player.hand.length} face-up cards to current player`)
+        player.hand.forEach((card, index) => {
+          setTimeout(() => {
+            const cardSprite = this.dealCardToPlayer('bottom', card.suit, card.rank, currentPlayerId, card.id)
+            // Face-up cards for current player will be handled by dealCardToPlayer
+          }, dealDelay + (index * 100))
+        })
+        dealDelay += player.hand.length * 100
+      } else {
+        // Opponent - deal face-down cards based on hand size
+        const handSize = player.hand?.length || 5 // Default to 5 if no hand info
+        console.log(`[GameScene] Dealing ${handSize} face-down cards to opponent at ${position}`)
+
+        for (let i = 0; i < handSize; i++) {
+          setTimeout(() => {
+            // Create a dummy card (face-down) for opponents
+            const cardSprite = this.dealCardToPlayer(position, 'hearts', '6', player.id)
+            // Keep it face down for opponents
+            cardSprite.setFaceDown(true)
+          }, dealDelay + (i * 100))
+        }
+        dealDelay += handSize * 100
+      }
     })
 
-    // Find current player in game state
-    const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
-
-    console.log('[GameScene] Looking for player with ID:', currentPlayerId)
-    console.log('[GameScene] Found current player:', currentPlayer)
-
-    if (!currentPlayer) {
-      console.error('[GameScene] ERROR: Current player not found in game state!')
-      console.error('[GameScene] Current player ID:', currentPlayerId)
-      console.error('[GameScene] Available player IDs:', gameState.players.map((p) => p.id))
-      console.warn('[GameScene] Falling back to test hand')
-      this.dealTestHand()
-      return
-    }
-
-    if (!currentPlayer.hand || currentPlayer.hand.length === 0) {
-      console.error('[GameScene] ERROR: Current player has no hand!')
-      console.error('[GameScene] Current player:', currentPlayer)
-      console.warn('[GameScene] Falling back to test hand')
-      this.dealTestHand()
-      return
-    }
-
-    console.log('[GameScene] Current player hand:', currentPlayer.hand)
-    console.log('[GameScene] Hand size:', currentPlayer.hand.length)
-
-    // Deal cards with staggered animation
-    currentPlayer.hand.forEach((card, index) => {
-      console.log(`[GameScene] Scheduling deal for card ${index}:`, card)
-      setTimeout(() => {
-        console.log(`[GameScene] Dealing card ${index}:`, card)
-        this.dealCardToPlayer('bottom', card.suit, card.rank, currentPlayerId, card.id)
-      }, index * 150) // Stagger dealing for nice animation
-    })
-
-    console.log(`[GameScene] Scheduled ${currentPlayer.hand.length} cards for dealing`)
+    console.log('[GameScene] Scheduled cards for all players')
   }
 
   /**
@@ -1293,12 +1291,7 @@ export class GameScene extends Phaser.Scene {
           })
         }
 
-        // 8. Set initial turn state
-        if (data.gameState.currentTurn) {
-          const isMyTurn = data.gameState.currentTurn === currentPlayerId
-          usePlayerStore.getState().setIsMyTurn(isMyTurn)
-          console.log('[GameScene] Initial turn state set - isMyTurn:', isMyTurn, 'currentTurn:', data.gameState.currentTurn)
-        }
+        // 8. Set initial turn state - MUST BE DONE AFTER resetGameState
       } else {
         console.warn('[GameScene] No gameState provided in game:restarted event')
       }
@@ -1313,14 +1306,28 @@ export class GameScene extends Phaser.Scene {
       usePlayerStore.getState().resetGameState()
       usePlayerStore.getState().setHand(currentHand)
 
-      // 11. Recreate the scoreboard UI
+      // 11. Set turn state AFTER resetGameState to avoid it being overwritten
+      if (data.gameState && data.gameState.currentTurn) {
+        const isMyTurn = data.gameState.currentTurn === currentPlayerId
+        usePlayerStore.getState().setIsMyTurn(isMyTurn)
+        usePlayerStore.getState().setCanPlay(isMyTurn) // Also set canPlay to match turn state
+        console.log('[GameScene] Turn state set after reset - isMyTurn:', isMyTurn, 'currentTurn:', data.gameState.currentTurn)
+      }
+
+      // 12. Recreate the scoreboard UI
       this.createPlayerInfoDisplays()
 
-      // 12. Deal the new cards with animation
+      // 13. Deal the new cards with animation
       this.dealCardsFromBackendState()
 
-      // 13. Update player info displays
+      // 14. Update player info displays
       this.updatePlayerInfoDisplays()
+
+      // 15. Update playable cards based on current suit
+      if (data.gameState) {
+        this.updatePlayableCards(data.gameState.currentSuit || null)
+        console.log('[GameScene] Updated playable cards for suit:', data.gameState.currentSuit)
+      }
 
       console.log('[GameScene] Game restart complete - state fully reset and new cards dealt')
     }
