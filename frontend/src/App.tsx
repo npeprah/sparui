@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage'
 import LobbyPage from './pages/LobbyPage'
 import GamePage from './pages/GamePage'
 import NotFoundPage from './pages/NotFoundPage'
+import { ConnectionTest } from './pages/ConnectionTest'
 import { NotificationContainer } from './components/ui'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/lobby" element={<LobbyPage />} />
         <Route path="/game" element={<GamePage />} />
+        <Route path="/test-connection" element={<ConnectionTest />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

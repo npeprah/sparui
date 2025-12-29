@@ -57,6 +57,12 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     owner: string | null = null
   ) {
     const textureKey = getCardAssetKey(suit, rank)
+    console.log(`[CardSprite] Creating card: ${suit} ${rank} with texture key: ${textureKey}`)
+
+    // Check if texture exists
+    const textureExists = scene.textures.exists(textureKey)
+    console.log(`[CardSprite] Texture exists: ${textureExists}`)
+
     super(scene, x, y, textureKey)
 
     this.suit = suit
@@ -65,12 +71,16 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     this.cardId = `${suit}_${rank}_${Date.now()}`
     this.originalY = y
 
+    console.log(`[CardSprite] Card created at (${x}, ${y}) with depth ${this.depth}`)
+
     // Setup sprite
     this.setOrigin(0.5, 0.5)
     this.setInteractive({ useHandCursor: true })
 
     // Add to scene
     scene.add.existing(this)
+
+    console.log(`[CardSprite] Card added to scene, visible: ${this.visible}, active: ${this.active}`)
 
     // Setup interactions
     this.setupInteractions()
@@ -80,22 +90,21 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
    * Setup interactive behaviors (hover, click, touch, drag)
    */
   private setupInteractions(): void {
-    // Hover enter
+    // Hover enter - always allow hover effects
     this.on('pointerover', () => {
-      if (!this._playable || this.isDragging) return
+      if (this.isDragging) return
       this.onHoverEnter()
       this.onCardHover?.(this)
     })
 
-    // Hover exit
+    // Hover exit - always allow hover effects
     this.on('pointerout', () => {
-      if (!this._playable || this.isDragging) return
+      if (this.isDragging) return
       this.onHoverExit()
     })
 
-    // Pointer down - start tracking for click or drag
+    // Pointer down - always allow interaction, backend will reject invalid plays
     this.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (!this._playable) return
       this.onPointerDown(pointer)
     })
 
@@ -107,21 +116,22 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   /**
    * Set whether the card is playable
    * @param playable - Whether the card can be played
-   * @param maintainVisibility - If true, keeps alpha at 1.0 even when not playable (for played cards)
+   * @param _maintainVisibility - Deprecated: Cards are always fully visible now
    */
-  public setPlayable(playable: boolean, maintainVisibility: boolean = false): this {
+  public setPlayable(playable: boolean, _maintainVisibility: boolean = false): this {
+    // Guard: check if card still exists before doing anything
+    if (!this.scene || !this.active) return this
+
     this._playable = playable
 
-    if (playable) {
-      this.setAlpha(1)
-      this.setTint(0xffffff) // Remove any tint
+    // Always keep cards fully visible - no greying/ghosting
+    this.setAlpha(1)
+    this.setTint(0xffffff)
+
+    // Always keep cards interactive - backend will reject invalid plays
+    // This allows players to attempt plays and receive feedback from server
+    if (this.input) {
       this.setInteractive()
-    } else {
-      // If maintainVisibility is true, keep card fully visible
-      // This is used for played cards in the center area
-      this.setAlpha(maintainVisibility ? 1.0 : 0.5)
-      this.setTint(maintainVisibility ? 0xffffff : 0x888888)
-      this.disableInteractive()
     }
 
     return this
@@ -162,6 +172,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
    * @param animated - Whether to animate the flip (default: true)
    */
   public setFaceDown(faceDown: boolean, animated: boolean = true): this {
+    // Guard: check if card still exists before doing anything
+    if (!this.scene || !this.active) return this
+
     this._faceDown = faceDown
 
     // If no animation, just swap texture immediately
@@ -191,6 +204,8 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     this.scene.tweens.add({
       ...scaleDownConfig,
       onComplete: () => {
+        // Guard: check if card still exists before adding second tween
+        if (!this.scene || !this.active) return
         // After scale down completes, scale back up
         this.scene.tweens.add(scaleUpConfig)
       },
@@ -343,12 +358,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
     // Register scene-level handlers to track pointer even when card moves
     this.sceneMoveHandler = (p: Phaser.Input.Pointer) => {
-      if (!this._playable) return
       this.onPointerMove(p)
     }
 
     this.sceneUpHandler = (p: Phaser.Input.Pointer) => {
-      if (!this._playable) return
       this.onPointerUp(p)
       // Unregister scene handlers after pointer up
       this.unregisterSceneHandlers()

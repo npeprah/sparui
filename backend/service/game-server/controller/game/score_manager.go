@@ -180,8 +180,8 @@ func (sm *ScoreManager) GetLeaderboard() []PlayerScore {
 // Win Conditions:
 // 1. Player must have reached or exceeded points_to_win
 // 2. If multiple players reach points_to_win simultaneously:
-//    - Player with most round wins breaks the tie
-//    - If still tied, first player in leaderboard order wins
+//   - Player with most round wins breaks the tie
+//   - If still tied, first player in leaderboard order wins
 //
 // Returns error if no player has reached points_to_win
 // This method is thread-safe and can be called concurrently
@@ -263,4 +263,56 @@ func (sm *ScoreManager) IsGameOver() bool {
 	}
 
 	return false
+}
+
+// ApplyStreakBonuses applies streak bonuses from streak events to player scores
+// This should be called after UpdateWinStreaks but before broadcasting the round end
+// Returns a map of playerID -> total bonus points awarded
+//
+// Bonuses:
+// - Fire Effect (streak >= 2): +5 points per round
+// - Freeze Effect (breaking streak >= 3): +10 points one-time
+//
+// This method is thread-safe and can be called concurrently
+func (sm *ScoreManager) ApplyStreakBonuses(events []StreakEvent) (map[string]int, error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	if sm.gameState == nil {
+		return nil, fmt.Errorf("game state not initialized")
+	}
+
+	bonuses := make(map[string]int)
+
+	for _, event := range events {
+		// Skip events with no bonus
+		if event.Bonus == 0 {
+			continue
+		}
+
+		// Find the player
+		player := sm.gameState.GetPlayer(event.PlayerID)
+		if player == nil {
+			slog.Warn("Cannot apply streak bonus: player not found",
+				"playerId", event.PlayerID,
+				"eventType", event.Type,
+				"bonus", event.Bonus,
+			)
+			continue
+		}
+
+		// Apply bonus to player's score
+		player.Score += event.Bonus
+		bonuses[event.PlayerID] += event.Bonus
+
+		slog.Info("Streak bonus applied",
+			"playerId", event.PlayerID,
+			"username", player.Username,
+			"eventType", event.Type,
+			"bonusPoints", event.Bonus,
+			"newScore", player.Score,
+		)
+	}
+
+	return bonuses, nil
 }

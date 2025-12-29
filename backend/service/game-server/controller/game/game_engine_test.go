@@ -194,7 +194,7 @@ func TestValidateCardPlay(t *testing.T) {
 					},
 					PlayedCards:   []entity.PlayedCard{},
 					TurnStartTime: time.Now().Add(-20 * time.Second), // 20 seconds ago
-					TurnTimeLimit: 15,                                 // 15 second limit
+					TurnTimeLimit: 15,                                // 15 second limit
 				}
 			},
 			playerID:    "player-1",
@@ -471,12 +471,12 @@ func TestValidateSuitFollowing(t *testing.T) {
 // TestPlayCard tests the full card play flow
 func TestPlayCard(t *testing.T) {
 	tests := []struct {
-		name          string
-		setupState    func() *entity.GameState
-		playerID      string
-		card          *entity.Card
-		expectError   bool
-		checkState    func(*testing.T, *entity.GameState)
+		name        string
+		setupState  func() *entity.GameState
+		playerID    string
+		card        *entity.Card
+		expectError bool
+		checkState  func(*testing.T, *entity.GameState)
 	}{
 		{
 			name: "successful card play - leader plays first",
@@ -1241,9 +1241,9 @@ func TestCalculateRoundWinner(t *testing.T) {
 						{ID: "player-3", Username: "Charlie", IsLeader: false, HasPlayedCard: true},
 					},
 					PlayedCards: []entity.PlayedCard{
-						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},   // Winner - highest hearts
-						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Hearts, Value: entity.King}},  // Second
-						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},    // Not led suit
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},  // Winner - highest hearts
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Hearts, Value: entity.King}}, // Second
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},   // Not led suit
 					},
 				}
 			},
@@ -1290,8 +1290,8 @@ func TestCalculateRoundWinner(t *testing.T) {
 						{ID: "player-2", Username: "Bob", IsLeader: false, HasPlayedCard: true},
 					},
 					PlayedCards: []entity.PlayedCard{
-						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Six}},  // Led hearts
-						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},   // No hearts - leader wins
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Six}}, // Led hearts
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},  // No hearts - leader wins
 					},
 				}
 			},
@@ -1315,10 +1315,10 @@ func TestCalculateRoundWinner(t *testing.T) {
 						{ID: "player-4", Username: "Diana", IsLeader: false, HasPlayedCard: true},
 					},
 					PlayedCards: []entity.PlayedCard{
-						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Spades, Value: entity.Seven}},   // Led spades
-						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},      // No spades
-						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},     // No spades
-						{PlayerID: "player-4", Card: entity.Card{Suit: entity.Diamonds, Value: entity.Ace}},   // No spades
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Spades, Value: entity.Seven}}, // Led spades
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}},    // No spades
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}},   // No spades
+						{PlayerID: "player-4", Card: entity.Card{Suit: entity.Diamonds, Value: entity.Ace}}, // No spades
 					},
 				}
 			},
@@ -1342,10 +1342,10 @@ func TestCalculateRoundWinner(t *testing.T) {
 						{ID: "player-4", Username: "Diana", IsLeader: false, HasPlayedCard: true},
 					},
 					PlayedCards: []entity.PlayedCard{
-						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Clubs, Value: entity.Nine}},   // 9 clubs
-						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Seven}},  // 7 clubs
-						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.King}},   // King clubs - Winner!
-						{PlayerID: "player-4", Card: entity.Card{Suit: entity.Clubs, Value: entity.Queen}},  // Queen clubs
+						{PlayerID: "player-1", Card: entity.Card{Suit: entity.Clubs, Value: entity.Nine}},  // 9 clubs
+						{PlayerID: "player-2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Seven}}, // 7 clubs
+						{PlayerID: "player-3", Card: entity.Card{Suit: entity.Clubs, Value: entity.King}},  // King clubs - Winner!
+						{PlayerID: "player-4", Card: entity.Card{Suit: entity.Clubs, Value: entity.Queen}}, // Queen clubs
 					},
 				}
 			},
@@ -1550,7 +1550,7 @@ func TestResetRoundState(t *testing.T) {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
 		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		 findInString(s, substr)))
+			findInString(s, substr)))
 }
 
 func findInString(s, substr string) bool {

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Game Audio - In-Browser</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .test-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2em;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .test-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .status {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            font-family: monospace;
+            text-align: left;
+        }
+
+        .success {
+            color: #4caf50;
+        }
+
+        .error {
+            color: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Game Audio Test</h1>
+        <p>This tests if audio works in your browser</p>
+
+        <button class="test-button" onclick="testCardPlay()">🃏 Test Card Play Sound</button>
+        <button class="test-button" onclick="testRoundWin()">✅ Test Round Win Sound</button>
+        <button class="test-button" onclick="testAllSounds()">🎵 Test All Sounds</button>
+
+        <div class="status" id="status">
+            <div>Status: Ready to test</div>
+            <div>Click a button above to test audio</div>
+        </div>
+    </div>
+
+    <script>
+        let audioContext = null;
+        const sounds = {};
+
+        function log(message, isError = false) {
+            const status = document.getElementById('status');
+            const className = isError ? 'error' : 'success';
+            const timestamp = new Date().toLocaleTimeString();
+            status.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.log(message);
+        }
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                log('✅ Audio context created');
+            }
+        }
+
+        async function loadSound(path, name) {
+            try {
+                const response = await fetch(path);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                sounds[name] = audioBuffer;
+                log(`✅ Loaded: ${name}`);
+                return true;
+            } catch (error) {
+                log(`❌ Failed to load ${name}: ${error.message}`, true);
+                return false;
+            }
+        }
+
+        function playSound(name) {
+            if (!sounds[name]) {
+                log(`❌ Sound not loaded: ${name}`, true);
+                return;
+            }
+
+            const source = audioContext.createBufferSource();
+            source.buffer = sounds[name];
+            source.connect(audioContext.destination);
+            source.start(0);
+            log(`🔊 Playing: ${name}`);
+        }
+
+        async function testCardPlay() {
+            initAudio();
+            log('Loading card_play.wav...');
+            await loadSound('assets/sounds/sfx/cards/card_play.wav', 'card_play');
+            playSound('card_play');
+        }
+
+        async function testRoundWin() {
+            initAudio();
+            log('Loading round_win.wav...');
+            await loadSound('assets/sounds/sfx/game_events/round_win.wav', 'round_win');
+            playSound('round_win');
+        }
+
+        async function testAllSounds() {
+            initAudio();
+            log('Loading all sounds...');
+
+            const soundsToLoad = [
+                { path: 'assets/sounds/sfx/cards/card_play.wav', name: 'card_play' },
+                { path: 'assets/sounds/sfx/cards/card_shuffle.wav', name: 'card_shuffle' },
+                { path: 'assets/sounds/sfx/game_events/round_win.wav', name: 'round_win' },
+            ];
+
+            for (const sound of soundsToLoad) {
+                await loadSound(sound.path, sound.name);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            log('Playing sounds sequentially...');
+            for (const sound of soundsToLoad) {
+                playSound(sound.name);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    </script>
+</body>
+</html>

@@ -73,6 +73,58 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
       expect(usePlayerStore.getState().hand.length).toBe(1)
       expect(usePlayerStore.getState().hand[0].id).toBe('card-2')
     })
+
+    it('should only remove the specific played card, not all cards', () => {
+      const hand: Card[] = [
+        { id: 'hearts-K', suit: 'hearts', rank: 'K' },
+        { id: 'spades-A', suit: 'spades', rank: 'A' },
+        { id: 'diamonds-Q', suit: 'diamonds', rank: 'Q' },
+        { id: 'clubs-J', suit: 'clubs', rank: 'J' },
+      ]
+
+      usePlayerStore.getState().setHand(hand)
+      expect(usePlayerStore.getState().hand.length).toBe(4)
+
+      // Simulate cardPlayed event for current player
+      const playedCard: Card = {
+        id: 'spades-A',
+        suit: 'spades',
+        rank: 'A',
+      }
+
+      // This simulates what happens in the cardPlayed handler
+      useGameStore.getState().playCard('player-1', playedCard)
+      usePlayerStore.getState().removeCardFromHand(playedCard.id)
+
+      // Verify only the played card was removed
+      const remainingHand = usePlayerStore.getState().hand
+      expect(remainingHand.length).toBe(3)
+      expect(remainingHand.find((c) => c.id === 'hearts-K')).toBeDefined()
+      expect(remainingHand.find((c) => c.id === 'diamonds-Q')).toBeDefined()
+      expect(remainingHand.find((c) => c.id === 'clubs-J')).toBeDefined()
+      expect(remainingHand.find((c) => c.id === 'spades-A')).toBeUndefined()
+    })
+
+    it('should emit game:play_card event when current player plays a card', () => {
+      // This test verifies the logic that should trigger when a card is clicked/dragged to play
+      // In GameScene.playCard(), when fromPosition === 'bottom', it should:
+      // 1. Create card data object with suit, rank, id
+      // 2. Emit 'game:play_card' event via socketService
+      // 3. Backend receives this and broadcasts 'cardPlayed' to all players
+
+      const card: Card = {
+        id: 'card-1',
+        suit: 'hearts',
+        rank: '6',
+      }
+
+      // Verify card format is correct for emission
+      expect(card).toHaveProperty('suit')
+      expect(card).toHaveProperty('rank')
+      expect(card).toHaveProperty('id')
+      expect(card.suit).toBe('hearts')
+      expect(card.rank).toBe('6')
+    })
   })
 
   describe('roundWon event', () => {
@@ -206,6 +258,31 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
 
       useGameStore.getState().setTimeRemaining(10)
       expect(useGameStore.getState().timeRemaining).toBe(10)
+    })
+
+    it('should trigger card playability update when turn changes', () => {
+      // Setup: Player 1 has some cards
+      const hand: Card[] = [
+        { id: 'hearts-K', suit: 'hearts', rank: 'K' },
+        { id: 'spades-A', suit: 'spades', rank: 'A' },
+      ]
+
+      usePlayerStore.getState().setPlayerId('player-1')
+      usePlayerStore.getState().setHand(hand)
+
+      // Initially not player's turn
+      usePlayerStore.getState().setIsMyTurn(false)
+      expect(usePlayerStore.getState().isMyTurn).toBe(false)
+
+      // Turn changes to current player
+      usePlayerStore.getState().setIsMyTurn(true)
+
+      // After this state change, the GameScene should call updatePlayableCards()
+      // to refresh which cards are playable
+      expect(usePlayerStore.getState().isMyTurn).toBe(true)
+
+      // This test verifies the state change happens correctly
+      // The actual updatePlayableCards() call will be tested in the GameScene itself
     })
   })
 

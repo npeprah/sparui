@@ -91,6 +91,14 @@ CREATE INDEX idx_game_history_created_at ON game_history(created_at DESC);
 CREATE INDEX idx_player_game_results_user_id ON player_game_results(user_id);
 CREATE INDEX idx_player_game_results_game_id ON player_game_results(game_id);
 
+-- Indexes for leaderboard performance (TASK-076)
+-- These indexes dramatically speed up leaderboard queries and player rank calculations
+CREATE INDEX idx_user_stats_total_wins ON user_stats(total_wins DESC, total_games DESC) WHERE total_games > 0;
+CREATE INDEX idx_user_stats_win_rate ON user_stats(win_rate DESC, total_wins DESC) WHERE total_games > 0;
+CREATE INDEX idx_user_stats_total_points ON user_stats(total_points DESC, total_wins DESC) WHERE total_games > 0;
+CREATE INDEX idx_user_stats_highest_streak ON user_stats(highest_streak DESC, total_wins DESC) WHERE total_games > 0;
+CREATE INDEX idx_user_stats_total_games ON user_stats(total_games DESC, total_wins DESC) WHERE total_games > 0;
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

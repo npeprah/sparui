@@ -22,18 +22,18 @@ type TimerManager struct {
 	mu     sync.RWMutex
 
 	// Callbacks for timer events
-	onTick    TimerCallback // Called every second with remaining time
-	onExpire  TimerCallback // Called when timer expires (remaining = 0)
+	onTick   TimerCallback // Called every second with remaining time
+	onExpire TimerCallback // Called when timer expires (remaining = 0)
 }
 
 // timerContext holds the state of an active timer
 type timerContext struct {
-	gameID        string
-	playerID      string
-	duration      int           // Total duration in seconds
-	started       time.Time     // When the timer started
-	cancel        context.CancelFunc
-	done          chan struct{} // Signals timer completion
+	gameID   string
+	playerID string
+	duration int       // Total duration in seconds
+	started  time.Time // When the timer started
+	cancel   context.CancelFunc
+	done     chan struct{} // Signals timer completion
 }
 
 // NewTimerManager creates a new timer manager

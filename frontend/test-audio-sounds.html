@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spar - Audio Test (Placeholder Sounds)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .warning strong {
+            color: #ffc107;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .section h2 {
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        .sound-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .sound-button {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sound-button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .sound-button:active {
+            transform: translateY(0);
+        }
+
+        .sound-button.playing {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4caf50;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .sound-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .sound-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .sound-duration {
+            font-size: 0.85em;
+            opacity: 0.7;
+        }
+
+        .sound-label {
+            display: inline-block;
+            background: rgba(255, 215, 0, 0.3);
+            color: #ffd700;
+            font-size: 0.7em;
+            padding: 2px 8px;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+
+        .stats {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .stat-item {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .control-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .volume-control input {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Spar - Audio Test</h1>
+        <p class="subtitle">Placeholder Sounds Generated Programmatically</p>
+
+        <div class="warning">
+            <strong>⚠️ IMPORTANT:</strong> These are temporary placeholder sounds for testing only.<br>
+            Must be replaced with quality Afrobeat-infused assets before production.
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value">16</div>
+                <div class="stat-label">Total Sounds</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="playCount">0</div>
+                <div class="stat-label">Times Played</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">~1.1MB</div>
+                <div class="stat-label">Total Size</div>
+            </div>
+        </div>
+
+        <div class="volume-control">
+            <span>🔊 Volume:</span>
+            <input type="range" id="volumeSlider" min="0" max="100" value="70">
+            <span id="volumeValue">70%</span>
+        </div>
+
+        <div class="controls">
+            <button class="control-button" onclick="playAll()">▶️ Play All Sequentially</button>
+            <button class="control-button" onclick="stopAll()">⏹️ Stop All</button>
+        </div>
+
+        <!-- Card Sounds -->
+        <div class="section">
+            <h2>🃏 Card Sounds (6 sounds)</h2>
+            <div class="sound-grid">
+                <div class="sound-button" onclick="playSound('cards/card_shuffle', this)">
+                    <div class="sound-icon">🎴</div>
+                    <div class="sound-name">Shuffle</div>
+                    <div class="sound-duration">1.5s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('cards/card_deal', this)">
+                    <div class="sound-icon">📤</div>
+                    <div class="sound-name">Deal</div>
+                    <div class="sound-duration">0.5s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('cards/card_flip', this)">
+                    <div class="sound-icon">🔄</div>
+                    <div class="sound-name">Flip</div>
+                    <div class="sound-duration">0.3s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('cards/card_play', this)">
+                    <div class="sound-icon">⭐</div>
+                    <div class="sound-name">Play</div>
+                    <div class="sound-duration">0.4s</div>
+                    <div class="sound-label">MOST IMPORTANT</div>
+                </div>
+                <div class="sound-button" onclick="playSound('cards/card_collect', this)">
+                    <div class="sound-icon">📥</div>
+                    <div class="sound-name">Collect</div>
+                    <div class="sound-duration">0.7s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('cards/card_hover', this)">
+                    <div class="sound-icon">👆</div>
+                    <div class="sound-name">Hover</div>
+                    <div class="sound-duration">0.15s</div>
+                    <div class="sound-label">SUBTLE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Event Sounds -->
+        <div class="section">
+            <h2>🎮 Game Event Sounds (10 sounds)</h2>
+            <div class="sound-grid">
+                <div class="sound-button" onclick="playSound('game_events/round_win', this)">
+                    <div class="sound-icon">✅</div>
+                    <div class="sound-name">Round Win</div>
+                    <div class="sound-duration">1.2s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/round_loss', this)">
+                    <div class="sound-icon">❌</div>
+                    <div class="sound-name">Round Loss</div>
+                    <div class="sound-duration">1.2s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/game_victory', this)">
+                    <div class="sound-icon">🏆</div>
+                    <div class="sound-name">Game Victory</div>
+                    <div class="sound-duration">2.5s</div>
+                    <div class="sound-label">CLIMACTIC</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/game_defeat', this)">
+                    <div class="sound-icon">😔</div>
+                    <div class="sound-name">Game Defeat</div>
+                    <div class="sound-duration">2.0s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/dry_declaration', this)">
+                    <div class="sound-icon">🎯</div>
+                    <div class="sound-name">Dry</div>
+                    <div class="sound-duration">0.8s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/show_dry_declaration', this)">
+                    <div class="sound-icon">🎯🔥</div>
+                    <div class="sound-name">Show Dry</div>
+                    <div class="sound-duration">1.0s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/fire_streak', this)">
+                    <div class="sound-icon">🔥</div>
+                    <div class="sound-name">Fire Streak</div>
+                    <div class="sound-duration">1.5s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/freeze_effect', this)">
+                    <div class="sound-icon">❄️</div>
+                    <div class="sound-name">Freeze</div>
+                    <div class="sound-duration">1.2s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/invalid_move', this)">
+                    <div class="sound-icon">⚠️</div>
+                    <div class="sound-name">Invalid Move</div>
+                    <div class="sound-duration">0.3s</div>
+                </div>
+                <div class="sound-button" onclick="playSound('game_events/phase_transition', this)">
+                    <div class="sound-icon">🔄</div>
+                    <div class="sound-name">Phase Transition</div>
+                    <div class="sound-duration">1.0s</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="warning">
+            <strong>Next Steps:</strong><br>
+            1. Test all sounds work correctly ✅<br>
+            2. Integrate into Phaser using AUDIO_INTEGRATION_GUIDE.md<br>
+            3. Replace with quality Afrobeat assets (5-8 hours) using AUDIO_SOURCING_GUIDE.md
+        </div>
+    </div>
+
+    <audio id="audioPlayer"></audio>
+
+    <script>
+        let playCount = 0;
+        let currentAudio = null;
+        const audioPlayer = document.getElementById('audioPlayer');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeValue = document.getElementById('volumeValue');
+
+        // Set initial volume
+        audioPlayer.volume = 0.7;
+
+        // Volume control
+        volumeSlider.addEventListener('input', (e) => {
+            const volume = e.target.value / 100;
+            audioPlayer.volume = volume;
+            volumeValue.textContent = e.target.value + '%';
+        });
+
+        function playSound(path, button) {
+            // Stop current audio if playing
+            if (currentAudio) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                if (currentAudio.button) {
+                    currentAudio.button.classList.remove('playing');
+                }
+            }
+
+            // Play new audio
+            audioPlayer.src = `public/assets/sounds/sfx/${path}.wav`;
+            audioPlayer.play();
+
+            // Update UI
+            button.classList.add('playing');
+            playCount++;
+            document.getElementById('playCount').textContent = playCount;
+
+            // Store current audio info
+            currentAudio = { button: button };
+
+            // Remove playing class when done
+            audioPlayer.onended = () => {
+                button.classList.remove('playing');
+                currentAudio = null;
+            };
+        }
+
+        async function playAll() {
+            const sounds = [
+                { path: 'cards/card_shuffle', name: 'Shuffle' },
+                { path: 'cards/card_deal', name: 'Deal' },
+                { path: 'cards/card_flip', name: 'Flip' },
+                { path: 'cards/card_play', name: 'Play' },
+                { path: 'cards/card_collect', name: 'Collect' },
+                { path: 'cards/card_hover', name: 'Hover' },
+                { path: 'game_events/round_win', name: 'Round Win' },
+                { path: 'game_events/round_loss', name: 'Round Loss' },
+                { path: 'game_events/game_victory', name: 'Game Victory' },
+                { path: 'game_events/game_defeat', name: 'Game Defeat' },
+                { path: 'game_events/dry_declaration', name: 'Dry' },
+                { path: 'game_events/show_dry_declaration', name: 'Show Dry' },
+                { path: 'game_events/fire_streak', name: 'Fire Streak' },
+                { path: 'game_events/freeze_effect', name: 'Freeze' },
+                { path: 'game_events/invalid_move', name: 'Invalid Move' },
+                { path: 'game_events/phase_transition', name: 'Phase Transition' }
+            ];
+
+            for (const sound of sounds) {
+                console.log(`Playing: ${sound.name}`);
+                const buttons = document.querySelectorAll('.sound-button');
+                const button = Array.from(buttons).find(b =>
+                    b.getAttribute('onclick').includes(sound.path)
+                );
+
+                if (button) {
+                    playSound(sound.path, button);
+                    await new Promise(resolve => {
+                        audioPlayer.onended = () => {
+                            button.classList.remove('playing');
+                            resolve();
+                        };
+                    });
+                    // Small pause between sounds
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+        }
+
+        function stopAll() {
+            if (currentAudio) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                if (currentAudio.button) {
+                    currentAudio.button.classList.remove('playing');
+                }
+                currentAudio = null;
+            }
+        }
+    </script>
+</body>
+</html>

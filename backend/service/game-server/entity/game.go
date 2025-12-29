@@ -151,8 +151,8 @@ func (c *Card) IsLowCard() bool {
 type DryType string
 
 const (
-	DryHidden DryType = "dry"       // Face-down declaration
-	DryShown  DryType = "show_dry"  // Face-up declaration
+	DryHidden DryType = "dry"      // Face-down declaration
+	DryShown  DryType = "show_dry" // Face-up declaration
 )
 
 // DryCard represents a declared dry card
@@ -186,11 +186,11 @@ func (dc *DryCard) BonusPoints() int {
 
 // PlayedCard represents a card that has been played in a round
 type PlayedCard struct {
-	Card      Card      `json:"card"`
-	PlayerID  string    `json:"playerId"`
-	PlayedAt  time.Time `json:"playedAt"`
-	IsOnFire  bool      `json:"isOnFire"`  // True if played during a fire streak
-	IsFrozen  bool      `json:"isFrozen"`  // True if played to break a fire streak
+	Card     Card      `json:"card"`
+	PlayerID string    `json:"playerId"`
+	PlayedAt time.Time `json:"playedAt"`
+	IsOnFire bool      `json:"isOnFire"` // True if played during a fire streak
+	IsFrozen bool      `json:"isFrozen"` // True if played to break a fire streak
 }
 
 // GamePlayer represents a player's state during an active game
@@ -201,18 +201,18 @@ type GamePlayer struct {
 	Avatar   string `json:"avatar"`
 
 	// Game state
-	Hand         []Card   `json:"hand"`                    // Cards in player's hand
-	DryCard      *DryCard `json:"dryCard,omitempty"`       // Declared dry card
-	Score        int      `json:"score"`                   // Current score
-	RoundsWon    int      `json:"roundsWon"`               // Number of rounds won
-	WinStreak    int      `json:"winStreak"`               // Current win streak count
-	IsLeader     bool     `json:"isLeader"`                // True if current leader
-	IsOnFire     bool     `json:"isOnFire"`                // True if has 3+ win streak
+	Hand      []Card   `json:"hand"`              // Cards in player's hand
+	DryCard   *DryCard `json:"dryCard,omitempty"` // Declared dry card
+	Score     int      `json:"score"`             // Current score
+	RoundsWon int      `json:"roundsWon"`         // Number of rounds won
+	WinStreak int      `json:"winStreak"`         // Current win streak count
+	IsLeader  bool     `json:"isLeader"`          // True if current leader
+	IsOnFire  bool     `json:"isOnFire"`          // True if has 3+ win streak
 
 	// Turn state
-	HasPlayedCard  bool      `json:"hasPlayedCard"`         // True if played card this round
+	HasPlayedCard  bool      `json:"hasPlayedCard"`            // True if played card this round
 	LastPlayedCard *Card     `json:"lastPlayedCard,omitempty"` // Last card played
-	PlayedAt       time.Time `json:"playedAt,omitempty"`    // When card was played
+	PlayedAt       time.Time `json:"playedAt,omitempty"`       // When card was played
 }
 
 // CanDeclareD checks if player can declare a dry card (has 6 or 7)
@@ -271,50 +271,50 @@ func (gp *GamePlayer) HandCount() int {
 type GamePhase string
 
 const (
-	PhaseWaiting    GamePhase = "waiting"      // Waiting for players
-	PhaseDeclaring  GamePhase = "declaring"    // Dry card declaration phase
-	PhasePlaying    GamePhase = "playing"      // Active gameplay
-	PhaseRoundEnd   GamePhase = "round_end"    // Round just ended
-	PhaseGameOver   GamePhase = "game_over"    // Game completed
+	PhaseWaiting   GamePhase = "waiting"   // Waiting for players
+	PhaseDeclaring GamePhase = "declaring" // Dry card declaration phase
+	PhasePlaying   GamePhase = "playing"   // Active gameplay
+	PhaseRoundEnd  GamePhase = "round_end" // Round just ended
+	PhaseGameOver  GamePhase = "game_over" // Game completed
 )
 
 // GameState represents the complete state of an active game
 type GameState struct {
 	// Game identification
-	GameID   string    `json:"gameId"`
-	RoomCode string    `json:"roomCode"`
+	GameID   string `json:"gameId"`
+	RoomCode string `json:"roomCode"`
 
 	// Game configuration
-	TotalRounds  int           `json:"totalRounds"`  // Always 5 for Spar
-	PointsToWin  int           `json:"pointsToWin"`  // From room settings (10, 15, or 21)
+	TotalRounds int `json:"totalRounds"` // Always 5 for Spar
+	PointsToWin int `json:"pointsToWin"` // From room settings (10, 15, or 21)
 
 	// Game phase
-	Phase        GamePhase     `json:"phase"`
+	Phase GamePhase `json:"phase"`
 
 	// Players
-	Players      []GamePlayer  `json:"players"`
-	LeaderID     string        `json:"leaderId"`      // Current round leader
-	CurrentTurn  string        `json:"currentTurn"`   // Player whose turn it is
+	Players     []GamePlayer `json:"players"`
+	LeaderID    string       `json:"leaderId"`    // Current round leader
+	CurrentTurn string       `json:"currentTurn"` // Player whose turn it is
 
 	// Round state
-	CurrentRound int           `json:"currentRound"`  // Current round number (1-5)
-	LedSuit      *Suit         `json:"ledSuit,omitempty"` // Suit led this round
-	PlayedCards  []PlayedCard  `json:"playedCards"`   // Cards played this round
-	RoundWinner  string        `json:"roundWinner,omitempty"` // Winner of current round
+	CurrentRound int          `json:"currentRound"`          // Current round number (1-5)
+	LedSuit      *Suit        `json:"ledSuit,omitempty"`     // Suit led this round
+	PlayedCards  []PlayedCard `json:"playedCards"`           // Cards played this round
+	RoundWinner  string       `json:"roundWinner,omitempty"` // Winner of current round
 
 	// Timer state
-	TurnStartTime   time.Time  `json:"turnStartTime"`
-	TurnTimeLimit   int        `json:"turnTimeLimit"`   // Seconds for this turn
-	TurnExpired     bool       `json:"turnExpired"`
+	TurnStartTime time.Time `json:"turnStartTime"`
+	TurnTimeLimit int       `json:"turnTimeLimit"` // Seconds for this turn
+	TurnExpired   bool      `json:"turnExpired"`
 
 	// Win streaks
-	FireStreakPlayer string    `json:"fireStreakPlayer,omitempty"` // Player with active fire streak
-	FreezeTriggered  bool      `json:"freezeTriggered"`            // True if freeze just triggered
+	FireStreakPlayer string `json:"fireStreakPlayer,omitempty"` // Player with active fire streak
+	FreezeTriggered  bool   `json:"freezeTriggered"`            // True if freeze just triggered
 
 	// Game timestamps
-	StartedAt    time.Time     `json:"startedAt"`
-	CompletedAt  *time.Time    `json:"completedAt,omitempty"`
-	UpdatedAt    time.Time     `json:"updatedAt"`
+	StartedAt   time.Time  `json:"startedAt"`
+	CompletedAt *time.Time `json:"completedAt,omitempty"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
 // GetPlayer finds a player by ID
@@ -423,14 +423,7 @@ func (gs *GameState) GetWinningPlayer() *GamePlayer {
 	if len(gs.Players) == 0 {
 		return nil
 	}
-
-	winner := &gs.Players[0]
-	for i := 1; i < len(gs.Players); i++ {
-		if gs.Players[i].Score > winner.Score {
-			winner = &gs.Players[i]
-		}
-	}
-	return winner
+	return gs.GetLeader()
 }
 
 // ResetRound resets the round state for the next round
@@ -459,16 +452,108 @@ type Challenge struct {
 	IsCorrect    bool      `json:"isCorrect"`
 }
 
+// StreakEventType represents the type of win streak event
+type StreakEventType string
+
+const (
+	// StreakEventStreakStarted indicates a player won their first round (streak = 1)
+	StreakEventStreakStarted StreakEventType = "streak_started"
+
+	// StreakEventFireActivated indicates fire effect activated (streak reached 2)
+	StreakEventFireActivated StreakEventType = "fire_activated"
+
+	// StreakEventFireContinued indicates fire effect continues (streak 3+)
+	StreakEventFireContinued StreakEventType = "fire_continued"
+
+	// StreakEventFreezeTriggered indicates freeze effect triggered (broke 3+ streak)
+	StreakEventFreezeTriggered StreakEventType = "freeze_triggered"
+
+	// StreakEventStreakBroken indicates a player's streak was broken
+	StreakEventStreakBroken StreakEventType = "streak_broken"
+)
+
+// StreakEvent represents a win streak event that occurred in a round
+// These events are used to trigger frontend animations and track bonuses
+type StreakEvent struct {
+	Type         StreakEventType `json:"type"`         // Type of streak event
+	PlayerID     string          `json:"playerId"`     // Player who triggered the event
+	Username     string          `json:"username"`     // Player's username for display
+	Streak       int             `json:"streak"`       // Current streak count
+	Bonus        int             `json:"bonus"`        // Bonus points awarded (if any)
+	BrokenStreak int             `json:"brokenStreak"` // Streak that was broken (for freeze events)
+}
+
 // GameResult represents the final result of a game
 type GameResult struct {
-	GameID       string            `json:"gameId"`
-	WinnerID     string            `json:"winnerId"`
-	WinningCard  *Card             `json:"winningCard"`
-	TotalRounds  int               `json:"totalRounds"`
-	Duration     time.Duration     `json:"duration"`
-	PlayerScores map[string]int    `json:"playerScores"`
-	FireStreak   bool              `json:"fireStreak"`
-	FreezeUsed   bool              `json:"freezeUsed"`
-	DryBonus     bool              `json:"dryBonus"`
-	CompletedAt  time.Time         `json:"completedAt"`
+	GameID       string         `json:"gameId"`
+	WinnerID     string         `json:"winnerId"`
+	WinningCard  *Card          `json:"winningCard"`
+	TotalRounds  int            `json:"totalRounds"`
+	Duration     time.Duration  `json:"duration"`
+	PlayerScores map[string]int `json:"playerScores"`
+	FireStreak   bool           `json:"fireStreak"`
+	FreezeUsed   bool           `json:"freezeUsed"`
+	DryBonus     bool           `json:"dryBonus"`
+	CompletedAt  time.Time      `json:"completedAt"`
+}
+
+// FinalScore represents a player's detailed final score breakdown
+// Used in game over calculations to show how each bonus contributed
+type FinalScore struct {
+	PlayerID         string `json:"playerId"`
+	Username         string `json:"username"`
+	BaseScore        int    `json:"baseScore"`        // Points from rounds won (1 point per round)
+	DryCardBonus     int    `json:"dryCardBonus"`     // Total bonus from dry cards (3x/6x)
+	StreakBonus      int    `json:"streakBonus"`      // Total bonus from fire streaks (+5 per round)
+	FreezeBonus      int    `json:"freezeBonus"`      // Bonus from freeze effects (+10)
+	ChallengeBonus   int    `json:"challengeBonus"`   // Bonus from valid challenges (+10)
+	ChallengePenalty int    `json:"challengePenalty"` // Penalty from invalid challenges (-5)
+	TotalScore       int    `json:"totalScore"`       // Final computed score
+	RoundsWon        int    `json:"roundsWon"`        // Number of rounds won
+}
+
+// GameSummary represents the comprehensive final summary of a completed game
+// This is broadcast to all players and saved to the database
+type GameSummary struct {
+	GameID          string                 `json:"gameId"`
+	RoomCode        string                 `json:"roomCode"`
+	Winners         []string               `json:"winners"`         // Can be multiple in case of tie
+	FinalScores     map[string]*FinalScore `json:"finalScores"`     // Player ID -> Final score breakdown
+	TotalRounds     int                    `json:"totalRounds"`     // Total rounds played (always 5 for Spar)
+	DurationSeconds int                    `json:"durationSeconds"` // Game duration in seconds
+	IsFireWin       bool                   `json:"isFireWin"`       // True if winner(s) had fire effect
+	IsFreezeWin     bool                   `json:"isFreezeWin"`     // True if winner(s) used freeze
+	CompletionType  GameCompletionType     `json:"completionType"`  // How the game ended
+	CompletedAt     time.Time              `json:"completedAt"`     // When the game ended
+	PlayerResults   []*PlayerGameResult    `json:"playerResults"`   // Detailed results for each player
+}
+
+// GameCompletionType represents how a game ended
+type GameCompletionType string
+
+const (
+	// CompletionRounds indicates game ended after completing all 5 rounds
+	CompletionRounds GameCompletionType = "rounds_complete"
+
+	// CompletionPointsTarget indicates game ended when a player reached points target
+	CompletionPointsTarget GameCompletionType = "target_reached"
+
+	// CompletionForfeit indicates game ended due to all but one player disconnecting
+	CompletionForfeit GameCompletionType = "forfeit"
+)
+
+// PlayerGameResult represents an individual player's result in a game
+// This is saved to the player_game_results table for stats tracking
+type PlayerGameResult struct {
+	GameID         string `json:"gameId"`
+	UserID         string `json:"userId"`
+	FinalScore     int    `json:"finalScore"`
+	RoundsWon      int    `json:"roundsWon"`
+	DeclaredDry    bool   `json:"declaredDry"`
+	DryCardValue   int    `json:"dryCardValue"`   // Value of dry card (6 or 7), 0 if none
+	DryType        string `json:"dryType"`        // "dry" or "show_dry", empty if none
+	ChallengesMade int    `json:"challengesMade"` // Number of challenges initiated
+	ChallengesWon  int    `json:"challengesWon"`  // Number of valid challenges
+	Placement      int    `json:"placement"`      // Final ranking (1st, 2nd, 3rd, 4th)
+	IsWinner       bool   `json:"isWinner"`       // True if this player won
 }

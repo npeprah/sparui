@@ -74,11 +74,11 @@ func TestNewConnectionManager(t *testing.T) {
 
 func TestRegisterConnection(t *testing.T) {
 	tests := []struct {
-		name               string
-		clients            []*Client
-		expectedPlayerID   string
-		expectedConnCount  int
-		shouldIgnoreEmpty  bool
+		name              string
+		clients           []*Client
+		expectedPlayerID  string
+		expectedConnCount int
+		shouldIgnoreEmpty bool
 	}{
 		{
 			name: "register single connection",
@@ -216,9 +216,9 @@ func TestIsPlayerConnected(t *testing.T) {
 	cm.RegisterConnection(client)
 
 	tests := []struct {
-		name       string
-		playerID   string
-		expected   bool
+		name     string
+		playerID string
+		expected bool
 	}{
 		{
 			name:     "connected player returns true",

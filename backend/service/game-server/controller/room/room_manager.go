@@ -399,3 +399,151 @@ func randomInt(min, max int) int {
 	}
 	return int(n.Int64()) + min
 }
+
+// SetPlayerReady sets a player's ready state in a room
+func (m *Manager) SetPlayerReady(ctx context.Context, roomCode, playerID string, ready bool) error {
+	if roomCode == "" {
+		return fmt.Errorf("roomCode is required")
+	}
+	if playerID == "" {
+		return fmt.Errorf("playerId is required")
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	room, exists := m.rooms[roomCode]
+	if !exists {
+		return fmt.Errorf("room not found: %s", roomCode)
+	}
+
+	player := room.GetPlayer(playerID)
+	if player == nil {
+		return fmt.Errorf("player not in room: %s", playerID)
+	}
+
+	player.IsReady = ready
+	room.UpdatedAt = time.Now()
+
+	// Update room status if all players are ready
+	if ready && m.allPlayersReadyUnsafe(room) && len(room.Players) >= MinPlayers {
+		room.Status = entity.StatusReady
+	}
+
+	// Update in database if repository is available
+	if m.repository != nil {
+		if err := m.repository.Update(ctx, room); err != nil {
+			slog.Error("Failed to update room in database", "roomCode", room.RoomCode, "error", err)
+		}
+	}
+
+	slog.Info("Player ready state updated",
+		"roomCode", roomCode,
+		"playerId", playerID,
+		"ready", ready)
+
+	return nil
+}
+
+// AllPlayersReady checks if all players in a room are ready
+func (m *Manager) AllPlayersReady(roomCode string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	room, exists := m.rooms[roomCode]
+	if !exists {
+		return false
+	}
+
+	return m.allPlayersReadyUnsafe(room)
+}
+
+// allPlayersReadyUnsafe checks if all players are ready (must be called with lock held)
+func (m *Manager) allPlayersReadyUnsafe(room *entity.Room) bool {
+	if len(room.Players) == 0 {
+		return false
+	}
+
+	for _, player := range room.Players {
+		if !player.IsReady {
+			return false
+		}
+	}
+
+	return true
+}
+
+// StartGame starts the game for a room
+func (m *Manager) StartGame(ctx context.Context, roomCode string) error {
+	if roomCode == "" {
+		return fmt.Errorf("roomCode is required")
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	room, exists := m.rooms[roomCode]
+	if !exists {
+		return fmt.Errorf("room not found: %s", roomCode)
+	}
+
+	// Validate room can start
+	if room.Status == entity.StatusInProgress {
+		return fmt.Errorf("game already in progress")
+	}
+
+	if len(room.Players) < MinPlayers {
+		return fmt.Errorf("not enough players to start game (min: %d)", MinPlayers)
+	}
+
+	if !m.allPlayersReadyUnsafe(room) {
+		return fmt.Errorf("not all players are ready")
+	}
+
+	// Update room status
+	room.Status = entity.StatusInProgress
+	now := time.Now()
+	room.StartedAt = &now
+	room.UpdatedAt = now
+
+	// Update in database if repository is available
+	if m.repository != nil {
+		if err := m.repository.Update(ctx, room); err != nil {
+			slog.Error("Failed to update room in database", "roomCode", room.RoomCode, "error", err)
+		}
+	}
+
+	slog.Info("Game started",
+		"roomCode", roomCode,
+		"numPlayers", len(room.Players))
+
+	return nil
+}
+
+// IsPlayerInAnyRoom checks if a player is in any active room
+func (m *Manager) IsPlayerInAnyRoom(playerID string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, room := range m.rooms {
+		if room.HasPlayer(playerID) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetPlayerRoom returns the room code that a player is currently in
+func (m *Manager) GetPlayerRoom(playerID string) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, room := range m.rooms {
+		if room.HasPlayer(playerID) {
+			return room.RoomCode, nil
+		}
+	}
+
+	return "", fmt.Errorf("player not in any room")
+}

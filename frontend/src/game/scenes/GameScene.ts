@@ -500,51 +500,21 @@ export class GameScene extends Phaser.Scene {
     console.log('[GameScene] Number of players in game state:', gameState.players.length)
     console.log('[GameScene] Position map:', Array.from(this.positionMap.entries()))
 
-    // Deal cards for ALL players
-    let dealDelay = 0
-    gameState.players.forEach((player) => {
-      const position = this.getPlayerPositionById(player.id)
+    // Find the current player and deal only their cards
+    const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
+    if (!currentPlayer || !currentPlayer.hand || currentPlayer.hand.length === 0) {
+      console.error('[GameScene] Current player has no hand!')
+      return
+    }
 
-      if (!position) {
-        console.error(`[GameScene] No position found for player ${player.id}`)
-        return
-      }
-
-      console.log(`[GameScene] Dealing cards for player ${player.id} at position ${position}`)
-
-      if (player.id === currentPlayerId) {
-        // Current player - deal face-up cards from their hand
-        if (!player.hand || player.hand.length === 0) {
-          console.error('[GameScene] Current player has no hand!')
-          return
-        }
-
-        console.log(`[GameScene] Dealing ${player.hand.length} face-up cards to current player`)
-        player.hand.forEach((card, index) => {
-          setTimeout(() => {
-            const cardSprite = this.dealCardToPlayer('bottom', card.suit, card.rank, currentPlayerId, card.id)
-            // Face-up cards for current player will be handled by dealCardToPlayer
-          }, dealDelay + (index * 100))
-        })
-        dealDelay += player.hand.length * 100
-      } else {
-        // Opponent - deal face-down cards based on hand size
-        const handSize = player.hand?.length || 5 // Default to 5 if no hand info
-        console.log(`[GameScene] Dealing ${handSize} face-down cards to opponent at ${position}`)
-
-        for (let i = 0; i < handSize; i++) {
-          setTimeout(() => {
-            // Create a dummy card (face-down) for opponents
-            const cardSprite = this.dealCardToPlayer(position, 'hearts', '6', player.id)
-            // Keep it face down for opponents
-            cardSprite.setFaceDown(true)
-          }, dealDelay + (i * 100))
-        }
-        dealDelay += handSize * 100
-      }
+    console.log(`[GameScene] Dealing ${currentPlayer.hand.length} cards to current player`)
+    currentPlayer.hand.forEach((card, index) => {
+      setTimeout(() => {
+        this.dealCardToPlayer('bottom', card.suit, card.rank, currentPlayerId, card.id)
+      }, index * 100)
     })
 
-    console.log('[GameScene] Scheduled cards for all players')
+    console.log('[GameScene] Scheduled cards for current player')
   }
 
   /**
@@ -652,6 +622,9 @@ export class GameScene extends Phaser.Scene {
         emitSoundEvent(this, 'CARD_DEAL')
       },
       onComplete: () => {
+        // Guard: check if card still exists before accessing it
+        if (!card.scene || !card.active) return
+
         // Flip face up if bottom player
         if (position === 'bottom') {
           card.setFaceDown(false)
@@ -746,6 +719,11 @@ export class GameScene extends Phaser.Scene {
   private playCard(card: CardSprite, fromPosition: PlayerPosition): void {
     console.log('[GameScene] playCard called:', card.suit, card.rank, 'from', fromPosition)
 
+    // IMPORTANT: Add to playedCards BEFORE emitting WebSocket event
+    // This prevents a race condition where syncPlayerHand() runs before
+    // the card is tracked as "being played", causing it to be destroyed
+    this.playedCards.set(fromPosition, card)
+
     // Emit card play event to backend (only if current player)
     if (fromPosition === 'bottom') {
       const cardData: Card = {
@@ -831,9 +809,6 @@ export class GameScene extends Phaser.Scene {
       },
     })
 
-    // Store in played cards
-    this.playedCards.set(fromPosition, card)
-
     // Reposition remaining hand (for opponents only)
     // Bottom player hand will be repositioned by syncPlayerHand() when store updates
     if (fromPosition !== 'bottom') {
@@ -846,6 +821,8 @@ export class GameScene extends Phaser.Scene {
    */
   public clearPlayedCards(): void {
     this.playedCards.forEach((card) => {
+      // Stop any active tweens on this card to prevent onComplete errors
+      this.tweens.killTweensOf(card)
       card.destroy()
     })
     this.playedCards.clear()
@@ -1229,6 +1206,9 @@ export class GameScene extends Phaser.Scene {
       console.log('[GameScene] Game restarted:', data)
       console.log('[GameScene] Full restart data:', JSON.stringify(data, null, 2))
 
+      // Get current player ID early so it's available throughout the handler
+      const currentPlayerId = usePlayerStore.getState().playerId
+
       // 1. Clear all played cards from the table
       this.clearPlayedCards()
 
@@ -1238,9 +1218,13 @@ export class GameScene extends Phaser.Scene {
         this.selectedCard = null
       }
 
-      // 3. Clear all player hands (destroy sprites and reset maps)
+      // 3. Clear all player hands (stop tweens first, then destroy sprites)
       this.playerHands.forEach((hand, position) => {
-        hand.forEach((card) => card.destroy())
+        hand.forEach((card) => {
+          // Stop any active tweens on this card to prevent onComplete errors
+          this.tweens.killTweensOf(card)
+          card.destroy()
+        })
       })
       // Reset the playerHands map completely
       this.playerHands.clear()
@@ -1269,8 +1253,6 @@ export class GameScene extends Phaser.Scene {
         // 6. Reset the position mapping - CRITICAL
         console.log('[GameScene] Rebuilding position map...')
         const gameState = useGameStore.getState()
-        const playerState = usePlayerStore.getState()
-        const currentPlayerId = playerState.playerId
 
         // Rebuild position map with fresh player data
         this.positionMap = mapPlayersToPositions(gameState.players, currentPlayerId)
@@ -1317,8 +1299,9 @@ export class GameScene extends Phaser.Scene {
       // 12. Recreate the scoreboard UI
       this.createPlayerInfoDisplays()
 
-      // 13. Deal the new cards with animation
-      this.dealCardsFromBackendState()
+      // 13. Cards will be dealt automatically via syncPlayerHand() store subscription
+      // when setHand() was called above - no need to call dealCardsFromBackendState()
+      // which would create duplicate cards
 
       // 14. Update player info displays
       this.updatePlayerInfoDisplays()

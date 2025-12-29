@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/npeprah/sparui/backend/common/db"
+	"github.com/npeprah/sparui/backend/service/game-server/controller/matchmaking"
 	"github.com/npeprah/sparui/backend/service/game-server/controller/room"
 	"github.com/npeprah/sparui/backend/service/game-server/entity"
 	roomrepo "github.com/npeprah/sparui/backend/service/game-server/repository/room"
@@ -76,6 +77,9 @@ var userRepository *userrepo.Repository
 
 // Global connection manager
 var connectionManager *ConnectionManager
+
+// Global matchmaking queue
+var matchmakingQueue *matchmaking.QueueManager
 
 func init() {
 	go hub.Run()

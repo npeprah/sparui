@@ -493,7 +493,7 @@ func TestBroadcastRoundWinner(t *testing.T) {
 	}
 
 	data := map[string]interface{}{
-		"winnerId":   "player-1",
+		"winnerId":    "player-1",
 		"winningCard": "ace of hearts",
 		"points":      3,
 	}

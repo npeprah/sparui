@@ -1,0 +1,86 @@
+{
+  "manifest_version": "1.0.0",
+  "project": "Spar Card Game",
+  "created": "2025-12-19",
+  "last_updated": "2025-12-19",
+  "audio_designer": "audio-designer agent",
+  "total_assets": 0,
+  "license_summary": {
+    "all_assets_commercial_use": true,
+    "attribution_required_count": 0,
+    "licenses_used": []
+  },
+  "categories": {
+    "card_sounds": {
+      "description": "Core card interaction sounds",
+      "count": 0,
+      "assets": []
+    },
+    "game_events": {
+      "description": "Round and game event sounds",
+      "count": 0,
+      "assets": []
+    },
+    "ui_sounds": {
+      "description": "User interface interaction sounds",
+      "count": 0,
+      "assets": []
+    },
+    "special_effects": {
+      "description": "Fire, freeze, explosion effects",
+      "count": 0,
+      "assets": []
+    },
+    "music": {
+      "description": "Background music tracks",
+      "count": 0,
+      "assets": []
+    },
+    "announcer": {
+      "description": "Voice lines and announcements",
+      "count": 0,
+      "assets": []
+    }
+  },
+  "asset_template": {
+    "file_ogg": "path/to/file.ogg",
+    "file_mp3": "path/to/file.mp3",
+    "file_size_ogg": "size in KB",
+    "file_size_mp3": "size in KB",
+    "duration": "duration in seconds",
+    "description": "What this sound is for",
+    "source": "Where it came from (Freesound, AI, custom, etc.)",
+    "source_url": "Direct link to source (if applicable)",
+    "license": "License type (CC0, CC-BY, Pixabay, etc.)",
+    "license_url": "Link to license terms",
+    "attribution_required": false,
+    "attribution_text": "Credit text if attribution required",
+    "commercial_use": true,
+    "modifications": "List of edits made (trim, normalize, fade, etc.)",
+    "technical_specs": {
+      "sample_rate": "44100 Hz",
+      "bit_depth": "16-bit",
+      "channels": "stereo or mono",
+      "loudness_lufs": "-12 LUFS",
+      "format": "OGG Vorbis + MP3"
+    },
+    "implementation_notes": {
+      "when_to_play": "Game event that triggers this sound",
+      "volume_recommendation": "Relative volume level (0-100%)",
+      "looping": false,
+      "fade_in": "duration if applicable",
+      "fade_out": "duration if applicable",
+      "duck_music": "whether to reduce music volume"
+    },
+    "date_added": "YYYY-MM-DD",
+    "integrated_by": "audio-designer",
+    "tested": false,
+    "approved": false
+  },
+  "notes": [
+    "This manifest tracks all audio assets for the Spar game.",
+    "Every sound must have complete licensing documentation before integration.",
+    "All assets must be tested in-game before approval.",
+    "Update 'last_updated' and increment counts when adding assets."
+  ]
+}

@@ -76,8 +76,8 @@ type LoginRequest struct {
 
 // AuthResponse represents the authentication response
 type AuthResponse struct {
-	Token string     `json:"token"`
-	User  UserDTO    `json:"user"`
+	Token string  `json:"token"`
+	User  UserDTO `json:"user"`
 }
 
 // UserDTO represents a user entity for API responses

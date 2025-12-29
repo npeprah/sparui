@@ -13,10 +13,10 @@ func createTestGameState(playerCount int, pointsToWin int) *entity.GameState {
 	players := make([]entity.GamePlayer, playerCount)
 	for i := 0; i < playerCount; i++ {
 		players[i] = entity.GamePlayer{
-			ID:       stringID(i + 1),
-			Username: stringUsername(i + 1),
-			Avatar:   "avatar",
-			Score:    0,
+			ID:        stringID(i + 1),
+			Username:  stringUsername(i + 1),
+			Avatar:    "avatar",
+			Score:     0,
 			RoundsWon: 0,
 		}
 	}
@@ -41,6 +41,270 @@ func stringID(n int) string {
 
 func stringUsername(n int) string {
 	return []string{"", "Alice", "Bob", "Charlie", "Dave"}[n]
+}
+
+// TestApplyStreakBonuses_FireBonus tests fire streak bonus application
+func TestApplyStreakBonuses_FireBonus(t *testing.T) {
+	gameState := createTestGameState(2, 15)
+	manager := NewScoreManager(gameState)
+
+	// Create fire streak event
+	events := []StreakEvent{
+		{
+			Type:     StreakEventFireActivated,
+			PlayerID: "player1",
+			Username: "Alice",
+			Streak:   2,
+			Bonus:    FireStreakBonus,
+		},
+	}
+
+	// Apply bonuses
+	bonuses, err := manager.ApplyStreakBonuses(events)
+	if err != nil {
+		t.Fatalf("ApplyStreakBonuses failed: %v", err)
+	}
+
+	// Verify bonus applied
+	if bonuses["player1"] != FireStreakBonus {
+		t.Errorf("Expected bonus %d for player1, got %d", FireStreakBonus, bonuses["player1"])
+	}
+
+	// Verify player score updated
+	player := gameState.GetPlayer("player1")
+	if player.Score != FireStreakBonus {
+		t.Errorf("Expected player score %d, got %d", FireStreakBonus, player.Score)
+	}
+}
+
+// TestApplyStreakBonuses_FreezeBonus tests freeze bonus application
+func TestApplyStreakBonuses_FreezeBonus(t *testing.T) {
+	gameState := createTestGameState(2, 15)
+	manager := NewScoreManager(gameState)
+
+	// Create freeze event
+	events := []StreakEvent{
+		{
+			Type:         StreakEventFreezeTriggered,
+			PlayerID:     "player2",
+			Username:     "Bob",
+			Streak:       1,
+			Bonus:        FreezeBreakBonus,
+			BrokenStreak: 3,
+		},
+	}
+
+	// Apply bonuses
+	bonuses, err := manager.ApplyStreakBonuses(events)
+	if err != nil {
+		t.Fatalf("ApplyStreakBonuses failed: %v", err)
+	}
+
+	// Verify bonus applied
+	if bonuses["player2"] != FreezeBreakBonus {
+		t.Errorf("Expected bonus %d for player2, got %d", FreezeBreakBonus, bonuses["player2"])
+	}
+
+	// Verify player score updated
+	player := gameState.GetPlayer("player2")
+	if player.Score != FreezeBreakBonus {
+		t.Errorf("Expected player score %d, got %d", FreezeBreakBonus, player.Score)
+	}
+}
+
+// TestApplyStreakBonuses_MultipleBonuses tests multiple bonuses in one round
+func TestApplyStreakBonuses_MultipleBonuses(t *testing.T) {
+	gameState := createTestGameState(2, 15)
+	manager := NewScoreManager(gameState)
+
+	// Create multiple events (freeze + new streak start)
+	events := []StreakEvent{
+		{
+			Type:         StreakEventFreezeTriggered,
+			PlayerID:     "player2",
+			Username:     "Bob",
+			Bonus:        FreezeBreakBonus,
+			BrokenStreak: 3,
+		},
+		{
+			Type:     StreakEventStreakBroken,
+			PlayerID: "player1",
+			Username: "Alice",
+			Bonus:    0, // No bonus for streak broken
+		},
+		{
+			Type:     StreakEventStreakStarted,
+			PlayerID: "player2",
+			Username: "Bob",
+			Streak:   1,
+			Bonus:    0, // No bonus for streak = 1
+		},
+	}
+
+	// Apply bonuses
+	bonuses, err := manager.ApplyStreakBonuses(events)
+	if err != nil {
+		t.Fatalf("ApplyStreakBonuses failed: %v", err)
+	}
+
+	// Only freeze bonus should be applied
+	if bonuses["player2"] != FreezeBreakBonus {
+		t.Errorf("Expected bonus %d for player2, got %d", FreezeBreakBonus, bonuses["player2"])
+	}
+
+	if bonuses["player1"] != 0 {
+		t.Errorf("Expected no bonus for player1, got %d", bonuses["player1"])
+	}
+}
+
+// TestApplyStreakBonuses_ExistingScore tests bonus added to existing score
+func TestApplyStreakBonuses_ExistingScore(t *testing.T) {
+	gameState := createTestGameState(2, 15)
+	manager := NewScoreManager(gameState)
+
+	// Set initial score
+	player := gameState.GetPlayer("player1")
+	player.Score = 10
+
+	// Create fire event
+	events := []StreakEvent{
+		{
+			Type:     StreakEventFireContinued,
+			PlayerID: "player1",
+			Username: "Alice",
+			Streak:   3,
+			Bonus:    FireStreakBonus,
+		},
+	}
+
+	// Apply bonuses
+	bonuses, err := manager.ApplyStreakBonuses(events)
+	if err != nil {
+		t.Fatalf("ApplyStreakBonuses failed: %v", err)
+	}
+
+	// Verify bonus added to existing score
+	if player.Score != 10+FireStreakBonus {
+		t.Errorf("Expected player score %d, got %d", 10+FireStreakBonus, player.Score)
+	}
+
+	if bonuses["player1"] != FireStreakBonus {
+		t.Errorf("Expected bonus %d, got %d", FireStreakBonus, bonuses["player1"])
+	}
+}
+
+// TestApplyStreakBonuses_InvalidPlayer tests handling of invalid player ID
+func TestApplyStreakBonuses_InvalidPlayer(t *testing.T) {
+	gameState := createTestGameState(2, 15)
+	manager := NewScoreManager(gameState)
+
+	// Create event with invalid player
+	events := []StreakEvent{
+		{
+			Type:     StreakEventFireActivated,
+			PlayerID: "invalid-player",
+			Username: "Invalid",
+			Streak:   2,
+			Bonus:    FireStreakBonus,
+		},
+	}
+
+	// Apply bonuses - should not error, just skip invalid player
+	bonuses, err := manager.ApplyStreakBonuses(events)
+	if err != nil {
+		t.Fatalf("ApplyStreakBonuses failed: %v", err)
+	}
+
+	// No bonuses should be applied
+	if len(bonuses) != 0 {
+		t.Errorf("Expected no bonuses for invalid player, got %d bonuses", len(bonuses))
+	}
+}
+
+// TestApplyStreakBonuses_EmptyEvents tests handling of empty event list
+func TestApplyStreakBonuses_EmptyEvents(t *testing.T) {
+	gameState := createTestGameState(2, 15)
+	manager := NewScoreManager(gameState)
+
+	// Apply empty events
+	bonuses, err := manager.ApplyStreakBonuses([]StreakEvent{})
+	if err != nil {
+		t.Fatalf("ApplyStreakBonuses failed: %v", err)
+	}
+
+	// No bonuses should be applied
+	if len(bonuses) != 0 {
+		t.Errorf("Expected no bonuses for empty events, got %d bonuses", len(bonuses))
+	}
+}
+
+// TestApplyStreakBonuses_NilGameState tests handling of nil game state
+func TestApplyStreakBonuses_NilGameState(t *testing.T) {
+	manager := NewScoreManager(nil)
+
+	events := []StreakEvent{
+		{
+			Type:     StreakEventFireActivated,
+			PlayerID: "player1",
+			Bonus:    FireStreakBonus,
+		},
+	}
+
+	// Should return error
+	_, err := manager.ApplyStreakBonuses(events)
+	if err == nil {
+		t.Error("Expected error for nil game state, got nil")
+	}
+}
+
+// TestApplyStreakBonuses_Concurrent tests thread safety
+func TestApplyStreakBonuses_Concurrent(t *testing.T) {
+	gameState := createTestGameState(3, 15)
+	manager := NewScoreManager(gameState)
+
+	var wg sync.WaitGroup
+	iterations := 50
+
+	// Apply bonuses concurrently
+	for i := 0; i < iterations; i++ {
+		wg.Add(1)
+		go func(iter int) {
+			defer wg.Done()
+
+			playerID := stringID((iter % 3) + 1)
+			events := []StreakEvent{
+				{
+					Type:     StreakEventFireActivated,
+					PlayerID: playerID,
+					Username: stringUsername((iter % 3) + 1),
+					Streak:   2,
+					Bonus:    FireStreakBonus,
+				},
+			}
+
+			_, err := manager.ApplyStreakBonuses(events)
+			if err != nil {
+				t.Errorf("ApplyStreakBonuses failed: %v", err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify scores are consistent
+	totalScore := 0
+	for _, player := range gameState.Players {
+		totalScore += player.Score
+		if player.Score < 0 {
+			t.Errorf("Player %s has negative score: %d", player.ID, player.Score)
+		}
+	}
+
+	// Total score should be iterations * FireStreakBonus
+	expectedTotal := iterations * FireStreakBonus
+	if totalScore != expectedTotal {
+		t.Errorf("Expected total score %d, got %d", expectedTotal, totalScore)
+	}
 }
 
 // TestNewScoreManager tests the constructor
@@ -78,11 +342,11 @@ func TestNewScoreManager(t *testing.T) {
 // TestAwardRoundPoints tests awarding points for round wins
 func TestAwardRoundPoints(t *testing.T) {
 	tests := []struct {
-		name          string
-		setupState    func() *entity.GameState
-		winnerID      string
-		wantErr       bool
-		expectedScore int
+		name           string
+		setupState     func() *entity.GameState
+		winnerID       string
+		wantErr        bool
+		expectedScore  int
 		expectedRounds int
 	}{
 		{
@@ -175,12 +439,12 @@ func TestAwardRoundPoints(t *testing.T) {
 // TestCalculateDryBonus tests dry card bonus calculation
 func TestCalculateDryBonus(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupState  func() *entity.GameState
-		playerID    string
-		dryCard     *entity.DryCard
-		wantBonus   int
-		wantErr     bool
+		name       string
+		setupState func() *entity.GameState
+		playerID   string
+		dryCard    *entity.DryCard
+		wantBonus  int
+		wantErr    bool
 	}{
 		{
 			name: "hidden dry with six - 6 points",
@@ -530,10 +794,10 @@ func TestGetLeaderboard(t *testing.T) {
 // TestDetermineGameWinner tests game winner determination
 func TestDetermineGameWinner(t *testing.T) {
 	tests := []struct {
-		name         string
-		setupState   func() *entity.GameState
+		name           string
+		setupState     func() *entity.GameState
 		expectedWinner string
-		wantErr      bool
+		wantErr        bool
 	}{
 		{
 			name: "single player reaches points to win",

@@ -17,6 +17,7 @@ function HomePage() {
 
   const playerId = usePlayerStore((state) => state.playerId)
   const playerName = usePlayerStore((state) => state.playerName)
+  const token = usePlayerStore((state) => state.token)
   const totalWins = usePlayerStore((state) => state.totalWins)
   const totalGames = usePlayerStore((state) => state.totalGames)
   const openSettings = useUIStore((state) => state.openSettings)
@@ -35,28 +36,79 @@ function HomePage() {
     return newId
   }
 
+  // Get or create auth token
+  const getOrCreateToken = () => {
+    if (token) return token
+    // For now, generate a simple token (in production, this would come from backend auth)
+    // Put random string FIRST so backend gets unique player IDs (uses first 8 chars)
+    const randomStr = Math.random().toString(36).substring(2, 15)
+    const newToken = `${randomStr}-${Date.now()}`
+    usePlayerStore.getState().setToken(newToken)
+    return newToken
+  }
+
   const handleCreatePrivateGame = () => {
     setIsCreatingLobby(true)
     resetLobby()
     setIsConnecting(true)
 
-    socketService.connect()
-    const id = getOrCreatePlayerId()
+    // Get or create auth token
+    const authToken = getOrCreateToken()
 
+    // Connect with authentication
+    socketService.connect(authToken)
+
+    // Listen for auth:success to get backend-assigned playerId
+    const handleAuthSuccess = (data: any) => {
+      console.log('Auth success, backend assigned playerId:', data.playerId)
+      // Store the backend-assigned playerId (critical for matching in players arrays)
+      usePlayerStore.getState().setPlayerId(data.playerId)
+      socketService.off('auth:success', handleAuthSuccess)
+    }
+
+    socketService.on('auth:success', handleAuthSuccess)
+
+    // Listen for room:created event, then navigate
+    const handleRoomCreated = (data: any) => {
+      console.log('Room created successfully:', data)
+
+      // Get the backend-assigned playerId
+      const backendPlayerId = usePlayerStore.getState().playerId
+
+      // Update Zustand store with room data BEFORE navigating
+      const lobbyStore = useLobbyStore.getState()
+      lobbyStore.setRoomCode(data.roomCode)
+      lobbyStore.setHostId(data.hostId)
+      lobbyStore.setIsHost(data.hostId === backendPlayerId)
+      lobbyStore.setIsInLobby(true)
+      lobbyStore.setIsConnecting(false)
+
+      // Add self as first player
+      lobbyStore.addPlayer({
+        id: backendPlayerId,
+        username: playerName,
+        isReady: false,
+        isHost: true,
+      })
+
+      socketService.off('room:created', handleRoomCreated)
+      setIsCreatingLobby(false)
+      navigate('/lobby')
+    }
+
+    socketService.on('room:created', handleRoomCreated)
+
+    // Match backend API spec - only send settings
     socketService.emit('lobby:create', {
-      hostId: id,
       maxPlayers: 4,
       pointsToWin: 10,
-      surfaceTheme: 'poker',
+      surfaceTheme: 'afro-heritage',
     })
 
     addNotification({
       type: 'info',
       message: 'Creating lobby...',
     })
-
-    navigate('/lobby')
-    setIsCreatingLobby(false)
   }
 
   const handleJoinPrivateGame = () => {
@@ -74,24 +126,76 @@ function HomePage() {
     resetLobby()
     setIsConnecting(true)
 
-    socketService.connect()
-    const id = getOrCreatePlayerId()
+    // Get or create auth token
+    const authToken = getOrCreateToken()
 
+    // Connect with authentication
+    socketService.connect(authToken)
+
+    // Listen for auth:success to get backend-assigned playerId
+    const handleAuthSuccess = (data: any) => {
+      console.log('Auth success (join), backend assigned playerId:', data.playerId)
+      // Store the backend-assigned playerId (critical for matching in players arrays)
+      usePlayerStore.getState().setPlayerId(data.playerId)
+      socketService.off('auth:success', handleAuthSuccess)
+    }
+
+    socketService.on('auth:success', handleAuthSuccess)
+
+    // Listen for room:player_joined event, then navigate
+    const handlePlayerJoined = (data: any) => {
+      console.log('Successfully joined room:', data)
+
+      // Get the backend-assigned playerId
+      const backendPlayerId = usePlayerStore.getState().playerId
+
+      // Update Zustand store with room data BEFORE navigating
+      const lobbyStore = useLobbyStore.getState()
+      lobbyStore.setRoomCode(data.roomCode)
+      lobbyStore.setCurrentPlayers(data.players)
+      lobbyStore.setIsInLobby(true)
+      lobbyStore.setIsConnecting(false)
+
+      // Determine if current player is host
+      const hostPlayer = data.players.find((p: any) => p.isHost)
+      if (hostPlayer) {
+        lobbyStore.setHostId(hostPlayer.id)
+        lobbyStore.setIsHost(hostPlayer.id === backendPlayerId)
+      }
+
+      socketService.off('room:player_joined', handlePlayerJoined)
+      socketService.off('lobby:error', handleJoinError)
+      setIsJoiningLobby(false)
+      setShowJoinModal(false)
+      setRoomCodeInput('')
+      navigate('/lobby')
+    }
+
+    // Listen for join errors
+    const handleJoinError = (data: any) => {
+      console.error('Failed to join room:', data.error)
+      socketService.off('room:player_joined', handlePlayerJoined)
+      socketService.off('lobby:error', handleJoinError)
+      setIsJoiningLobby(false)
+      setIsConnecting(false)
+      addNotification({
+        type: 'error',
+        message: data.error || 'Failed to join room',
+      })
+    }
+
+    socketService.on('room:player_joined', handlePlayerJoined)
+    socketService.on('lobby:error', handleJoinError)
+
+    // Match backend API spec - only send roomCode
     socketService.emit('lobby:join', {
       roomCode: trimmedCode,
-      playerId: id,
-      username: playerName,
     })
 
     addNotification({
       type: 'info',
       message: `Joining lobby ${trimmedCode}...`,
     })
-
-    setShowJoinModal(false)
-    setRoomCodeInput('')
-    navigate('/lobby')
-    setIsJoiningLobby(false)
   }
 
   const handleQuickMatch = () => {

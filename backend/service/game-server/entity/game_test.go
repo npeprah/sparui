@@ -154,9 +154,9 @@ func TestCard(t *testing.T) {
 
 	t.Run("Card IsLowCard", func(t *testing.T) {
 		tests := []struct {
-			name   string
-			card   Card
-			isLow  bool
+			name  string
+			card  Card
+			isLow bool
 		}{
 			{"Six is low", Card{Hearts, Six}, true},
 			{"Seven is low", Card{Hearts, Seven}, true},
@@ -227,9 +227,9 @@ func TestDryCard(t *testing.T) {
 func TestGamePlayer(t *testing.T) {
 	t.Run("CanDeclareDry", func(t *testing.T) {
 		tests := []struct {
-			name    string
-			hand    []Card
-			canDry  bool
+			name   string
+			hand   []Card
+			canDry bool
 		}{
 			{"Has Six", []Card{{Hearts, Six}, {Clubs, Ace}}, true},
 			{"Has Seven", []Card{{Hearts, Seven}, {Clubs, King}}, true},

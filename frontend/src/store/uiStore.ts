@@ -26,6 +26,8 @@ interface UIState {
   soundEnabled: boolean
   musicEnabled: boolean
   volume: number
+  masterVolume: number
+  sfxVolume: number
 
   // Actions
   openSettings: () => void
@@ -42,6 +44,8 @@ interface UIState {
   toggleSound: () => void
   toggleMusic: () => void
   setVolume: (volume: number) => void
+  setMasterVolume: (volume: number) => void
+  setSfxVolume: (volume: number) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -55,6 +59,8 @@ export const useUIStore = create<UIState>((set) => ({
   soundEnabled: true,
   musicEnabled: true,
   volume: 0.7,
+  masterVolume: 1.0,
+  sfxVolume: 1.0,
 
   // Actions
   openSettings: () => set({ isSettingsOpen: true }),
@@ -94,4 +100,9 @@ export const useUIStore = create<UIState>((set) => ({
   toggleMusic: () => set((state) => ({ musicEnabled: !state.musicEnabled })),
 
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
+
+  setMasterVolume: (volume) =>
+    set({ masterVolume: Math.max(0, Math.min(1, volume)) }),
+
+  setSfxVolume: (volume) => set({ sfxVolume: Math.max(0, Math.min(1, volume)) }),
 }))

@@ -195,18 +195,29 @@ export const PARTICLE_CONFIG = {
 } as const
 
 /**
- * Sound effect hook event names
- * (Placeholders for future audio implementation)
+ * Sound effect event names
+ * All 16 sound events mapped to AudioManager sound keys
  */
 export const SOUND_EVENTS = {
+  // Card sounds (6)
   CARD_DEAL: 'sound:card_deal',
   CARD_FLIP: 'sound:card_flip',
   CARD_PLAY: 'sound:card_play',
   CARD_HOVER: 'sound:card_hover',
+  CARD_SHUFFLE: 'sound:card_shuffle',
+  CARD_COLLECT: 'sound:card_collect',
+
+  // Game event sounds (10)
   WIN_ROUND: 'sound:win_round',
   LOSE_ROUND: 'sound:lose_round',
-  SELECTION: 'sound:selection',
-  ERROR: 'sound:error',
+  GAME_VICTORY: 'sound:game_victory',
+  GAME_DEFEAT: 'sound:game_defeat',
+  DRY_DECLARATION: 'sound:dry_declaration',
+  SHOW_DRY_DECLARATION: 'sound:show_dry_declaration',
+  FIRE_STREAK: 'sound:fire_streak',
+  FREEZE_EFFECT: 'sound:freeze_effect',
+  INVALID_MOVE: 'sound:invalid_move',
+  PHASE_TRANSITION: 'sound:phase_transition',
 } as const
 
 /**

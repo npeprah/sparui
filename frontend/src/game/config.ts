@@ -20,4 +20,12 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  audio: {
+    disableWebAudio: false,
+    noAudio: false,
+  },
+  loader: {
+    baseURL: '/',
+    path: '',
+  },
 }

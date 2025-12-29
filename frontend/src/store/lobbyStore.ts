@@ -16,6 +16,7 @@ interface LobbyState {
   isHost: boolean
   isReady: boolean
   isConnecting: boolean
+  allReady: boolean
 
   // Actions
   setRoomCode: (code: string) => void
@@ -29,6 +30,8 @@ interface LobbyState {
   setIsInLobby: (inLobby: boolean) => void
   setIsConnecting: (connecting: boolean) => void
   setCurrentPlayers: (players: LobbyPlayer[]) => void
+  setAllReady: (allReady: boolean) => void
+  isPlayerReady: (playerId: string) => boolean
   leaveLobby: () => void
   reset: () => void
 }
@@ -39,7 +42,7 @@ const DEFAULT_SETTINGS: LobbySettings = {
   maxPlayers: 4,
 }
 
-export const useLobbyStore = create<LobbyState>((set) => ({
+export const useLobbyStore = create<LobbyState>((set, get) => ({
   // Initial state
   roomCode: null,
   maxPlayers: 4,
@@ -50,6 +53,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
   isHost: false,
   isReady: false,
   isConnecting: false,
+  allReady: false,
 
   // Actions
   setRoomCode: (code) => set({ roomCode: code }),
@@ -74,9 +78,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
 
   updatePlayerReady: (playerId, isReady) =>
     set((state) => ({
-      currentPlayers: state.currentPlayers.map((p) =>
-        p.id === playerId ? { ...p, isReady } : p
-      ),
+      currentPlayers: state.currentPlayers.map((p) => (p.id === playerId ? { ...p, isReady } : p)),
     })),
 
   updateSettings: (newSettings) =>
@@ -94,6 +96,13 @@ export const useLobbyStore = create<LobbyState>((set) => ({
 
   setCurrentPlayers: (players) => set({ currentPlayers: players }),
 
+  setAllReady: (allReady) => set({ allReady }),
+
+  isPlayerReady: (playerId) => {
+    const player = get().currentPlayers.find((p) => p.id === playerId)
+    return player?.isReady || false
+  },
+
   leaveLobby: () =>
     set({
       roomCode: null,
@@ -102,6 +111,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
       isInLobby: false,
       isHost: false,
       isReady: false,
+      allReady: false,
     }),
 
   reset: () =>
@@ -115,5 +125,6 @@ export const useLobbyStore = create<LobbyState>((set) => ({
       isHost: false,
       isReady: false,
       isConnecting: false,
+      allReady: false,
     }),
 }))

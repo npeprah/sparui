@@ -37,33 +37,33 @@ type broadcasterContext struct {
 
 // GameStateUpdate represents the full game state update message
 type GameStateUpdate struct {
-	GameID       string               `json:"gameId"`
-	RoomCode     string               `json:"roomCode"`
-	Phase        entity.GamePhase     `json:"phase"`
-	CurrentRound int                  `json:"currentRound"`
-	TotalRounds  int                  `json:"totalRounds"`
-	LeaderID     string               `json:"leaderId"`
-	CurrentTurn  string               `json:"currentTurn"`
-	LedSuit      *entity.Suit         `json:"ledSuit,omitempty"`
-	Players      []PlayerStateUpdate  `json:"players"`
-	PlayedCards  []entity.PlayedCard  `json:"playedCards"`
-	TurnRemaining int                  `json:"turnRemaining"` // Seconds remaining in turn
-	UpdatedAt    time.Time            `json:"updatedAt"`
+	GameID        string              `json:"gameId"`
+	RoomCode      string              `json:"roomCode"`
+	Phase         entity.GamePhase    `json:"phase"`
+	CurrentRound  int                 `json:"currentRound"`
+	TotalRounds   int                 `json:"totalRounds"`
+	LeaderID      string              `json:"leaderId"`
+	CurrentTurn   string              `json:"currentTurn"`
+	LedSuit       *entity.Suit        `json:"ledSuit,omitempty"`
+	Players       []PlayerStateUpdate `json:"players"`
+	PlayedCards   []entity.PlayedCard `json:"playedCards"`
+	TurnRemaining int                 `json:"turnRemaining"` // Seconds remaining in turn
+	UpdatedAt     time.Time           `json:"updatedAt"`
 }
 
 // PlayerStateUpdate represents a player's state for broadcasting
 type PlayerStateUpdate struct {
-	ID            string           `json:"id"`
-	Username      string           `json:"username"`
-	Avatar        string           `json:"avatar"`
-	HandCount     int              `json:"handCount"`  // Don't reveal actual cards
-	DryCard       *entity.DryCard  `json:"dryCard,omitempty"`
-	Score         int              `json:"score"`
-	RoundsWon     int              `json:"roundsWon"`
-	WinStreak     int              `json:"winStreak"`
-	IsLeader      bool             `json:"isLeader"`
-	IsOnFire      bool             `json:"isOnFire"`
-	HasPlayedCard bool             `json:"hasPlayedCard"`
+	ID            string          `json:"id"`
+	Username      string          `json:"username"`
+	Avatar        string          `json:"avatar"`
+	HandCount     int             `json:"handCount"` // Don't reveal actual cards
+	DryCard       *entity.DryCard `json:"dryCard,omitempty"`
+	Score         int             `json:"score"`
+	RoundsWon     int             `json:"roundsWon"`
+	WinStreak     int             `json:"winStreak"`
+	IsLeader      bool            `json:"isLeader"`
+	IsOnFire      bool            `json:"isOnFire"`
+	HasPlayedCard bool            `json:"hasPlayedCard"`
 }
 
 // NewStateBroadcaster creates a new state broadcaster

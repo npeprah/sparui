@@ -18,6 +18,7 @@ export interface Player {
   isConnected: boolean
   winStreak: number
   avatar?: string
+  hand?: Card[] // Player's cards (only visible to the player)
 }
 
 export interface GameSettings {
@@ -30,7 +31,15 @@ export type GamePhase = 'lobby' | 'playing' | 'finished'
 export type RoundPhase = 'waiting' | 'playing' | 'ended'
 
 // Lobby-specific types
-export type SurfaceTheme = 'poker' | 'street' | 'wooden' | 'neon' | 'beach'
+export type SurfaceTheme =
+  | 'afro-heritage'
+  | 'neon-arcade'
+  | 'beach-sunset'
+  | 'poker'
+  | 'street'
+  | 'wooden'
+  | 'neon'
+  | 'beach'
 
 export interface LobbyPlayer {
   id: string
@@ -44,4 +53,84 @@ export interface LobbySettings {
   pointsToWin: 10 | 15 | 21
   surfaceTheme: SurfaceTheme
   maxPlayers: 2 | 3 | 4
+}
+
+// Backend room response types
+export interface RoomCreatedResponse {
+  roomCode: string
+  hostId: string
+  maxPlayers: number
+  settings: LobbySettings
+}
+
+export interface RoomPlayerJoinedResponse {
+  player: LobbyPlayer
+  players: LobbyPlayer[]
+  roomCode: string
+}
+
+export interface RoomPlayerLeftResponse {
+  playerId: string
+  players: LobbyPlayer[]
+  newHostId?: string
+}
+
+export interface RoomPlayerReadyResponse {
+  playerId: string
+  isReady: boolean
+  allReady: boolean
+}
+
+export interface RoomSettingsUpdatedResponse {
+  settings: LobbySettings
+}
+
+export interface GameStartedResponse {
+  roomCode: string
+  players: LobbyPlayer[]
+  gameState: BackendGameState
+}
+
+// Backend game state types
+// Note: Backend now sends cards in frontend format (with rank field)
+// but we keep value field for backward compatibility
+export interface BackendCard {
+  suit: 'hearts' | 'diamonds' | 'clubs' | 'spades'
+  value?: string // Old format: "6", "7", "8", "9", "10", "jack", "queen", "king", "ace"
+  rank?: Rank // New format: "6", "7", "8", "9", "10", "J", "Q", "K", "A"
+  id?: string // New format includes id
+}
+
+export interface BackendPlayer {
+  id: string
+  username: string
+  avatar: string
+  hand: BackendCard[] // Player's 5 cards
+  score: number
+  roundsWon: number
+  winStreak: number
+  isLeader: boolean
+  isOnFire: boolean
+  hasPlayedCard: boolean
+  dryCardInfo: any | null
+}
+
+export interface BackendGameState {
+  gameId: string
+  roomCode: string
+  totalRounds: number
+  pointsToWin: number
+  phase: 'playing' | 'paused' | 'ended'
+  players: BackendPlayer[]
+  leaderId: string
+  currentTurn: string
+  currentRound: number
+  playedCards: Array<{
+    playerId: string
+    card: BackendCard
+  }>
+  turnStartTime: string
+  turnTimeLimit: number
+  startedAt: string
+  updatedAt: string
 }

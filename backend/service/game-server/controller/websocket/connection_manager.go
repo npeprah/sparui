@@ -196,7 +196,13 @@ func (cm *ConnectionManager) HandlePlayerDisconnection(ctx context.Context, clie
 		return
 	}
 
-	// Player is fully disconnected, start reconnection window
+	// Player is fully disconnected
+	// Remove from matchmaking queue if they were in it
+	if matchmakingQueue != nil {
+		_ = matchmakingQueue.HandleDisconnect(client.PlayerID)
+	}
+
+	// Start reconnection window for room if applicable
 	roomCode := client.RoomID
 
 	if roomCode == "" {

@@ -43,14 +43,14 @@ type Player struct {
 
 // GameState represents the current game state
 type GameState struct {
-	RoomID       string                 `json:"roomId"`
-	CurrentRound int                    `json:"currentRound"`
-	TotalRounds  int                    `json:"totalRounds"`
-	LeaderID     string                 `json:"leaderId"`
-	Players      []Player               `json:"players"`
-	Scores       map[string]int         `json:"scores"`
-	PlayedCards  []PlayedCard           `json:"playedCards"`
-	Phase        string                 `json:"phase"` // "lobby", "declaring", "playing", "game_over"
+	RoomID       string         `json:"roomId"`
+	CurrentRound int            `json:"currentRound"`
+	TotalRounds  int            `json:"totalRounds"`
+	LeaderID     string         `json:"leaderId"`
+	Players      []Player       `json:"players"`
+	Scores       map[string]int `json:"scores"`
+	PlayedCards  []PlayedCard   `json:"playedCards"`
+	Phase        string         `json:"phase"` // "lobby", "declaring", "playing", "game_over"
 }
 
 // PlayedCard represents a card played by a player
@@ -152,10 +152,10 @@ func handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 
 	// Placeholder response
 	room := Room{
-		ID:           "room-123",
-		RoomCode:     roomCode,
-		HostID:       "user-123",
-		Players:      []Player{
+		ID:       "room-123",
+		RoomCode: roomCode,
+		HostID:   "user-123",
+		Players: []Player{
 			{ID: req.PlayerID, Username: "Player 1", IsReady: false},
 		},
 		MaxPlayers:   4,
@@ -192,7 +192,7 @@ func handleStartGame(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Game started",
+		"message":  "Game started",
 		"roomCode": roomCode,
 	})
 }
@@ -227,11 +227,11 @@ func handleGetPlayerStats(w http.ResponseWriter, r *http.Request) {
 
 	// Placeholder response
 	stats := map[string]interface{}{
-		"playerId":   playerID,
-		"totalGames": 10,
-		"wins":       6,
-		"losses":     4,
-		"winRate":    0.6,
+		"playerId":    playerID,
+		"totalGames":  10,
+		"wins":        6,
+		"losses":      4,
+		"winRate":     0.6,
 		"totalPoints": 85,
 	}
 

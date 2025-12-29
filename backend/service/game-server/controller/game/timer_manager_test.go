@@ -251,10 +251,10 @@ func TestTimerManagerCallbacks(t *testing.T) {
 // TestDetermineTimerDuration tests timer duration calculation
 func TestDetermineTimerDuration(t *testing.T) {
 	tests := []struct {
-		name        string
-		isLeader    bool
-		turnNumber  int
-		expected    int
+		name       string
+		isLeader   bool
+		turnNumber int
+		expected   int
 	}{
 		{
 			name:       "leader gets 15 seconds",

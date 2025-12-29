@@ -17,6 +17,7 @@ import (
 	"github.com/npeprah/sparui/backend/common/db"
 	"github.com/npeprah/sparui/backend/service/game-server/controller/auth"
 	"github.com/npeprah/sparui/backend/service/game-server/controller/game"
+	"github.com/npeprah/sparui/backend/service/game-server/controller/stats"
 	"github.com/npeprah/sparui/backend/service/game-server/controller/websocket"
 )
 
@@ -37,6 +38,9 @@ func main() {
 
 	// Initialize auth service with database
 	auth.InitService(database)
+
+	// Initialize stats service with database
+	stats.InitService(database)
 
 	// Initialize WebSocket service with database
 	websocket.InitWebSocket(database)
@@ -80,6 +84,9 @@ func main() {
 
 		// Game routes
 		r.Mount("/game", game.Routes())
+
+		// Stats routes
+		r.Mount("/stats", stats.Routes())
 	})
 
 	// WebSocket endpoint

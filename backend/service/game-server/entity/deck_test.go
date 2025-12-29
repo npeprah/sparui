@@ -552,14 +552,14 @@ func TestShuffleDeterminism(t *testing.T) {
 
 	// Verify roughly uniform distribution (each position should appear ~285 times: 10000/35)
 	expectedFreq := float64(iterations) / 35.0 // ≈ 285.7
-	tolerance := 0.4 // Allow 40% variance
+	tolerance := 0.4                           // Allow 40% variance
 
 	for origIdx := 0; origIdx < 3; origIdx++ {
 		for pos := 0; pos < 35; pos++ {
 			count := positionCounts[origIdx][pos]
 
 			// Calculate chi-square-like variance
-			variance := math.Abs(float64(count) - expectedFreq) / expectedFreq
+			variance := math.Abs(float64(count)-expectedFreq) / expectedFreq
 
 			if variance > tolerance && count > 0 {
 				t.Logf("Card %d position %d: count=%d (expected ~%.1f, variance=%.2f)",

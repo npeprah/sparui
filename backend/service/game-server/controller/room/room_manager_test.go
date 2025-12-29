@@ -577,6 +577,335 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 }
 
+// TestSetPlayerReady tests setting player ready state
+func TestSetPlayerReady(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupFunc     func(*Manager) (string, string) // returns roomCode, playerID
+		playerID      string
+		ready         bool
+		wantErr       bool
+		errorContains string
+	}{
+		{
+			name: "set player ready success",
+			setupFunc: func(m *Manager) (string, string) {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+				return room.RoomCode, "player-1"
+			},
+			ready:   true,
+			wantErr: false,
+		},
+		{
+			name: "set player not ready",
+			setupFunc: func(m *Manager) (string, string) {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+				return room.RoomCode, "player-1"
+			},
+			ready:   false,
+			wantErr: false,
+		},
+		{
+			name: "player not in room",
+			setupFunc: func(m *Manager) (string, string) {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+				return room.RoomCode, "player-2"
+			},
+			playerID:      "player-2",
+			ready:         true,
+			wantErr:       true,
+			errorContains: "not in room",
+		},
+		{
+			name: "empty room code",
+			setupFunc: func(m *Manager) (string, string) {
+				return "", "player-1"
+			},
+			ready:         true,
+			wantErr:       true,
+			errorContains: "roomCode is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewManager()
+			roomCode, playerID := tt.setupFunc(manager)
+			if tt.playerID != "" {
+				playerID = tt.playerID
+			}
+
+			err := manager.SetPlayerReady(context.Background(), roomCode, playerID, tt.ready)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorContains != "" && !contains(err.Error(), tt.errorContains) {
+					t.Errorf("Error should contain '%s', got: %v", tt.errorContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				} else {
+					// Verify ready state
+					room, _ := manager.GetRoom(roomCode)
+					player := room.GetPlayer(playerID)
+					if player.IsReady != tt.ready {
+						t.Errorf("Expected IsReady=%v, got %v", tt.ready, player.IsReady)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestAllPlayersReady tests checking if all players are ready
+func TestAllPlayersReady(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupFunc func(*Manager) string // returns roomCode
+		wantReady bool
+	}{
+		{
+			name: "all players ready",
+			setupFunc: func(m *Manager) string {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+
+				// Add second player
+				joinReq := entity.JoinRoomRequest{RoomCode: room.RoomCode, PlayerID: "player-2"}
+				user := entity.User{ID: "player-2", Username: "Player2", Avatar: "avatar.png"}
+				m.JoinRoom(context.Background(), joinReq, user)
+
+				// Set both ready
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-1", true)
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-2", true)
+
+				return room.RoomCode
+			},
+			wantReady: true,
+		},
+		{
+			name: "not all players ready",
+			setupFunc: func(m *Manager) string {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+
+				joinReq := entity.JoinRoomRequest{RoomCode: room.RoomCode, PlayerID: "player-2"}
+				user := entity.User{ID: "player-2", Username: "Player2", Avatar: "avatar.png"}
+				m.JoinRoom(context.Background(), joinReq, user)
+
+				// Only set one player ready
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-1", true)
+
+				return room.RoomCode
+			},
+			wantReady: false,
+		},
+		{
+			name: "room not found",
+			setupFunc: func(m *Manager) string {
+				return "INVALID"
+			},
+			wantReady: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewManager()
+			roomCode := tt.setupFunc(manager)
+
+			ready := manager.AllPlayersReady(roomCode)
+
+			if ready != tt.wantReady {
+				t.Errorf("Expected AllPlayersReady=%v, got %v", tt.wantReady, ready)
+			}
+		})
+	}
+}
+
+// TestStartGame tests starting a game
+func TestStartGame(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupFunc     func(*Manager) string // returns roomCode
+		wantErr       bool
+		errorContains string
+	}{
+		{
+			name: "start game success",
+			setupFunc: func(m *Manager) string {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+
+				joinReq := entity.JoinRoomRequest{RoomCode: room.RoomCode, PlayerID: "player-2"}
+				user := entity.User{ID: "player-2", Username: "Player2", Avatar: "avatar.png"}
+				m.JoinRoom(context.Background(), joinReq, user)
+
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-1", true)
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-2", true)
+
+				return room.RoomCode
+			},
+			wantErr: false,
+		},
+		{
+			name: "not enough players",
+			setupFunc: func(m *Manager) string {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-1", true)
+				return room.RoomCode
+			},
+			wantErr:       true,
+			errorContains: "not enough players",
+		},
+		{
+			name: "not all players ready",
+			setupFunc: func(m *Manager) string {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+
+				joinReq := entity.JoinRoomRequest{RoomCode: room.RoomCode, PlayerID: "player-2"}
+				user := entity.User{ID: "player-2", Username: "Player2", Avatar: "avatar.png"}
+				m.JoinRoom(context.Background(), joinReq, user)
+
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-1", true)
+				// player-2 not ready
+
+				return room.RoomCode
+			},
+			wantErr:       true,
+			errorContains: "not all players are ready",
+		},
+		{
+			name: "game already in progress",
+			setupFunc: func(m *Manager) string {
+				req := entity.CreateRoomRequest{HostID: "player-1"}
+				room, _ := m.CreateRoom(context.Background(), req)
+
+				joinReq := entity.JoinRoomRequest{RoomCode: room.RoomCode, PlayerID: "player-2"}
+				user := entity.User{ID: "player-2", Username: "Player2", Avatar: "avatar.png"}
+				m.JoinRoom(context.Background(), joinReq, user)
+
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-1", true)
+				m.SetPlayerReady(context.Background(), room.RoomCode, "player-2", true)
+				m.StartGame(context.Background(), room.RoomCode)
+
+				return room.RoomCode
+			},
+			wantErr:       true,
+			errorContains: "already in progress",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewManager()
+			roomCode := tt.setupFunc(manager)
+
+			err := manager.StartGame(context.Background(), roomCode)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorContains != "" && !contains(err.Error(), tt.errorContains) {
+					t.Errorf("Error should contain '%s', got: %v", tt.errorContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				} else {
+					// Verify game started
+					room, _ := manager.GetRoom(roomCode)
+					if room.Status != entity.StatusInProgress {
+						t.Errorf("Expected status in_progress, got %s", room.Status)
+					}
+					if room.StartedAt == nil {
+						t.Error("Expected StartedAt to be set")
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestIsPlayerInAnyRoom tests checking if player is in any room
+func TestIsPlayerInAnyRoom(t *testing.T) {
+	manager := NewManager()
+
+	// Player not in any room
+	if manager.IsPlayerInAnyRoom("player-1") {
+		t.Error("Expected player to not be in any room")
+	}
+
+	// Create room with player
+	req := entity.CreateRoomRequest{HostID: "player-1"}
+	room, err := manager.CreateRoom(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	// Player should be in room now
+	if !manager.IsPlayerInAnyRoom("player-1") {
+		t.Error("Expected player to be in room")
+	}
+
+	// Different player not in room
+	if manager.IsPlayerInAnyRoom("player-2") {
+		t.Error("Expected player-2 to not be in any room")
+	}
+
+	// Player leaves room
+	leaveReq := entity.LeaveRoomRequest{RoomCode: room.RoomCode, PlayerID: "player-1"}
+	err = manager.LeaveRoom(context.Background(), leaveReq)
+	if err != nil {
+		t.Fatalf("Failed to leave room: %v", err)
+	}
+
+	// Player should not be in room anymore
+	if manager.IsPlayerInAnyRoom("player-1") {
+		t.Error("Expected player to not be in any room after leaving")
+	}
+}
+
+// TestGetPlayerRoom tests getting the room a player is in
+func TestGetPlayerRoom(t *testing.T) {
+	manager := NewManager()
+
+	// Player not in any room
+	_, err := manager.GetPlayerRoom("player-1")
+	if err == nil {
+		t.Error("Expected error for player not in room")
+	}
+
+	// Create room with player
+	req := entity.CreateRoomRequest{HostID: "player-1"}
+	room, err := manager.CreateRoom(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	// Get player's room
+	roomCode, err := manager.GetPlayerRoom("player-1")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if roomCode != room.RoomCode {
+		t.Errorf("Expected room code %s, got %s", room.RoomCode, roomCode)
+	}
+
+	// Different player not in room
+	_, err = manager.GetPlayerRoom("player-2")
+	if err == nil {
+		t.Error("Expected error for player-2 not in room")
+	}
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsSubstring(s, substr))

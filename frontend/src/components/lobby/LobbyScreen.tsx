@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useLobbyStore, usePlayerStore, useUIStore } from '../../store'
+import { useLobbyStore, usePlayerStore, useUIStore, useGameStore } from '../../store'
 import { socketService } from '../../services/socketService'
 import { RoomCodeDisplay } from './RoomCodeDisplay'
 import { PlayerList } from './PlayerList'
@@ -39,18 +39,22 @@ export function LobbyScreen() {
 
   const playerId = usePlayerStore((state) => state.playerId)
   const playerName = usePlayerStore((state) => state.playerName)
+  const token = usePlayerStore((state) => state.token)
   const addNotification = useUIStore((state) => state.addNotification)
 
   // Check if game can start (2+ players and all ready)
   const canStartGame = currentPlayers.length >= 2 && currentPlayers.every((p) => p.isReady)
 
+  const { setAllReady } = useLobbyStore()
+
   // Setup WebSocket listeners
   useEffect(() => {
-    const socket = socketService.connect()
+    // Connect to WebSocket with token for auto-authentication
+    socketService.connect(token || undefined)
 
-    // Lobby created
-    socketService.on('lobby:created', (data) => {
-      console.log('Lobby created:', data)
+    // Backend event: room:created
+    socketService.on('room:created', (data) => {
+      console.log('Room created:', data)
       setRoomCode(data.roomCode)
       setHostId(data.hostId)
       setIsHost(data.hostId === playerId)
@@ -67,68 +71,118 @@ export function LobbyScreen() {
 
       addNotification({
         type: 'success',
-        message: `Lobby created! Room code: ${data.roomCode}`,
+        message: `Room created! Code: ${data.roomCode}`,
       })
     })
 
-    // Joined lobby
-    socketService.on('lobby:joined', (data) => {
-      console.log('Joined lobby:', data)
-      setRoomCode(data.roomCode)
-      setCurrentPlayers(data.players)
-      setIsInLobby(true)
-      setIsConnecting(false)
+    // Backend event: room:player_joined
+    socketService.on('room:player_joined', (data) => {
+      console.log('Player joined room:', data)
+      console.log('[DEBUG] Current playerId from store:', playerId)
+      console.log('[DEBUG] Players array:', data.players)
 
-      // Determine if current player is host
-      const hostPlayer = data.players.find((p) => p.isHost)
-      if (hostPlayer) {
-        setHostId(hostPlayer.id)
-        setIsHost(hostPlayer.id === playerId)
+      // Update full player list from backend
+      setCurrentPlayers(data.players)
+
+      // Always sync isHost with the players array
+      const currentPlayer = data.players.find((p: any) => p.id === playerId)
+      console.log('[DEBUG] Found current player:', currentPlayer)
+      if (currentPlayer) {
+        console.log('[DEBUG] Setting isHost to:', currentPlayer.isHost)
+        setIsHost(currentPlayer.isHost)
+      } else {
+        console.warn('[DEBUG] WARNING: Could not find current player in players array!')
       }
 
-      addNotification({
-        type: 'success',
-        message: `Joined lobby ${data.roomCode}`,
-      })
-    })
+      // Set room code if not already set (for when we join)
+      if (!roomCode) {
+        setRoomCode(data.roomCode)
+        setIsInLobby(true)
+        setIsConnecting(false)
 
-    // Player joined
-    socketService.on('lobby:player_joined', (data) => {
-      console.log('Player joined:', data.player)
-      addPlayer(data.player)
-      addNotification({
-        type: 'info',
-        message: `${data.player.username} joined the lobby`,
-      })
-    })
+        // Set host ID from the host player
+        const hostPlayer = data.players.find((p) => p.isHost)
+        if (hostPlayer) {
+          setHostId(hostPlayer.id)
+        }
+      }
 
-    // Player left
-    socketService.on('lobby:player_left', (data) => {
-      console.log('Player left:', data.playerId)
-      removePlayer(data.playerId)
-      const leftPlayer = currentPlayers.find((p) => p.id === data.playerId)
-      if (leftPlayer) {
+      // Show notification only if it's not us joining
+      if (data.player.id !== playerId) {
         addNotification({
           type: 'info',
-          message: `${leftPlayer.username} left the lobby`,
+          message: `${data.player.username} joined`,
+        })
+      } else {
+        addNotification({
+          type: 'success',
+          message: `Joined room ${data.roomCode}`,
         })
       }
     })
 
-    // Ready status changed
-    socketService.on('lobby:ready_changed', (data) => {
-      console.log('Ready changed:', data)
-      updatePlayerReady(data.playerId, data.isReady)
+    // Backend event: room:player_left
+    socketService.on('room:player_left', (data) => {
+      console.log('Player left room:', data)
+
+      // Update player list from backend
+      setCurrentPlayers(data.players)
+
+      // Handle host migration
+      if (data.newHostId) {
+        setHostId(data.newHostId)
+        setIsHost(data.newHostId === playerId)
+
+        if (data.newHostId === playerId) {
+          addNotification({
+            type: 'info',
+            message: 'You are now the host',
+          })
+        }
+      }
+
+      addNotification({
+        type: 'info',
+        message: 'A player left the room',
+      })
+    })
+
+    // Backend event: room:player_ready
+    socketService.on('room:player_ready', (data) => {
+      console.log('Player ready status changed:', data)
+      console.log('[DEBUG] Current playerId from store:', playerId)
+
+      // Use full player list from backend to ensure sync
+      if (data.players) {
+        console.log('[DEBUG] Received players array:', data.players)
+        setCurrentPlayers(data.players)
+
+        // Re-check if current player is host (in case players array changed)
+        const currentPlayer = data.players.find((p: any) => p.id === playerId)
+        console.log('[DEBUG] Found current player in ready event:', currentPlayer)
+        if (currentPlayer) {
+          console.log('[DEBUG] Setting isHost to:', currentPlayer.isHost)
+          setIsHost(currentPlayer.isHost)
+        } else {
+          console.warn('[DEBUG] WARNING: Could not find current player in ready event!')
+        }
+      } else {
+        // Fallback to manual update if players array not provided
+        updatePlayerReady(data.playerId, data.isReady)
+      }
 
       // Update local ready state if it's us
       if (data.playerId === playerId) {
         setIsReady(data.isReady)
       }
+
+      // Update allReady flag from backend
+      setAllReady(data.allReady)
     })
 
-    // Settings changed
-    socketService.on('lobby:settings_changed', (data) => {
-      console.log('Settings changed:', data.settings)
+    // Backend event: room:settings_updated
+    socketService.on('room:settings_updated', (data) => {
+      console.log('Room settings updated:', data)
       updateSettings(data.settings)
       addNotification({
         type: 'info',
@@ -136,67 +190,146 @@ export function LobbyScreen() {
       })
     })
 
-    // Game starting
-    socketService.on('lobby:game_starting', (data) => {
-      console.log('Game starting:', data)
+    // Backend event: game:started
+    socketService.on('game:started', (data) => {
+      console.log('[LobbyScreen] ===== GAME:STARTED EVENT =====')
+      console.log('[LobbyScreen] Full event data:', JSON.stringify(data, null, 2))
+      console.log('[LobbyScreen] Game state received:', data.gameState)
+
+      // Initialize game store with backend game state
+      if (data.gameState) {
+        console.log('[LobbyScreen] Initializing game store with backend state...')
+        console.log('[LobbyScreen] Backend players:', data.gameState.players)
+        console.log('[LobbyScreen] Current player ID from playerStore:', playerId)
+
+        useGameStore.getState().initializeFromBackend(data.gameState)
+
+        const gameStoreAfterInit = useGameStore.getState()
+        console.log('[LobbyScreen] Game store initialized successfully')
+        console.log('[LobbyScreen] Players in game store:', gameStoreAfterInit.players)
+        console.log('[LobbyScreen] Number of players:', gameStoreAfterInit.players.length)
+
+        // Log each player's hand
+        gameStoreAfterInit.players.forEach((player, index) => {
+          console.log(`[LobbyScreen] Player ${index} (${player.id}):`, {
+            name: player.name,
+            handSize: player.hand?.length || 0,
+            hand: player.hand,
+          })
+        })
+
+        // CRITICAL FIX: Initialize playerStore.hand with current player's cards
+        const currentPlayer = gameStoreAfterInit.players.find((p) => p.id === playerId)
+        if (currentPlayer && currentPlayer.hand) {
+          console.log('[LobbyScreen] Initializing playerStore hand with', currentPlayer.hand.length, 'cards')
+          console.log('[LobbyScreen] Hand cards:', currentPlayer.hand.map(c => `${c.suit} ${c.rank} (${c.id})`))
+          usePlayerStore.getState().setHand(currentPlayer.hand)
+          console.log('[LobbyScreen] playerStore hand initialized successfully')
+        } else {
+          console.error('[LobbyScreen] ERROR: Could not find current player or hand!', {
+            currentPlayer,
+            playerId,
+            availablePlayers: gameStoreAfterInit.players.map(p => p.id),
+          })
+        }
+
+        // Set initial turn state
+        if (data.gameState.currentTurn) {
+          const isMyTurn = data.gameState.currentTurn === playerId
+          usePlayerStore.getState().setIsMyTurn(isMyTurn)
+          console.log('[LobbyScreen] Initial turn state set - isMyTurn:', isMyTurn, 'currentTurn:', data.gameState.currentTurn)
+        }
+      } else {
+        console.warn('[LobbyScreen] No gameState provided in game:started event')
+      }
+
       addNotification({
         type: 'success',
-        message: `Game starting in ${data.countdown} seconds...`,
+        message: 'Game starting now!',
       })
 
+      // Navigate to game screen
       setTimeout(() => {
-        navigate('/game', { state: { gameId: data.gameId } })
-      }, data.countdown * 1000)
+        console.log('[LobbyScreen] Navigating to /game...')
+        navigate('/game', { state: { roomCode: data.roomCode, players: data.players } })
+      }, 500)
     })
 
-    // Room closed
-    socketService.on('lobby:room_closed', (data) => {
-      console.log('Room closed:', data.reason)
-      addNotification({
-        type: 'warning',
-        message: data.reason || 'Lobby closed',
-      })
-      leaveLobby()
-      navigate('/')
-    })
-
-    // Lobby error
-    socketService.on('lobby:error', (data) => {
-      console.error('Lobby error:', data.message)
+    // Error handling
+    socketService.on('error', (data) => {
+      console.error('WebSocket error:', data)
       addNotification({
         type: 'error',
-        message: data.message,
+        message: data.error || 'An error occurred',
       })
       setIsConnecting(false)
       setIsLoading(false)
+
+      // If max reconnect, redirect to home
+      if (data.code === 'MAX_RECONNECT') {
+        setTimeout(() => {
+          leaveLobby()
+          navigate('/')
+        }, 2000)
+      }
     })
 
-    // Connection status
-    socket.on('connect', () => {
-      console.log('Socket connected')
+    // Auth success
+    socketService.on('auth:success', (data) => {
+      console.log('Authenticated:', data.playerId)
+      setIsConnecting(false)
+      addNotification({
+        type: 'success',
+        message: 'Connected to server',
+      })
+    })
+
+    // Auth error
+    socketService.on('auth:error', (data) => {
+      console.error('Auth error:', data.error)
+      addNotification({
+        type: 'error',
+        message: `Authentication failed: ${data.error}`,
+      })
       setIsConnecting(false)
     })
 
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected')
+    // Connection events
+    socketService.on('connected', () => {
+      console.log('WebSocket connected')
+      setIsConnecting(false)
+    })
+
+    socketService.on('error', (data) => {
+      console.error('WebSocket error:', data.error)
+      if (data.code === 'MAX_RECONNECT') {
+        addNotification({
+          type: 'error',
+          message: 'Connection lost. Please refresh the page.',
+        })
+      }
       setIsConnecting(true)
     })
 
     // Cleanup on unmount
     return () => {
-      socketService.off('lobby:created')
-      socketService.off('lobby:joined')
-      socketService.off('lobby:player_joined')
-      socketService.off('lobby:player_left')
-      socketService.off('lobby:ready_changed')
-      socketService.off('lobby:settings_changed')
-      socketService.off('lobby:game_starting')
-      socketService.off('lobby:room_closed')
-      socketService.off('lobby:error')
+      // Cleanup backend event listeners
+      socketService.off('room:created')
+      socketService.off('room:player_joined')
+      socketService.off('room:player_left')
+      socketService.off('room:player_ready')
+      socketService.off('room:settings_updated')
+      socketService.off('game:started')
+      socketService.off('error')
+      socketService.off('auth:success')
+      socketService.off('auth:error')
+      socketService.off('connected')
     }
   }, [
+    token,
     playerId,
     playerName,
+    roomCode,
     addPlayer,
     removePlayer,
     updatePlayerReady,
@@ -208,37 +341,62 @@ export function LobbyScreen() {
     setIsInLobby,
     setIsConnecting,
     setCurrentPlayers,
+    setAllReady,
     leaveLobby,
     addNotification,
     navigate,
-    currentPlayers,
   ])
 
-  // Handle ready toggle
+  // Handle ready toggle (Task 2.4)
   const handleReady = () => {
     if (!roomCode) return
 
+    const newReadyState = !isReady
+
     setIsLoading(true)
+
+    // Match backend API spec - only send isReady boolean
     socketService.emit('lobby:ready', {
-      roomCode,
-      playerId,
-      isReady: !isReady,
+      isReady: newReadyState,
     })
 
     // Optimistic update
-    setIsReady(!isReady)
+    setIsReady(newReadyState)
+    updatePlayerReady(playerId, newReadyState)
+
     setTimeout(() => setIsLoading(false), 500)
   }
 
-  // Handle start game
+  // Handle start game (Task 2.6)
   const handleStartGame = () => {
-    if (!roomCode || !canStartGame) return
+    if (!isHost) {
+      addNotification({
+        type: 'warning',
+        message: 'Only the host can start the game',
+      })
+      return
+    }
+
+    if (!canStartGame) {
+      addNotification({
+        type: 'warning',
+        message: 'All players must be ready to start',
+      })
+      return
+    }
+
+    if (currentPlayers.length < 2) {
+      addNotification({
+        type: 'warning',
+        message: 'Need at least 2 players to start',
+      })
+      return
+    }
 
     setIsLoading(true)
-    socketService.emit('lobby:start', {
-      roomCode,
-      hostId: playerId,
-    })
+
+    // Match backend API spec - empty object
+    socketService.emit('lobby:start_game', {})
   }
 
   // Handle leave lobby
@@ -248,24 +406,22 @@ export function LobbyScreen() {
       return
     }
 
-    socketService.emit('lobby:leave', {
-      roomCode,
-      playerId,
-    })
+    // Match backend API spec - empty object
+    socketService.emit('lobby:leave', {})
 
     leaveLobby()
     navigate('/')
   }
 
-  // Handle settings change
+  // Handle settings change (Task 2.5)
   const handleSettingsChange = (newSettings: Partial<LobbySettings>) => {
-    if (!roomCode || !isHost) return
+    if (!isHost) {
+      console.warn('Only host can update settings')
+      return
+    }
 
-    socketService.emit('lobby:update_settings', {
-      roomCode,
-      hostId: playerId,
-      settings: newSettings,
-    })
+    // Match backend API spec - only send the settings object
+    socketService.emit('lobby:update_settings', newSettings)
 
     // Optimistic update
     updateSettings(newSettings)

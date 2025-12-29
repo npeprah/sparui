@@ -23,18 +23,20 @@ export function LobbyActions({
     <div className="space-y-3 md:space-y-4">
       {/* Main Action Button */}
       <div className="flex gap-3 md:gap-4">
-        {isHost ? (
+        {isHost && canStartGame ? (
+          // Host sees Start Game button only when all players are ready
           <Button
             variant="primary"
             size="lg"
             onClick={onStartGame}
-            disabled={!canStartGame || isLoading}
+            disabled={isLoading}
             fullWidth
-            className="bg-gold hover:bg-opacity-90 text-gray-900 font-bold uppercase tracking-wide disabled:bg-gray-600 disabled:text-gray-400"
+            className="bg-gold hover:bg-opacity-90 text-gray-900 font-bold uppercase tracking-wide"
           >
-            {isLoading ? 'Starting...' : canStartGame ? 'Start Game' : 'Waiting for Players...'}
+            {isLoading ? 'Starting...' : 'Start Game'}
           </Button>
         ) : (
+          // Both host and non-host players see Ready button when game cannot start
           <Button
             variant={isReady ? 'success' : 'primary'}
             size="lg"
@@ -66,7 +68,9 @@ export function LobbyActions({
           <p className="text-xs text-gray-400">
             {canStartGame
               ? 'All players are ready! Click to start the game.'
-              : 'Game starts when at least 2 players are ready.'}
+              : isReady
+                ? 'Waiting for all players to be ready.'
+                : 'Click Ready when all players are in the lobby.'}
           </p>
         ) : (
           <p className="text-xs text-gray-400">
