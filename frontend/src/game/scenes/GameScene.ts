@@ -21,6 +21,7 @@ import {
   cleanupParticleEmitters,
   isMobileDevice,
 } from '../utils/particles'
+import { AudioManager } from '../../services/audioManager'
 
 
 /**
@@ -74,15 +75,35 @@ export class GameScene extends Phaser.Scene {
   // Active particle emitters (for cleanup)
   private activeParticleEmitters: Phaser.GameObjects.Particles.ParticleEmitter[] = []
 
+  // Scene initialization flag (prevents race conditions)
+  private isSceneReady: boolean = false
+
+  // Player info UI elements (scoreboard in top-left corner)
+  private scoreboardContainer: Phaser.GameObjects.Container | null = null
+  private playerScoreRows: Map<string, {
+    container: Phaser.GameObjects.Container
+    nameText: Phaser.GameObjects.Text
+    scoreText: Phaser.GameObjects.Text
+    turnIndicator: Phaser.GameObjects.Graphics
+    leaderIcon: Phaser.GameObjects.Text
+  }> = new Map()
+
   constructor() {
     super({ key: 'GameScene' })
   }
 
   create() {
+    console.log('[GameScene] ===== CREATE METHOD CALLED =====')
+    console.log('[GameScene] Timestamp:', new Date().toISOString())
+
     this.setupLayout()
     this.createBackground()
     this.createPlayArea()
+    this.createPlayerInfoDisplays()
     this.setupResponsive()
+
+    // Initialize AudioManager
+    this.setupAudioManager()
 
     // Create FPS counter (dev mode only)
     this.fpsCounter = createFPSCounter(this)
@@ -99,9 +120,15 @@ export class GameScene extends Phaser.Scene {
     // Setup WebSocket event listeners
     this.setupWebSocketListeners()
 
-    // Test: Deal 5 cards to bottom player (for MVP testing)
-    // This will be removed once WebSocket integration is complete
-    this.dealTestHand()
+    console.log('[GameScene] About to call dealCardsFromBackendState()')
+
+    // Deal cards from backend game state (if available)
+    this.dealCardsFromBackendState()
+
+    // Mark scene as ready (prevents race conditions with early store/socket events)
+    this.isSceneReady = true
+
+    console.log('[GameScene] CREATE METHOD COMPLETE - Scene is now ready')
   }
 
   /**
@@ -118,6 +145,10 @@ export class GameScene extends Phaser.Scene {
   shutdown() {
     this.cleanupSubscriptions()
     this.fpsCounter?.destroy()
+
+    // Cleanup AudioManager
+    const audioManager = AudioManager.getInstance()
+    audioManager.destroy()
 
     // Cleanup active particle emitters
     this.activeParticleEmitters.forEach((emitter) => {
@@ -233,6 +264,177 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Create scoreboard panel in top-left corner showing all players' info
+   */
+  private createPlayerInfoDisplays(): void {
+    // Create main scoreboard container in top-left
+    this.scoreboardContainer = this.add.container(20, 80)
+    this.scoreboardContainer.setDepth(500)
+
+    // Scoreboard background
+    const bg = this.add.graphics()
+    bg.fillStyle(0x000000, 0.7)
+    bg.fillRoundedRect(0, 0, 220, 30, 8) // Will be resized when players added
+    this.scoreboardContainer.add(bg)
+
+    // Scoreboard title
+    const title = this.add.text(110, 15, 'ROUNDS WON', {
+      fontFamily: 'Arial',
+      fontSize: '14px',
+      color: '#FFD700',
+      fontStyle: 'bold',
+    })
+    title.setOrigin(0.5)
+    this.scoreboardContainer.add(title)
+  }
+
+  /**
+   * Update player info displays based on current game state
+   */
+  private updatePlayerInfoDisplays(): void {
+    if (!this.isSceneReady || !this.scoreboardContainer) return
+
+    const gameState = useGameStore.getState()
+    const playerState = usePlayerStore.getState()
+    const currentPlayerId = playerState.playerId
+    const isMyTurn = playerState.isMyTurn
+
+    // Find the leader (highest score)
+    let leaderId: string | null = null
+    let highestScore = -1
+    gameState.players.forEach((player) => {
+      if (player.score > highestScore) {
+        highestScore = player.score
+        leaderId = player.id
+      }
+    })
+
+    // Check if there's a tie for lead
+    const playersAtHighestScore = gameState.players.filter((p) => p.score === highestScore)
+    const hasTie = playersAtHighestScore.length > 1
+
+    // Create or update player rows
+    const rowHeight = 35
+    const startY = 40
+
+    gameState.players.forEach((player, index) => {
+      let row = this.playerScoreRows.get(player.id)
+
+      if (!row) {
+        // Create new row for this player
+        const rowContainer = this.add.container(0, startY + index * rowHeight)
+        this.scoreboardContainer!.add(rowContainer)
+
+        // Turn indicator background
+        const turnIndicator = this.add.graphics()
+        rowContainer.add(turnIndicator)
+
+        // Player name
+        const nameText = this.add.text(10, 10, '', {
+          fontFamily: 'Arial',
+          fontSize: '14px',
+          color: '#FFFFFF',
+          fontStyle: 'bold',
+        })
+        nameText.setOrigin(0, 0.5)
+        rowContainer.add(nameText)
+
+        // Score
+        const scoreText = this.add.text(170, 10, '', {
+          fontFamily: 'Orbitron, Arial',
+          fontSize: '16px',
+          color: '#FFD700',
+          fontStyle: 'bold',
+        })
+        scoreText.setOrigin(0, 0.5)
+        rowContainer.add(scoreText)
+
+        // Leader icon
+        const leaderIcon = this.add.text(205, 10, '👑', {
+          fontSize: '14px',
+        })
+        leaderIcon.setOrigin(0.5)
+        leaderIcon.setVisible(false)
+        rowContainer.add(leaderIcon)
+
+        row = { container: rowContainer, nameText, scoreText, turnIndicator, leaderIcon }
+        this.playerScoreRows.set(player.id, row)
+      }
+
+      // Update row position (in case players changed)
+      row.container.setY(startY + index * rowHeight)
+
+      // Update name
+      const isCurrentPlayer = player.id === currentPlayerId
+      let displayName = player.name
+      if (isCurrentPlayer) {
+        displayName = `${player.name} (YOU)`
+      }
+      row.nameText.setText(displayName)
+      row.nameText.setColor(isCurrentPlayer ? '#00FF00' : '#FFFFFF')
+
+      // Update score
+      row.scoreText.setText(`${player.score}`)
+
+      // Determine if it's this player's turn
+      const isThisPlayersTurn = (isCurrentPlayer && isMyTurn) ||
+                                 (!isCurrentPlayer && !isMyTurn && this.isPlayersTurn(player.id))
+
+      // Update turn indicator
+      row.turnIndicator.clear()
+      if (isThisPlayersTurn) {
+        row.turnIndicator.fillStyle(0x00ff00, 0.25)
+        row.turnIndicator.fillRoundedRect(0, -5, 220, 30, 5)
+        row.turnIndicator.lineStyle(2, 0x00ff00, 0.8)
+        row.turnIndicator.strokeRoundedRect(0, -5, 220, 30, 5)
+
+        // Add turn arrow
+        row.nameText.setText(`▶ ${displayName}`)
+      }
+
+      // Update leader icon
+      const isLeader = player.id === leaderId && !hasTie && highestScore > 0
+      row.leaderIcon.setVisible(isLeader)
+    })
+
+    // Update scoreboard background size
+    const totalHeight = 40 + gameState.players.length * rowHeight + 10
+    const bgGraphics = this.scoreboardContainer.getAt(0) as Phaser.GameObjects.Graphics
+    bgGraphics.clear()
+    bgGraphics.fillStyle(0x000000, 0.7)
+    bgGraphics.fillRoundedRect(0, 0, 220, totalHeight, 8)
+    bgGraphics.lineStyle(2, 0xffd700, 0.5)
+    bgGraphics.strokeRoundedRect(0, 0, 220, totalHeight, 8)
+  }
+
+  /**
+   * Check if a specific player ID is the current turn player
+   */
+  private isPlayersTurn(playerId: string | undefined): boolean {
+    if (!playerId) return false
+
+    const gameState = useGameStore.getState()
+
+    // If no cards played yet, it's the leader's turn
+    if (gameState.playedCards.size === 0) {
+      return playerId === gameState.leaderId
+    }
+
+    // Otherwise, check if this player has already played this round
+    const hasPlayed = gameState.playedCards.has(playerId)
+    return !hasPlayed
+  }
+
+  /**
+   * Setup AudioManager and initialize audio system
+   */
+  private setupAudioManager(): void {
+    const audioManager = AudioManager.getInstance()
+    audioManager.init(this)
+    console.log('GameScene: AudioManager initialized with 16 sounds')
+  }
+
+  /**
    * Setup responsive resize handling
    */
   private setupResponsive(): void {
@@ -252,8 +454,15 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Get position for player hand based on position
+   * Returns null if camera is not yet initialized (prevents race conditions)
    */
-  private getHandPosition(position: PlayerPosition): { x: number; y: number; rotation: number } {
+  private getHandPosition(position: PlayerPosition): { x: number; y: number; rotation: number } | null {
+    // Guard against camera not being ready (can happen during scene initialization)
+    if (!this.cameras || !this.cameras.main) {
+      console.warn('[GameScene] Camera not ready in getHandPosition, returning null')
+      return null
+    }
+
     const { width, height } = this.cameras.main
     const centerX = width / 2
     const centerY = height / 2
@@ -273,6 +482,76 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Deal a test hand to bottom player (for MVP testing)
+   */
+  /**
+   * Deal cards from backend game state
+   * This method reads the current player's hand from the game store
+   * and deals those cards to the player's position on screen
+   */
+  private dealCardsFromBackendState(): void {
+    console.log('[GameScene] ===== DEALING CARDS FROM BACKEND STATE =====')
+
+    const gameState = useGameStore.getState()
+    const playerState = usePlayerStore.getState()
+    const currentPlayerId = playerState.playerId
+
+    console.log('[GameScene] Current player ID:', currentPlayerId)
+    console.log('[GameScene] Game state players:', gameState.players)
+    console.log('[GameScene] Number of players in game state:', gameState.players.length)
+    console.log('[GameScene] Game phase:', gameState.gamePhase)
+    console.log('[GameScene] Room code:', gameState.roomCode)
+
+    // Log all players in game state
+    gameState.players.forEach((player, index) => {
+      console.log(`[GameScene] Player ${index}:`, {
+        id: player.id,
+        name: player.name,
+        handSize: player.hand?.length || 0,
+        hasHand: !!player.hand,
+      })
+    })
+
+    // Find current player in game state
+    const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
+
+    console.log('[GameScene] Looking for player with ID:', currentPlayerId)
+    console.log('[GameScene] Found current player:', currentPlayer)
+
+    if (!currentPlayer) {
+      console.error('[GameScene] ERROR: Current player not found in game state!')
+      console.error('[GameScene] Current player ID:', currentPlayerId)
+      console.error('[GameScene] Available player IDs:', gameState.players.map((p) => p.id))
+      console.warn('[GameScene] Falling back to test hand')
+      this.dealTestHand()
+      return
+    }
+
+    if (!currentPlayer.hand || currentPlayer.hand.length === 0) {
+      console.error('[GameScene] ERROR: Current player has no hand!')
+      console.error('[GameScene] Current player:', currentPlayer)
+      console.warn('[GameScene] Falling back to test hand')
+      this.dealTestHand()
+      return
+    }
+
+    console.log('[GameScene] Current player hand:', currentPlayer.hand)
+    console.log('[GameScene] Hand size:', currentPlayer.hand.length)
+
+    // Deal cards with staggered animation
+    currentPlayer.hand.forEach((card, index) => {
+      console.log(`[GameScene] Scheduling deal for card ${index}:`, card)
+      setTimeout(() => {
+        console.log(`[GameScene] Dealing card ${index}:`, card)
+        this.dealCardToPlayer('bottom', card.suit, card.rank, currentPlayerId, card.id)
+      }, index * 150) // Stagger dealing for nice animation
+    })
+
+    console.log(`[GameScene] Scheduled ${currentPlayer.hand.length} cards for dealing`)
+  }
+
+  /**
+   * Deal test hand (fallback for development/testing)
+   * @deprecated Use dealCardsFromBackendState() instead
    */
   private dealTestHand(): void {
     const testCards: Array<{ suit: Suit; rank: Rank }> = [
@@ -300,24 +579,30 @@ export class GameScene extends Phaser.Scene {
     owner: string,
     cardId?: string
   ): CardSprite {
+    console.log(`[GameScene] dealCardToPlayer called: ${suit} ${rank} to ${position} (owner: ${owner})`)
+
     // Create card at deck position (top center)
     const deckX = this.cameras.main.width / 2
     const deckY = 100
 
+    console.log(`[GameScene] Creating CardSprite at (${deckX}, ${deckY})`)
     const card = new CardSprite(this, deckX, deckY, suit, rank, owner)
 
     // Override cardId if provided (for store sync)
     if (cardId) {
       ;(card as any).cardId = cardId
+      console.log(`[GameScene] Set cardId: ${cardId}`)
     }
 
     card.setScale(this.layout.cardScale)
     card.setFaceDown(true)
+    console.log(`[GameScene] Card scale set to ${this.layout.cardScale}, face down`)
 
     // Add to hand
     const hand = this.playerHands.get(position) || []
     hand.push(card)
     this.playerHands.set(position, hand)
+    console.log(`[GameScene] Added card to ${position} hand (now ${hand.length} cards)`)
 
     // Animate to hand position
     this.animateCardToHand(card, position, hand.length - 1)
@@ -328,6 +613,7 @@ export class GameScene extends Phaser.Scene {
     // Setup card drag handler (for drag-to-play gesture)
     card.onCardDragPlay = (draggedCard) => this.onCardDraggedToPlay(draggedCard)
 
+    console.log(`[GameScene] Card ${suit} ${rank} setup complete`)
     return card
   }
 
@@ -337,6 +623,13 @@ export class GameScene extends Phaser.Scene {
    */
   private animateCardToHand(card: CardSprite, position: PlayerPosition, index: number): void {
     const handPosition = this.getHandPosition(position)
+
+    // Guard against camera not being ready
+    if (!handPosition) {
+      console.warn('[GameScene] Cannot animate card to hand - camera not ready')
+      return
+    }
+
     const handCards = this.playerHands.get(position) || []
     const totalCards = handCards.length
 
@@ -380,9 +673,21 @@ export class GameScene extends Phaser.Scene {
    * Reposition all hands (after resize or card changes)
    */
   private repositionAllHands(): void {
+    // Guard against camera not being ready (can happen during scene initialization)
+    if (!this.isSceneReady || !this.cameras || !this.cameras.main) {
+      console.warn('[GameScene] Camera not ready, skipping repositionAllHands')
+      return
+    }
+
     this.playerHands.forEach((hand, position) => {
       hand.forEach((card, index) => {
         const handPosition = this.getHandPosition(position)
+
+        // Skip if camera still not ready (double check)
+        if (!handPosition) {
+          return
+        }
+
         const cardWidth = CARD_DIMENSIONS.WIDTH * this.layout.cardScale
         const totalWidth = (hand.length - 1) * (cardWidth + this.layout.handSpacing)
         const startX = handPosition.x - totalWidth / 2
@@ -441,12 +746,27 @@ export class GameScene extends Phaser.Scene {
    * Uses new animation utilities with sound effects and haptic feedback
    */
   private playCard(card: CardSprite, fromPosition: PlayerPosition): void {
-    // Remove from hand
-    const hand = this.playerHands.get(fromPosition) || []
-    const cardIndex = hand.indexOf(card)
-    if (cardIndex >= 0) {
-      hand.splice(cardIndex, 1)
+    console.log('[GameScene] playCard called:', card.suit, card.rank, 'from', fromPosition)
+
+    // Emit card play event to backend (only if current player)
+    if (fromPosition === 'bottom') {
+      const cardData: Card = {
+        suit: card.suit,
+        rank: card.rank,
+        id: card.cardId,
+      }
+
+      console.log('[GameScene] Emitting game:play_card event:', cardData)
+      socketService.emit('game:play_card', { card: cardData })
     }
+
+    // IMPORTANT: Do NOT manually remove from playerHands Map here!
+    // The store is the single source of truth. When the cardPlayed event
+    // comes back from the server, it will trigger removeCardFromHand()
+    // on the store, which will trigger syncPlayerHand() to update the display.
+    //
+    // For opponents, we don't track their hands in the store, so we DO remove
+    // from the Map after animation completes (see below).
 
     // Deselect and disable, but maintain full visibility
     card.setSelected(false)
@@ -498,13 +818,29 @@ export class GameScene extends Phaser.Scene {
           triggerHaptic('CARD_PLAY')
         }
       },
+      onComplete: () => {
+        // For opponent cards (not bottom), remove from hand Map after animation
+        // Bottom player cards are removed via store subscription in syncPlayerHand()
+        if (fromPosition !== 'bottom') {
+          const hand = this.playerHands.get(fromPosition) || []
+          const cardIndex = hand.indexOf(card)
+          if (cardIndex >= 0) {
+            console.log(`[GameScene] Removing opponent card from ${fromPosition} hand after animation`)
+            hand.splice(cardIndex, 1)
+            this.playerHands.set(fromPosition, hand)
+          }
+        }
+      },
     })
 
     // Store in played cards
     this.playedCards.set(fromPosition, card)
 
-    // Reposition remaining hand
-    this.repositionAllHands()
+    // Reposition remaining hand (for opponents only)
+    // Bottom player hand will be repositioned by syncPlayerHand() when store updates
+    if (fromPosition !== 'bottom') {
+      this.repositionAllHands()
+    }
   }
 
   /**
@@ -531,9 +867,11 @@ export class GameScene extends Phaser.Scene {
    * Setup subscriptions to Zustand stores
    */
   private setupStateSubscriptions(): void {
-    // Subscribe to player store (hand changes)
+    // Subscribe to player store (hand changes and turn changes)
     this.playerStoreUnsubscribe = usePlayerStore.subscribe((state) => {
       this.syncPlayerHand(state.hand)
+      // Update player info when turn changes
+      this.updatePlayerInfoDisplays()
     })
 
     // Subscribe to game store (game state changes)
@@ -546,6 +884,9 @@ export class GameScene extends Phaser.Scene {
 
       // Update playable cards when current suit changes
       this.updatePlayableCards(state.currentSuit)
+
+      // Update player info displays (scores, turn, leader)
+      this.updatePlayerInfoDisplays()
     })
 
     // Initial sync
@@ -558,6 +899,7 @@ export class GameScene extends Phaser.Scene {
 
     this.syncPlayerHand(playerState.hand)
     this.updatePlayableCards(gameState.currentSuit)
+    this.updatePlayerInfoDisplays()
   }
 
   /**
@@ -573,23 +915,53 @@ export class GameScene extends Phaser.Scene {
    * Sync player hand from store to display
    */
   private syncPlayerHand(hand: Card[]): void {
+    // Guard against scene not being ready (can happen during initialization)
+    if (!this.isSceneReady) {
+      console.warn('[GameScene] Scene not fully initialized, deferring syncPlayerHand')
+      return
+    }
+
     const currentHand = this.playerHands.get('bottom') || []
 
-    // Remove cards no longer in hand
+    console.log('[GameScene] syncPlayerHand called')
+    console.log('  - Store hand cards:', hand.map(c => `${c.suit} ${c.rank} (${c.id})`))
+    console.log('  - Current displayed cards:', currentHand.map(c => `${c.suit} ${c.rank} (${c.cardId}) active=${c.active} scene=${!!c.scene}`))
+
+    // Check if any card is currently being played (animating to center)
+    // Check ALL positions, not just bottom - cards stay on table until round ends
+    const allPlayedCardIds = new Set<string>()
+    this.playedCards.forEach((card) => {
+      allPlayedCardIds.add(card.cardId)
+    })
+    console.log('  - Currently played cards:', Array.from(allPlayedCardIds))
+
+    // Build the new hand by filtering and checking against store
+    const newHandSprites: CardSprite[] = []
+
     currentHand.forEach((cardSprite) => {
       const stillInHand = hand.some((c) => c.id === cardSprite.cardId)
-      if (!stillInHand) {
+      const isBeingPlayed = allPlayedCardIds.has(cardSprite.cardId)
+
+      if (stillInHand) {
+        // Card is still in hand according to store - keep it
+        console.log(`  - Keeping card in hand: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`)
+        newHandSprites.push(cardSprite)
+      } else if (isBeingPlayed) {
+        // Card is being played/animated - don't destroy it, but don't keep it in hand either
+        console.log(`  - Card is on table (played), not destroying: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`)
+        // Card sprite stays alive on the table, but is removed from hand array
+      } else {
+        // Card is not in hand and not being played - destroy it
+        console.log(`  - Destroying card: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`)
         cardSprite.destroy()
       }
     })
 
-    // Filter out destroyed cards
-    const remainingCards = currentHand.filter((c) => !c.scene || c.active)
-
-    // Add new cards
+    // Add new cards that exist in store but not in display
     hand.forEach((card, index) => {
-      const alreadyExists = remainingCards.some((c) => c.cardId === card.id)
+      const alreadyExists = newHandSprites.some((c) => c.cardId === card.id)
       if (!alreadyExists) {
+        console.log(`  - Adding new card: ${card.suit} ${card.rank} (${card.id})`)
         const cardSprite = this.dealCardToPlayer(
           'bottom',
           card.suit,
@@ -597,12 +969,14 @@ export class GameScene extends Phaser.Scene {
           usePlayerStore.getState().playerId,
           card.id // Pass card ID for proper tracking
         )
-        remainingCards.splice(index, 0, cardSprite)
+        newHandSprites.splice(index, 0, cardSprite)
       }
     })
 
-    // Update hand reference
-    this.playerHands.set('bottom', remainingCards)
+    // Update hand reference with the new synchronized hand
+    this.playerHands.set('bottom', newHandSprites)
+
+    console.log('  - Final hand size:', newHandSprites.length)
 
     // Reposition all cards
     this.repositionAllHands()
@@ -618,7 +992,13 @@ export class GameScene extends Phaser.Scene {
 
     if (!isMyTurn) {
       // Not our turn, no cards are playable
-      hand.forEach((card) => card.setPlayable(false))
+      // Only update cards that are fully initialized and added to the scene
+      hand.forEach((card) => {
+        // Check if card is fully initialized (has active scene and input system)
+        if (card.scene && card.active && card.input) {
+          card.setPlayable(false)
+        }
+      })
       return
     }
 
@@ -626,10 +1006,14 @@ export class GameScene extends Phaser.Scene {
     const playableCards = getPlayableCards(playerHand, currentSuit as any)
     const playableIds = new Set(playableCards.map((c) => c.id))
 
-    // Update card sprites
+    // Update card sprites - only update cards that are fully initialized
     hand.forEach((cardSprite) => {
-      const isPlayable = playableIds.has(cardSprite.cardId)
-      cardSprite.setPlayable(isPlayable)
+      // Check if card is fully initialized (has active scene and input system)
+      // This prevents calling setPlayable on cards that are still being added to the scene
+      if (cardSprite.scene && cardSprite.active && cardSprite.input) {
+        const isPlayable = playableIds.has(cardSprite.cardId)
+        cardSprite.setPlayable(isPlayable)
+      }
     })
   }
 
@@ -637,8 +1021,7 @@ export class GameScene extends Phaser.Scene {
    * Setup WebSocket event listeners
    */
   private setupWebSocketListeners(): void {
-    const socket = socketService.getSocket()
-    if (!socket) {
+    if (!socketService.isConnected()) {
       console.warn('Socket not connected, skipping event listener setup')
       return
     }
@@ -651,39 +1034,86 @@ export class GameScene extends Phaser.Scene {
 
       console.log('[GameScene] Game started:', data)
     }
-    socket.on('gameStarted', gameStartedHandler)
+    socketService.on('gameStarted', gameStartedHandler)
     this.socketHandlers.set('gameStarted', gameStartedHandler)
 
     // cardPlayed - A player played a card
     const cardPlayedHandler: ServerToClientEvents['cardPlayed'] = (data) => {
-      const { playerId, card } = data
+      const { playerId, card, currentTurn } = data
+
+      console.log('[GameScene] cardPlayed event received:', data)
 
       // Update game state
       useGameStore.getState().playCard(playerId, card)
 
-      // If it's the current player, remove from hand
-      if (playerId === usePlayerStore.getState().playerId) {
-        usePlayerStore.getState().removeCardFromHand(card.id)
-      } else {
-        // Animate opponent card play
-        const position = this.getPlayerPositionById(playerId)
-        if (position) {
-          // In a real implementation, we'd animate the card from opponent position
-          console.log(`[GameScene] Player at ${position} played ${card.suit} ${card.rank}`)
-        }
+      // Update whose turn it is
+      if (currentTurn) {
+        const myPlayerId = usePlayerStore.getState().playerId
+        const isMyTurn = currentTurn === myPlayerId
+        usePlayerStore.getState().setIsMyTurn(isMyTurn)
+        console.log('[GameScene] Turn updated - isMyTurn:', isMyTurn, 'currentTurn:', currentTurn)
       }
 
-      console.log('[GameScene] Card played:', data)
+      // If it's the current player, the card is already visually played
+      if (playerId === usePlayerStore.getState().playerId) {
+        console.log('[GameScene] Current player card already displayed')
+        console.log('[GameScene] About to remove card from hand:', card)
+        console.log('[GameScene] Current hand before removal:', usePlayerStore.getState().hand)
+        usePlayerStore.getState().removeCardFromHand(card.id)
+        console.log('[GameScene] Hand after removal:', usePlayerStore.getState().hand)
+        // Update playable cards after current player's card is removed
+        this.updatePlayableCards(useGameStore.getState().currentSuit)
+        return
+      }
+
+      // Animate opponent card play
+      const position = this.getPlayerPositionById(playerId)
+      if (position) {
+        console.log(`[GameScene] Opponent at ${position} played ${card.suit} ${card.rank}`)
+
+        // Create and animate opponent's card
+        const opponentCard = this.dealCardToPlayer(
+          position,
+          card.suit,
+          card.rank,
+          playerId,
+          card.id
+        )
+
+        // Immediately play the card (animate to center)
+        setTimeout(() => {
+          this.playCard(opponentCard, position)
+        }, 100)
+      } else {
+        console.warn('[GameScene] Could not find position for player:', playerId)
+      }
+
+      // Update playable cards after any card is played
+      this.updatePlayableCards(useGameStore.getState().currentSuit)
+
+      console.log('[GameScene] Card played processing complete')
     }
-    socket.on('cardPlayed', cardPlayedHandler)
+    socketService.on('cardPlayed', cardPlayedHandler)
     this.socketHandlers.set('cardPlayed', cardPlayedHandler)
 
     // roundWon - Round finished, someone won
     const roundWonHandler: ServerToClientEvents['roundWon'] = (data) => {
-      const { winnerId, points, isDry, isShowDry } = data
+      const { winnerId, isDry, isShowDry } = data
+      const roundsWon = (data as any).roundsWon as Record<string, number> | undefined
 
-      // Update scores
-      useGameStore.getState().updateScore(winnerId, points)
+      // Update scores from roundsWon map (sync with backend)
+      if (roundsWon) {
+        Object.entries(roundsWon).forEach(([playerId, rounds]) => {
+          const player = useGameStore.getState().players.find(p => p.id === playerId)
+          if (player) {
+            // Set score directly to rounds won (not increment)
+            const currentScore = player.score
+            if (rounds !== currentScore) {
+              useGameStore.getState().updateScore(playerId, rounds - currentScore)
+            }
+          }
+        })
+      }
 
       // Update win streaks
       const players = useGameStore.getState().players
@@ -743,23 +1173,31 @@ export class GameScene extends Phaser.Scene {
         useGameStore.getState().nextRound()
       }, 2000)
 
-      console.log('[GameScene] Round won:', { winnerId, points, isDry, isShowDry })
+      console.log('[GameScene] Round won:', { winnerId, roundsWon, isDry, isShowDry })
     }
-    socket.on('roundWon', roundWonHandler)
+    socketService.on('roundWon', roundWonHandler)
     this.socketHandlers.set('roundWon', roundWonHandler)
 
     // gameEnded - Game finished
     const gameEndedHandler: ServerToClientEvents['gameEnded'] = (data) => {
       const { winnerId, finalScores } = data
+      // Extract winnerName and winnerScore from the event data
+      const winnerName = (data as any).winnerName || 'Unknown'
+      const winnerScore = (data as any).winnerScore || finalScores?.[winnerId] || 0
 
+      // Set the game winner info
+      useGameStore.getState().setGameWinner({
+        id: winnerId,
+        name: winnerName,
+        score: winnerScore,
+      })
+
+      // Set game phase to finished
       useGameStore.getState().setGamePhase('finished')
 
-      console.log('[GameScene] Game ended:', { winnerId, finalScores })
-
-      // In a real implementation, we'd show game over screen
-      // For now, just log it
+      console.log('[GameScene] Game ended:', { winnerId, winnerName, winnerScore, finalScores })
     }
-    socket.on('gameEnded', gameEndedHandler)
+    socketService.on('gameEnded', gameEndedHandler)
     this.socketHandlers.set('gameEnded', gameEndedHandler)
 
     // turnChanged - Turn switched to another player
@@ -773,28 +1211,129 @@ export class GameScene extends Phaser.Scene {
       // Update timer
       useGameStore.getState().setTimeRemaining(timeRemaining)
 
+      // Update card playability based on new turn state
+      this.updatePlayableCards(useGameStore.getState().currentSuit)
+
       console.log('[GameScene] Turn changed:', { currentPlayerId, isMyTurn, timeRemaining })
     }
-    socket.on('turnChanged', turnChangedHandler)
+    socketService.on('turnChanged', turnChangedHandler)
     this.socketHandlers.set('turnChanged', turnChangedHandler)
 
     // timerUpdate - Timer countdown
     const timerUpdateHandler: ServerToClientEvents['timerUpdate'] = (data) => {
       useGameStore.getState().setTimeRemaining(data.timeRemaining)
     }
-    socket.on('timerUpdate', timerUpdateHandler)
+    socketService.on('timerUpdate', timerUpdateHandler)
     this.socketHandlers.set('timerUpdate', timerUpdateHandler)
+
+    // game:restarted - Game restarted by host
+    const gameRestartedHandler: ServerToClientEvents['game:restarted'] = (data) => {
+      console.log('[GameScene] Game restarted:', data)
+      console.log('[GameScene] Full restart data:', JSON.stringify(data, null, 2))
+
+      // 1. Clear all played cards from the table
+      this.clearPlayedCards()
+
+      // 2. Clear selected card if any
+      if (this.selectedCard) {
+        this.selectedCard.setSelected(false)
+        this.selectedCard = null
+      }
+
+      // 3. Clear all player hands (destroy sprites and reset maps)
+      this.playerHands.forEach((hand, position) => {
+        hand.forEach((card) => card.destroy())
+      })
+      // Reset the playerHands map completely
+      this.playerHands.clear()
+      this.playerHands.set('bottom', [])
+      this.playerHands.set('left', [])
+      this.playerHands.set('top', [])
+      this.playerHands.set('right', [])
+
+      // 4. Reset player score rows (destroy old UI)
+      this.playerScoreRows.forEach((row) => {
+        row.container.destroy()
+      })
+      this.playerScoreRows.clear()
+
+      // Destroy and recreate the scoreboard container
+      if (this.scoreboardContainer) {
+        this.scoreboardContainer.destroy()
+        this.scoreboardContainer = null
+      }
+
+      // 5. Initialize game store from new backend state
+      if (data.gameState) {
+        console.log('[GameScene] Initializing game store with backend state...')
+        useGameStore.getState().initializeFromBackend(data.gameState)
+
+        // 6. Reset the position mapping - CRITICAL
+        console.log('[GameScene] Rebuilding position map...')
+        const gameState = useGameStore.getState()
+        const playerState = usePlayerStore.getState()
+        const currentPlayerId = playerState.playerId
+
+        // Rebuild position map with fresh player data
+        this.positionMap = mapPlayersToPositions(gameState.players, currentPlayerId)
+        console.log('[GameScene] Position map rebuilt:', Array.from(this.positionMap.entries()))
+
+        // 7. Initialize playerStore hand with current player's cards - CRITICAL
+        const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
+        if (currentPlayer && currentPlayer.hand) {
+          console.log('[GameScene] Initializing playerStore hand with', currentPlayer.hand.length, 'cards')
+          console.log('[GameScene] Hand cards:', currentPlayer.hand.map((c: any) => `${c.suit} ${c.rank} (${c.id})`))
+          usePlayerStore.getState().setHand(currentPlayer.hand)
+          console.log('[GameScene] playerStore hand initialized successfully')
+        } else {
+          console.error('[GameScene] ERROR: Could not find current player or hand!', {
+            currentPlayer,
+            currentPlayerId,
+            availablePlayers: gameState.players.map((p: any) => p.id),
+          })
+        }
+
+        // 8. Set initial turn state
+        if (data.gameState.currentTurn) {
+          const isMyTurn = data.gameState.currentTurn === currentPlayerId
+          usePlayerStore.getState().setIsMyTurn(isMyTurn)
+          console.log('[GameScene] Initial turn state set - isMyTurn:', isMyTurn, 'currentTurn:', data.gameState.currentTurn)
+        }
+      } else {
+        console.warn('[GameScene] No gameState provided in game:restarted event')
+      }
+
+      // 9. Reset game phase states
+      useGameStore.getState().setGamePhase('playing')
+      useGameStore.getState().setRoundPhase('playing')
+      useGameStore.getState().setGameWinner(null)
+
+      // 10. Reset playerStore game state (but keep hand which was set above)
+      const currentHand = usePlayerStore.getState().hand
+      usePlayerStore.getState().resetGameState()
+      usePlayerStore.getState().setHand(currentHand)
+
+      // 11. Recreate the scoreboard UI
+      this.createPlayerInfoDisplays()
+
+      // 12. Deal the new cards with animation
+      this.dealCardsFromBackendState()
+
+      // 13. Update player info displays
+      this.updatePlayerInfoDisplays()
+
+      console.log('[GameScene] Game restart complete - state fully reset and new cards dealt')
+    }
+    socketService.on('game:restarted', gameRestartedHandler)
+    this.socketHandlers.set('game:restarted', gameRestartedHandler)
   }
 
   /**
    * Cleanup WebSocket event listeners
    */
   private cleanupWebSocketListeners(): void {
-    const socket = socketService.getSocket()
-    if (!socket) return
-
     this.socketHandlers.forEach((handler, event) => {
-      socket.off(event, handler)
+      socketService.off(event, handler)
     })
 
     this.socketHandlers.clear()
