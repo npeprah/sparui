@@ -183,7 +183,7 @@ describe('CardSprite - Initialization Safety', () => {
       const updatedCards: string[] = []
 
       // Simulate the forEach loop in updatePlayableCards
-      hand.forEach((card) => {
+      hand.forEach(card => {
         if (card.scene && card.active && card.input) {
           updatedCards.push(card.cardId)
         }
@@ -200,7 +200,7 @@ describe('CardSprite - Initialization Safety', () => {
 
       let errorThrown = false
       try {
-        emptyHand.forEach((card) => {
+        emptyHand.forEach(card => {
           if (card.scene && card.active && card.input) {
             // Would update card
           }

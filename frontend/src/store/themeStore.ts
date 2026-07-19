@@ -52,14 +52,14 @@ export const useThemeStore = create<ThemeState>()(
       selectedTheme: 'afro_heritage',
       availableThemes: ['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze'],
 
-      setTheme: (theme) => {
+      setTheme: theme => {
         // Validate theme before setting
         if (themeData[theme]) {
           set({ selectedTheme: theme })
         }
       },
 
-      getThemeInfo: (theme) => {
+      getThemeInfo: theme => {
         return themeData[theme]
       },
 
@@ -74,7 +74,7 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'spar-theme-storage',
-      partialize: (state) => ({
+      partialize: state => ({
         selectedTheme: state.selectedTheme,
       }),
     }

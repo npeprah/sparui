@@ -41,13 +41,7 @@ export function ResponsiveContainer({
 }: ResponsiveContainerProps) {
   const paddingClasses = padding ? 'px-4 sm:px-6 lg:px-8' : ''
 
-  const classes = [
-    'w-full',
-    'mx-auto',
-    maxWidthStyles[maxWidth],
-    paddingClasses,
-    className,
-  ]
+  const classes = ['w-full', 'mx-auto', maxWidthStyles[maxWidth], paddingClasses, className]
     .filter(Boolean)
     .join(' ')
 

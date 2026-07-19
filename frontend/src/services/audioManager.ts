@@ -223,7 +223,7 @@ export class AudioManager {
    * Setup event listeners for all sound events
    */
   private setupEventListeners(scene: Phaser.Scene): void {
-    Object.keys(SOUND_CONFIG).forEach((soundKey) => {
+    Object.keys(SOUND_CONFIG).forEach(soundKey => {
       const handler = () => this.play(soundKey as SoundKey)
       scene.events.on(soundKey, handler)
 
@@ -237,8 +237,7 @@ export class AudioManager {
    * Audio must be triggered by user interaction on mobile browsers
    */
   private setupMobileAudioUnlock(scene: Phaser.Scene): void {
-    const isMobile =
-      scene.sys.game.device.os.iOS || scene.sys.game.device.os.android
+    const isMobile = scene.sys.game.device.os.iOS || scene.sys.game.device.os.android
 
     if (!isMobile) {
       return

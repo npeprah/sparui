@@ -95,11 +95,7 @@ describe('Animation Integration and Performance', () => {
       const collectDuration = ANIMATION_DURATION.COLLECT_TO_WINNER
 
       const totalRoundDuration =
-        dealDuration +
-        playDuration +
-        flipDuration +
-        winPulseDuration +
-        collectDuration
+        dealDuration + playDuration + flipDuration + winPulseDuration + collectDuration
 
       // Total round should complete within 3 seconds for good UX
       expect(totalRoundDuration).toBeLessThanOrEqual(3000)

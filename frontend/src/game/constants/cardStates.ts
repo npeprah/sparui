@@ -64,8 +64,10 @@ export const CARD_VISUAL_STATES: Record<CardState, CardStateConfig> = {
     translateY: -30, // px
     rotateY: 10, // degrees
     scale: 1.05,
-    shadow: '0 40px 80px rgba(255, 69, 0, 0.4), 0 0 60px rgba(255, 215, 0, 0.6), inset 0 0 30px rgba(255, 215, 0, 0.2)',
-    symbolGlow: 'drop-shadow(0 0 40px rgba(255, 215, 0, 1)) drop-shadow(0 0 80px rgba(255, 69, 0, 0.8))',
+    shadow:
+      '0 40px 80px rgba(255, 69, 0, 0.4), 0 0 60px rgba(255, 215, 0, 0.6), inset 0 0 30px rgba(255, 215, 0, 0.2)',
+    symbolGlow:
+      'drop-shadow(0 0 40px rgba(255, 215, 0, 1)) drop-shadow(0 0 80px rgba(255, 69, 0, 0.8))',
     duration: 600, // ms
     easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
   },

@@ -16,29 +16,31 @@ import { usePlayerStore } from '../store'
 export function ConnectionTest() {
   const [testToken, setTestToken] = useState('test-token-123')
   const [connectionStatus, setConnectionStatus] = useState('disconnected')
-  const [messages, setMessages] = useState<Array<{ time: string; event: string; data: unknown }>>([])
+  const [messages, setMessages] = useState<Array<{ time: string; event: string; data: unknown }>>(
+    []
+  )
 
   const { setToken, setPlayerId } = usePlayerStore()
 
   useEffect(() => {
     // Setup listeners
-    socketService.on('connected', (data) => {
+    socketService.on('connected', data => {
       setConnectionStatus('connected')
       addMessage('connected', data)
     })
 
-    socketService.on('auth:success', (data) => {
+    socketService.on('auth:success', data => {
       setConnectionStatus('authenticated')
       addMessage('auth:success', data)
       setPlayerId(data.playerId)
     })
 
-    socketService.on('auth:error', (data) => {
+    socketService.on('auth:error', data => {
       setConnectionStatus('auth_error')
       addMessage('auth:error', data)
     })
 
-    socketService.on('error', (data) => {
+    socketService.on('error', data => {
       setConnectionStatus('error')
       addMessage('error', data)
     })
@@ -54,7 +56,7 @@ export function ConnectionTest() {
 
   const addMessage = (event: string, data: unknown) => {
     const time = new Date().toLocaleTimeString()
-    setMessages((prev) => [...prev, { time, event, data }])
+    setMessages(prev => [...prev, { time, event, data }])
   }
 
   const handleConnect = () => {
@@ -101,7 +103,9 @@ export function ConnectionTest() {
             <div className={`w-4 h-4 rounded-full ${getStatusColor()} animate-pulse`} />
             <div>
               <p className="text-sm text-gray-400">Connection Status</p>
-              <p className="text-xl font-semibold capitalize">{connectionStatus.replace('_', ' ')}</p>
+              <p className="text-xl font-semibold capitalize">
+                {connectionStatus.replace('_', ' ')}
+              </p>
             </div>
           </div>
         </div>
@@ -115,7 +119,7 @@ export function ConnectionTest() {
             <input
               type="text"
               value={testToken}
-              onChange={(e) => setTestToken(e.target.value)}
+              onChange={e => setTestToken(e.target.value)}
               className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
               placeholder="Enter any test token"
             />
@@ -127,7 +131,11 @@ export function ConnectionTest() {
           <div className="flex gap-3">
             <button
               onClick={handleConnect}
-              disabled={connectionStatus === 'connecting' || connectionStatus === 'connected' || connectionStatus === 'authenticated'}
+              disabled={
+                connectionStatus === 'connecting' ||
+                connectionStatus === 'connected' ||
+                connectionStatus === 'authenticated'
+              }
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-medium transition-colors"
             >
               Connect & Authenticate
@@ -188,11 +196,15 @@ export function ConnectionTest() {
         <div className="mt-6 bg-gray-800 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-3">Testing Instructions</h3>
           <ol className="list-decimal list-inside space-y-2 text-sm text-gray-300">
-            <li>Make sure the backend server is running on <code className="bg-gray-700 px-1 py-0.5 rounded">localhost:8080</code></li>
+            <li>
+              Make sure the backend server is running on{' '}
+              <code className="bg-gray-700 px-1 py-0.5 rounded">localhost:8080</code>
+            </li>
             <li>Open browser DevTools (F12) and go to Network → WS tab</li>
             <li>Enter any test token (backend accepts any non-empty string for now)</li>
             <li>Click "Connect & Authenticate" button</li>
-            <li>Watch for:
+            <li>
+              Watch for:
               <ul className="list-disc list-inside ml-4 mt-1">
                 <li>WebSocket connection in DevTools (ws://localhost:8080/ws)</li>
                 <li>"connected" event in the log below</li>
@@ -208,7 +220,7 @@ export function ConnectionTest() {
           <h3 className="text-lg font-semibold mb-3">Expected Backend Response</h3>
           <div className="bg-gray-900 rounded p-4 font-mono text-sm">
             <pre className="text-green-400">
-{`{
+              {`{
   "event": "auth:success",
   "data": {
     "playerId": "player-test-tok",

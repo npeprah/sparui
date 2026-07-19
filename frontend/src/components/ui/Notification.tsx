@@ -32,7 +32,7 @@ const typeStyles: Record<NotificationType, { bg: string; border: string; icon: s
 }
 
 function NotificationItem({ id, type, message, duration = 3000 }: NotificationItemProps) {
-  const removeNotification = useUIStore((state) => state.removeNotification)
+  const removeNotification = useUIStore(state => state.removeNotification)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,11 +72,11 @@ function NotificationItem({ id, type, message, duration = 3000 }: NotificationIt
 }
 
 export function NotificationContainer() {
-  const notifications = useUIStore((state) => state.notifications)
+  const notifications = useUIStore(state => state.notifications)
 
   return (
     <div className="fixed top-4 right-4 z-50 flex flex-col gap-3">
-      {notifications.map((notification) => (
+      {notifications.map(notification => (
         <NotificationItem key={notification.id} {...notification} />
       ))}
     </div>

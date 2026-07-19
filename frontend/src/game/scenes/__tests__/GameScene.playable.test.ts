@@ -87,7 +87,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
       const updatedCards: string[] = []
 
       // Simulate updatePlayableCards logic
-      hand.forEach((card) => {
+      hand.forEach(card => {
         if (card.scene && card.active && card.input) {
           card.playable = true // Would call setPlayable(true)
           updatedCards.push(card.cardId)
@@ -116,7 +116,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
       ]
 
       if (!isMyTurn) {
-        hand.forEach((card) => {
+        hand.forEach(card => {
           if (card.scene && card.active && card.input) {
             card.playable = false
           }
@@ -138,7 +138,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
       ]
 
       if (!isMyTurn) {
-        hand.forEach((card) => {
+        hand.forEach(card => {
           if (card.scene && card.active && card.input) {
             card.playable = false
           }
@@ -165,7 +165,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
       const updatedCards: string[] = []
 
       if (isMyTurn) {
-        hand.forEach((card) => {
+        hand.forEach(card => {
           if (card.scene && card.active && card.input) {
             updatedCards.push(card.cardId)
             // Would call card.setPlayable(isPlayable)
@@ -185,7 +185,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
 
       let errorThrown = false
       try {
-        hand.forEach((card) => {
+        hand.forEach(card => {
           if (card.scene && card.active && card.input) {
             // Would update card
           }
@@ -259,7 +259,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
 
       // Time T1: updatePlayableCards called with empty hand
       let updateCount = 0
-      hand.forEach((card) => {
+      hand.forEach(card => {
         if (card.scene && card.active && card.input) {
           updateCount++
         }
@@ -272,7 +272,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
 
       // Time T3: updatePlayableCards called again during initialization
       updateCount = 0
-      hand.forEach((card) => {
+      hand.forEach(card => {
         if (card.scene && card.active && card.input) {
           updateCount++
         }
@@ -285,7 +285,7 @@ describe('GameScene - Playable Card Updates Logic', () => {
 
       // Time T5: updatePlayableCards works normally
       updateCount = 0
-      hand.forEach((card) => {
+      hand.forEach(card => {
         if (card.scene && card.active && card.input) {
           updateCount++
         }

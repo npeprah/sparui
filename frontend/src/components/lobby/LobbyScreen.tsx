@@ -37,13 +37,13 @@ export function LobbyScreen() {
     leaveLobby,
   } = useLobbyStore()
 
-  const playerId = usePlayerStore((state) => state.playerId)
-  const playerName = usePlayerStore((state) => state.playerName)
-  const token = usePlayerStore((state) => state.token)
-  const addNotification = useUIStore((state) => state.addNotification)
+  const playerId = usePlayerStore(state => state.playerId)
+  const playerName = usePlayerStore(state => state.playerName)
+  const token = usePlayerStore(state => state.token)
+  const addNotification = useUIStore(state => state.addNotification)
 
   // Check if game can start (2+ players and all ready)
-  const canStartGame = currentPlayers.length >= 2 && currentPlayers.every((p) => p.isReady)
+  const canStartGame = currentPlayers.length >= 2 && currentPlayers.every(p => p.isReady)
 
   const { setAllReady } = useLobbyStore()
 
@@ -53,7 +53,7 @@ export function LobbyScreen() {
     socketService.connect(token || undefined)
 
     // Backend event: room:created
-    socketService.on('room:created', (data) => {
+    socketService.on('room:created', data => {
       console.log('Room created:', data)
       setRoomCode(data.roomCode)
       setHostId(data.hostId)
@@ -76,7 +76,7 @@ export function LobbyScreen() {
     })
 
     // Backend event: room:player_joined
-    socketService.on('room:player_joined', (data) => {
+    socketService.on('room:player_joined', data => {
       console.log('Player joined room:', data)
       console.log('[DEBUG] Current playerId from store:', playerId)
       console.log('[DEBUG] Players array:', data.players)
@@ -85,7 +85,7 @@ export function LobbyScreen() {
       setCurrentPlayers(data.players)
 
       // Always sync isHost with the players array
-      const currentPlayer = data.players.find((p) => p.id === playerId)
+      const currentPlayer = data.players.find(p => p.id === playerId)
       console.log('[DEBUG] Found current player:', currentPlayer)
       if (currentPlayer) {
         console.log('[DEBUG] Setting isHost to:', currentPlayer.isHost)
@@ -101,7 +101,7 @@ export function LobbyScreen() {
         setIsConnecting(false)
 
         // Set host ID from the host player
-        const hostPlayer = data.players.find((p) => p.isHost)
+        const hostPlayer = data.players.find(p => p.isHost)
         if (hostPlayer) {
           setHostId(hostPlayer.id)
         }
@@ -122,7 +122,7 @@ export function LobbyScreen() {
     })
 
     // Backend event: room:player_left
-    socketService.on('room:player_left', (data) => {
+    socketService.on('room:player_left', data => {
       console.log('Player left room:', data)
 
       // Update player list from backend
@@ -148,7 +148,7 @@ export function LobbyScreen() {
     })
 
     // Backend event: room:player_ready
-    socketService.on('room:player_ready', (data) => {
+    socketService.on('room:player_ready', data => {
       console.log('Player ready status changed:', data)
       console.log('[DEBUG] Current playerId from store:', playerId)
 
@@ -158,7 +158,7 @@ export function LobbyScreen() {
         setCurrentPlayers(data.players)
 
         // Re-check if current player is host (in case players array changed)
-        const currentPlayer = data.players.find((p) => p.id === playerId)
+        const currentPlayer = data.players.find(p => p.id === playerId)
         console.log('[DEBUG] Found current player in ready event:', currentPlayer)
         if (currentPlayer) {
           console.log('[DEBUG] Setting isHost to:', currentPlayer.isHost)
@@ -181,7 +181,7 @@ export function LobbyScreen() {
     })
 
     // Backend event: room:settings_updated
-    socketService.on('room:settings_updated', (data) => {
+    socketService.on('room:settings_updated', data => {
       console.log('Room settings updated:', data)
       updateSettings(data.settings)
       addNotification({
@@ -191,7 +191,7 @@ export function LobbyScreen() {
     })
 
     // Backend event: game:started
-    socketService.on('game:started', (data) => {
+    socketService.on('game:started', data => {
       console.log('[LobbyScreen] ===== GAME:STARTED EVENT =====')
       console.log('[LobbyScreen] Full event data:', JSON.stringify(data, null, 2))
       console.log('[LobbyScreen] Game state received:', data.gameState)
@@ -219,10 +219,17 @@ export function LobbyScreen() {
         })
 
         // CRITICAL FIX: Initialize playerStore.hand with current player's cards
-        const currentPlayer = gameStoreAfterInit.players.find((p) => p.id === playerId)
+        const currentPlayer = gameStoreAfterInit.players.find(p => p.id === playerId)
         if (currentPlayer && currentPlayer.hand) {
-          console.log('[LobbyScreen] Initializing playerStore hand with', currentPlayer.hand.length, 'cards')
-          console.log('[LobbyScreen] Hand cards:', currentPlayer.hand.map(c => `${c.suit} ${c.rank} (${c.id})`))
+          console.log(
+            '[LobbyScreen] Initializing playerStore hand with',
+            currentPlayer.hand.length,
+            'cards'
+          )
+          console.log(
+            '[LobbyScreen] Hand cards:',
+            currentPlayer.hand.map(c => `${c.suit} ${c.rank} (${c.id})`)
+          )
           usePlayerStore.getState().setHand(currentPlayer.hand)
           console.log('[LobbyScreen] playerStore hand initialized successfully')
         } else {
@@ -237,7 +244,12 @@ export function LobbyScreen() {
         if (data.gameState.currentTurn) {
           const isMyTurn = data.gameState.currentTurn === playerId
           usePlayerStore.getState().setIsMyTurn(isMyTurn)
-          console.log('[LobbyScreen] Initial turn state set - isMyTurn:', isMyTurn, 'currentTurn:', data.gameState.currentTurn)
+          console.log(
+            '[LobbyScreen] Initial turn state set - isMyTurn:',
+            isMyTurn,
+            'currentTurn:',
+            data.gameState.currentTurn
+          )
         }
       } else {
         console.warn('[LobbyScreen] No gameState provided in game:started event')
@@ -256,7 +268,7 @@ export function LobbyScreen() {
     })
 
     // Error handling
-    socketService.on('error', (data) => {
+    socketService.on('error', data => {
       console.error('WebSocket error:', data)
       addNotification({
         type: 'error',
@@ -275,7 +287,7 @@ export function LobbyScreen() {
     })
 
     // Auth success
-    socketService.on('auth:success', (data) => {
+    socketService.on('auth:success', data => {
       console.log('Authenticated:', data.playerId)
       setIsConnecting(false)
       addNotification({
@@ -285,7 +297,7 @@ export function LobbyScreen() {
     })
 
     // Auth error
-    socketService.on('auth:error', (data) => {
+    socketService.on('auth:error', data => {
       console.error('Auth error:', data.error)
       addNotification({
         type: 'error',
@@ -300,7 +312,7 @@ export function LobbyScreen() {
       setIsConnecting(false)
     })
 
-    socketService.on('error', (data) => {
+    socketService.on('error', data => {
       console.error('WebSocket error:', data.error)
       if (data.code === 'MAX_RECONNECT') {
         addNotification({
@@ -455,7 +467,12 @@ export function LobbyScreen() {
       animate="animate"
       exit="exit"
     >
-      <motion.div className="max-w-6xl mx-auto" variants={container} initial="hidden" animate="visible">
+      <motion.div
+        className="max-w-6xl mx-auto"
+        variants={container}
+        initial="hidden"
+        animate="visible"
+      >
         {/* Header */}
         <motion.div className="flex items-center justify-between mb-6 md:mb-8" variants={item}>
           <Button variant="ghost" size="sm" onClick={handleLeave}>

@@ -44,10 +44,10 @@ describe('GameScene - Card Play Integration', () => {
       // Verify: Only the played card was removed
       const remainingHand = usePlayerStore.getState().hand
       expect(remainingHand.length).toBe(3)
-      expect(remainingHand.find((c) => c.id === 'hearts-K')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'diamonds-Q')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'clubs-J')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'spades-A')).toBeUndefined()
+      expect(remainingHand.find(c => c.id === 'hearts-K')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'diamonds-Q')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'clubs-J')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'spades-A')).toBeUndefined()
     })
 
     it('should correctly handle multiple sequential card plays', () => {
@@ -78,8 +78,8 @@ describe('GameScene - Card Play Integration', () => {
 
       // Verify correct cards remain
       const remainingHand = usePlayerStore.getState().hand
-      expect(remainingHand.find((c) => c.id === 'spades-A')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'hearts-10')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'spades-A')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'hearts-10')).toBeDefined()
     })
   })
 

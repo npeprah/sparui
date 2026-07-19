@@ -17,9 +17,14 @@ import {
   createFlipAnimation,
   createWinPulseAnimation,
   createLoseFadeAnimation,
-  createCollectAnimation
+  createCollectAnimation,
 } from './animations'
-import { ANIMATION_DURATION, ANIMATION_EASING, ANIMATION_SCALE, SOUND_EVENTS } from '../constants/animations'
+import {
+  ANIMATION_DURATION,
+  ANIMATION_EASING,
+  ANIMATION_SCALE,
+  SOUND_EVENTS,
+} from '../constants/animations'
 
 // Mock Phaser.GameObjects.Sprite
 const createMockSprite = (): Phaser.GameObjects.Sprite => {
@@ -315,9 +320,7 @@ describe('Card Play Animation', () => {
       const sprites = Array.from({ length: 4 }, () => createMockSprite())
 
       // Create animations for all sprites
-      const configs = sprites.map(sprite =>
-        createPlayAnimation(sprite, 512, 384, 1)
-      )
+      const configs = sprites.map(sprite => createPlayAnimation(sprite, 512, 384, 1))
 
       // All animations should be optimized for performance
       configs.forEach(config => {

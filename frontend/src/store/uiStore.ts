@@ -48,7 +48,7 @@ interface UIState {
   setSfxVolume: (volume: number) => void
 }
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>(set => ({
   // Initial state
   isSettingsOpen: false,
   isLeaderboardOpen: false,
@@ -72,8 +72,8 @@ export const useUIStore = create<UIState>((set) => ({
   openHowToPlay: () => set({ isHowToPlayOpen: true }),
   closeHowToPlay: () => set({ isHowToPlayOpen: false }),
 
-  addNotification: (notification) =>
-    set((state) => ({
+  addNotification: notification =>
+    set(state => ({
       notifications: [
         ...state.notifications,
         {
@@ -84,25 +84,24 @@ export const useUIStore = create<UIState>((set) => ({
       ],
     })),
 
-  removeNotification: (id) =>
-    set((state) => ({
-      notifications: state.notifications.filter((n) => n.id !== id),
+  removeNotification: id =>
+    set(state => ({
+      notifications: state.notifications.filter(n => n.id !== id),
     })),
 
   clearNotifications: () => set({ notifications: [] }),
 
-  setIsConnecting: (connecting) => set({ isConnecting: connecting }),
+  setIsConnecting: connecting => set({ isConnecting: connecting }),
 
-  setIsLoading: (loading) => set({ isLoading: loading }),
+  setIsLoading: loading => set({ isLoading: loading }),
 
-  toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
+  toggleSound: () => set(state => ({ soundEnabled: !state.soundEnabled })),
 
-  toggleMusic: () => set((state) => ({ musicEnabled: !state.musicEnabled })),
+  toggleMusic: () => set(state => ({ musicEnabled: !state.musicEnabled })),
 
-  setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
+  setVolume: volume => set({ volume: Math.max(0, Math.min(1, volume)) }),
 
-  setMasterVolume: (volume) =>
-    set({ masterVolume: Math.max(0, Math.min(1, volume)) }),
+  setMasterVolume: volume => set({ masterVolume: Math.max(0, Math.min(1, volume)) }),
 
-  setSfxVolume: (volume) => set({ sfxVolume: Math.max(0, Math.min(1, volume)) }),
+  setSfxVolume: volume => set({ sfxVolume: Math.max(0, Math.min(1, volume)) }),
 }))

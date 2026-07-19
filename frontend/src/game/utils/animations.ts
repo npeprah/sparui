@@ -62,7 +62,7 @@ export function createDealAnimation(
     duration: ANIMATION_DURATION.DEAL,
     ease: ANIMATION_EASING.DEAL,
     delay,
-    onStart: function() {
+    onStart: function () {
       // Trigger sound event when animation starts
       if (card.scene) {
         emitSoundEvent(card.scene, 'CARD_DEAL')
@@ -92,7 +92,7 @@ export function createFlipAnimation(
     scaleY: 0.95, // Slight Y scale for perspective effect
     duration: ANIMATION_DURATION.FLIP_HALFWAY,
     ease: ANIMATION_EASING.FLIP_SCALE_DOWN,
-    onStart: function() {
+    onStart: function () {
       // Trigger sound event when flip starts
       if (card.scene) {
         emitSoundEvent(card.scene, 'CARD_FLIP')
@@ -146,7 +146,7 @@ export function createPlayAnimation(
     rotation: getRandomPlayRotation(),
     duration: ANIMATION_DURATION.PLAY,
     ease: ANIMATION_EASING.PLAY,
-    onStart: function() {
+    onStart: function () {
       // Trigger sound event when animation starts
       if (card.scene) {
         emitSoundEvent(card.scene, 'CARD_PLAY')
@@ -191,7 +191,7 @@ export function createWinPulseAnimation(
       outerStrength: 4,
       knockout: false,
     },
-    onStart: function() {
+    onStart: function () {
       // Trigger sound event when win animation starts
       if (card.scene) {
         emitSoundEvent(card.scene, 'WIN_ROUND')
@@ -222,7 +222,7 @@ export function createLoseFadeAnimation(
     tint: 0xff0000, // Red tint overlay
     duration: ANIMATION_DURATION.LOSE_FADE,
     ease: ANIMATION_EASING.LOSE_FADE,
-    onStart: function() {
+    onStart: function () {
       // Trigger sound event when lose animation starts
       if (card.scene) {
         emitSoundEvent(card.scene, 'LOSE_ROUND')
@@ -270,10 +270,10 @@ export function createCollectAnimation(
       path: [
         { x: startX, y: startY },
         { x: midX, y: midY },
-        { x: targetX, y: targetY }
+        { x: targetX, y: targetY },
       ],
     },
-    onStart: function() {
+    onStart: function () {
       // Trigger sound event when collect animation starts
       if (card.scene) {
         emitSoundEvent(card.scene, 'CARD_COLLECT')
@@ -348,11 +348,8 @@ export function createGlowPulseAnimation(
  * Stop all tweens on a game object
  * Useful for cleanup and state changes
  */
-export function stopAllTweens(
-  scene: Phaser.Scene,
-  target: Phaser.GameObjects.GameObject
-): void {
-  scene.tweens.getTweensOf(target).forEach((tween) => {
+export function stopAllTweens(scene: Phaser.Scene, target: Phaser.GameObjects.GameObject): void {
+  scene.tweens.getTweensOf(target).forEach(tween => {
     tween.stop()
     tween.remove()
   })
@@ -375,10 +372,7 @@ export function calculateCollectStagger(cardIndex: number): number {
 /**
  * Check if a tween is currently active on a target
  */
-export function hasTween(
-  scene: Phaser.Scene,
-  target: Phaser.GameObjects.GameObject
-): boolean {
+export function hasTween(scene: Phaser.Scene, target: Phaser.GameObjects.GameObject): boolean {
   return scene.tweens.getTweensOf(target).length > 0
 }
 

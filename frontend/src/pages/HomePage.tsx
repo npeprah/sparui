@@ -25,13 +25,13 @@ function HomePage() {
   const [isCreatingLobby, setIsCreatingLobby] = useState(false)
   const [isJoiningLobby, setIsJoiningLobby] = useState(false)
 
-  const playerName = usePlayerStore((state) => state.playerName)
-  const avatar = usePlayerStore((state) => state.avatar)
-  const token = usePlayerStore((state) => state.token)
-  const totalWins = usePlayerStore((state) => state.totalWins)
-  const totalGames = usePlayerStore((state) => state.totalGames)
-  const openSettings = useUIStore((state) => state.openSettings)
-  const addNotification = useUIStore((state) => state.addNotification)
+  const playerName = usePlayerStore(state => state.playerName)
+  const avatar = usePlayerStore(state => state.avatar)
+  const token = usePlayerStore(state => state.token)
+  const totalWins = usePlayerStore(state => state.totalWins)
+  const totalGames = usePlayerStore(state => state.totalGames)
+  const openSettings = useUIStore(state => state.openSettings)
+  const addNotification = useUIStore(state => state.addNotification)
 
   const { setIsConnecting, reset: resetLobby } = useLobbyStore()
 
@@ -159,7 +159,7 @@ function HomePage() {
       lobbyStore.setIsConnecting(false)
 
       // Determine if current player is host
-      const hostPlayer = data.players.find((p) => p.isHost)
+      const hostPlayer = data.players.find(p => p.isHost)
       if (hostPlayer) {
         lobbyStore.setHostId(hostPlayer.id)
         lobbyStore.setIsHost(hostPlayer.id === backendPlayerId)
@@ -229,14 +229,22 @@ function HomePage() {
     >
       <div className="w-full max-w-6xl mx-auto">
         {/* Title with stagger animation */}
-        <motion.div variants={container} initial="hidden" animate="visible" className="text-center mb-8 md:mb-12">
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="visible"
+          className="text-center mb-8 md:mb-12"
+        >
           <motion.h1
             className="text-5xl sm:text-6xl md:text-7xl font-black mb-3 md:mb-4 bg-gradient-to-r from-fireRed via-gold to-iceBlue bg-clip-text text-transparent drop-shadow-lg"
             variants={item}
           >
             SPAR
           </motion.h1>
-          <motion.p className="text-xl sm:text-2xl text-iceBlue font-bold tracking-wide" variants={item}>
+          <motion.p
+            className="text-xl sm:text-2xl text-iceBlue font-bold tracking-wide"
+            variants={item}
+          >
             Ghanaian Card Game
           </motion.p>
         </motion.div>
@@ -331,7 +339,12 @@ function HomePage() {
       </div>
 
       {/* Join Room Modal */}
-      <Modal isOpen={showJoinModal} onClose={() => setShowJoinModal(false)} title="Join Private Game" size="sm">
+      <Modal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        title="Join Private Game"
+        size="sm"
+      >
         <div className="space-y-4">
           <div>
             <label htmlFor="room-code" className="block text-sm font-medium text-gray-300 mb-2">
@@ -341,13 +354,15 @@ function HomePage() {
               id="room-code"
               type="text"
               value={roomCodeInput}
-              onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+              onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
               placeholder="XK9P2L"
               maxLength={6}
               className="w-full px-4 py-3 md:py-4 bg-gray-700 text-white rounded-lg border-2 border-transparent focus:border-iceBlue focus:outline-none text-center text-xl md:text-2xl font-mono tracking-wider min-h-[56px]"
               autoFocus
             />
-            <p className="text-xs text-gray-500 mt-2">Enter the 6-character room code from your friend</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Enter the 6-character room code from your friend
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <Button

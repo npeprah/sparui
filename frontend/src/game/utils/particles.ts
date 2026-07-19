@@ -192,7 +192,7 @@ export function cleanupParticleEmitters(
 ): void {
   // Wait for particles to fade out before destroying
   setTimeout(() => {
-    emitters.forEach((emitter) => {
+    emitters.forEach(emitter => {
       if (emitter && emitter.active) {
         emitter.stop()
         emitter.destroy()

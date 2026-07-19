@@ -1,32 +1,32 @@
-import * as Phaser from 'phaser';
+import * as Phaser from 'phaser'
 
 interface Position {
-  x: number;
-  y: number;
+  x: number
+  y: number
 }
 
 interface EmitterData {
-  emitter: Phaser.GameObjects.Particles.ParticleEmitter;
+  emitter: Phaser.GameObjects.Particles.ParticleEmitter
 }
 
 /**
  * Manages particle effects for game celebrations and special effects
  */
 export class ParticleEffects {
-  private scene: Phaser.Scene;
-  private activeEmitters: EmitterData[] = [];
-  private readonly screenWidth = 1280;
-  private readonly screenHeight = 720;
+  private scene: Phaser.Scene
+  private activeEmitters: EmitterData[] = []
+  private readonly screenWidth = 1280
+  private readonly screenHeight = 720
 
   constructor(scene: Phaser.Scene) {
-    this.scene = scene;
+    this.scene = scene
   }
 
   /**
    * Play fire streak effect around winning cards
    */
   playFireStreakEffect(position: Position): void {
-    const textures = this.getFireTextures();
+    const textures = this.getFireTextures()
 
     // In Phaser 3, add.particles creates an emitter directly
     const emitter = this.scene.add.particles(position.x, position.y, textures[0], {
@@ -38,21 +38,26 @@ export class ParticleEffects {
       frequency: 50,
       blendMode: Phaser.BlendModes.ADD,
       frame: textures, // Cycle through all textures
-    });
+    })
 
-    this.activeEmitters.push({ emitter });
+    this.activeEmitters.push({ emitter })
 
     // Auto-stop after duration
-    this.scene.time.delayedCall(2000, () => {
-      this.stopEffect({ emitter });
-    }, [], this.scene);
+    this.scene.time.delayedCall(
+      2000,
+      () => {
+        this.stopEffect({ emitter })
+      },
+      [],
+      this.scene
+    )
   }
 
   /**
    * Play freeze effect when 6 of spades breaks a fire streak
    */
   playFreezeEffect(position: Position): void {
-    const textures = this.getIceTextures();
+    const textures = this.getIceTextures()
 
     const emitter = this.scene.add.particles(position.x, position.y, textures[0], {
       lifespan: 1200,
@@ -63,14 +68,19 @@ export class ParticleEffects {
       frequency: 30,
       blendMode: Phaser.BlendModes.NORMAL,
       frame: textures,
-    });
+    })
 
-    this.activeEmitters.push({ emitter });
+    this.activeEmitters.push({ emitter })
 
     // Auto-stop after duration
-    this.scene.time.delayedCall(1500, () => {
-      this.stopEffect({ emitter });
-    }, [], this.scene);
+    this.scene.time.delayedCall(
+      1500,
+      () => {
+        this.stopEffect({ emitter })
+      },
+      [],
+      this.scene
+    )
   }
 
   /**
@@ -79,10 +89,10 @@ export class ParticleEffects {
   playVictoryExplosion(position?: Position): void {
     const pos = position || {
       x: this.screenWidth / 2,
-      y: this.screenHeight / 2
-    };
+      y: this.screenHeight / 2,
+    }
 
-    const textures = this.getExplosionTextures();
+    const textures = this.getExplosionTextures()
 
     const emitter = this.scene.add.particles(pos.x, pos.y, textures[0], {
       lifespan: 1000,
@@ -94,24 +104,29 @@ export class ParticleEffects {
       blendMode: Phaser.BlendModes.ADD,
       frame: textures,
       frequency: -1, // One-time burst
-    });
+    })
 
     // Trigger explosion burst
-    emitter.explode(50, pos.x, pos.y);
+    emitter.explode(50, pos.x, pos.y)
 
-    this.activeEmitters.push({ emitter });
+    this.activeEmitters.push({ emitter })
 
     // Auto-cleanup after effect
-    this.scene.time.delayedCall(1000, () => {
-      this.stopEffect({ emitter });
-    }, [], this.scene);
+    this.scene.time.delayedCall(
+      1000,
+      () => {
+        this.stopEffect({ emitter })
+      },
+      [],
+      this.scene
+    )
   }
 
   /**
    * Play confetti celebration for game victory
    */
   playConfettiCelebration(): void {
-    const textures = this.getConfettiTextures();
+    const textures = this.getConfettiTextures()
 
     const emitter = this.scene.add.particles(this.screenWidth / 2, 0, textures[0], {
       lifespan: 4000,
@@ -123,34 +138,39 @@ export class ParticleEffects {
       rotate: { min: 0, max: 360 },
       frequency: 20,
       frame: textures,
-    });
+    })
 
-    this.activeEmitters.push({ emitter });
+    this.activeEmitters.push({ emitter })
 
     // Auto-stop after duration
-    this.scene.time.delayedCall(5000, () => {
-      this.stopEffect({ emitter });
-    }, [], this.scene);
+    this.scene.time.delayedCall(
+      5000,
+      () => {
+        this.stopEffect({ emitter })
+      },
+      [],
+      this.scene
+    )
   }
 
   /**
    * Play combined victory effect (confetti + explosion)
    */
   playGameVictoryEffect(): void {
-    this.playConfettiCelebration();
-    this.playVictoryExplosion();
+    this.playConfettiCelebration()
+    this.playVictoryExplosion()
   }
 
   /**
    * Stop and cleanup a specific effect
    */
   private stopEffect(effectData: EmitterData): void {
-    effectData.emitter.stop();
-    effectData.emitter.destroy();
+    effectData.emitter.stop()
+    effectData.emitter.destroy()
 
-    const index = this.activeEmitters.indexOf(effectData);
+    const index = this.activeEmitters.indexOf(effectData)
     if (index > -1) {
-      this.activeEmitters.splice(index, 1);
+      this.activeEmitters.splice(index, 1)
     }
   }
 
@@ -159,34 +179,26 @@ export class ParticleEffects {
    */
   cleanup(): void {
     this.activeEmitters.forEach(({ emitter }) => {
-      emitter.stop();
-      emitter.destroy();
-    });
-    this.activeEmitters = [];
+      emitter.stop()
+      emitter.destroy()
+    })
+    this.activeEmitters = []
   }
 
   // Texture getter methods
   private getFireTextures(): string[] {
-    return Array.from({ length: 8 }, (_, i) =>
-      `flame_${String(i + 1).padStart(2, '0')}`
-    );
+    return Array.from({ length: 8 }, (_, i) => `flame_${String(i + 1).padStart(2, '0')}`)
   }
 
   private getIceTextures(): string[] {
-    return Array.from({ length: 8 }, (_, i) =>
-      `ice_${String(i + 1).padStart(2, '0')}`
-    );
+    return Array.from({ length: 8 }, (_, i) => `ice_${String(i + 1).padStart(2, '0')}`)
   }
 
   private getExplosionTextures(): string[] {
-    return Array.from({ length: 10 }, (_, i) =>
-      `explosion_${String(i + 1).padStart(2, '0')}`
-    );
+    return Array.from({ length: 10 }, (_, i) => `explosion_${String(i + 1).padStart(2, '0')}`)
   }
 
   private getConfettiTextures(): string[] {
-    return Array.from({ length: 8 }, (_, i) =>
-      `confetti_${String(i + 1).padStart(2, '0')}`
-    );
+    return Array.from({ length: 8 }, (_, i) => `confetti_${String(i + 1).padStart(2, '0')}`)
   }
 }

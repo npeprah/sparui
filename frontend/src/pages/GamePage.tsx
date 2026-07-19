@@ -5,17 +5,17 @@ import { PhaseTransition } from '../game/components/PhaseTransition'
 import { useGameStore } from '../store/gameStore'
 
 function GamePage() {
-  const gamePhase = useGameStore((state) => state.gamePhase)
-  const currentRound = useGameStore((state) => state.currentRound)
-  const players = useGameStore((state) => state.players)
-  const leaderId = useGameStore((state) => state.leaderId)
+  const gamePhase = useGameStore(state => state.gamePhase)
+  const currentRound = useGameStore(state => state.currentRound)
+  const players = useGameStore(state => state.players)
+  const leaderId = useGameStore(state => state.leaderId)
 
   const [showTransition, setShowTransition] = useState(false)
   const [prevPhase, setPrevPhase] = useState<typeof gamePhase>(gamePhase)
   const [transitionFromPhase, setTransitionFromPhase] = useState<typeof gamePhase>(gamePhase)
 
   // Get leader name
-  const leader = players.find((p) => p.id === leaderId)
+  const leader = players.find(p => p.id === leaderId)
   const leaderName = leader?.name || 'Player 1'
 
   // Detect phase changes and trigger transitions

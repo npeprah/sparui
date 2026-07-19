@@ -16,7 +16,9 @@ describe('Card Visual States', () => {
       const defaultState = CARD_VISUAL_STATES.default
       expect(defaultState.borderWidth).toBe(4)
       expect(defaultState.borderColor).toBe('#FFD700')
-      expect(defaultState.shadow).toBe('0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 69, 0, 0.3)')
+      expect(defaultState.shadow).toBe(
+        '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 69, 0, 0.3)'
+      )
       expect(defaultState.opacity).toBe(1)
       expect(defaultState.scale).toBe(1)
       expect(defaultState.translateY).toBe(0)
@@ -33,7 +35,9 @@ describe('Card Visual States', () => {
       expect(hoverState.shadow).toContain('inset 0 0 30px rgba(255, 215, 0, 0.2)')
       expect(hoverState.duration).toBe(600)
       expect(hoverState.easing).toBe('cubic-bezier(0.23, 1, 0.32, 1)')
-      expect(hoverState.symbolGlow).toBe('drop-shadow(0 0 40px rgba(255, 215, 0, 1)) drop-shadow(0 0 80px rgba(255, 69, 0, 0.8))')
+      expect(hoverState.symbolGlow).toBe(
+        'drop-shadow(0 0 40px rgba(255, 215, 0, 1)) drop-shadow(0 0 80px rgba(255, 69, 0, 0.8))'
+      )
     })
 
     it('should define correct active state configuration', () => {
@@ -66,7 +70,9 @@ describe('Card Visual States', () => {
       const frozenState = CARD_VISUAL_STATES.frozen
       expect(frozenState.borderColor).toBe('#00BFFF')
       expect(frozenState.borderWidth).toBe(4)
-      expect(frozenState.shadow).toBe('0 0 30px rgba(0, 191, 255, 0.8), inset 0 0 20px rgba(135, 206, 235, 0.4)')
+      expect(frozenState.shadow).toBe(
+        '0 0 30px rgba(0, 191, 255, 0.8), inset 0 0 20px rgba(135, 206, 235, 0.4)'
+      )
       expect(frozenState.overlayTexture).toBe('frost')
       expect(frozenState.auraColor).toBe('rgba(0, 191, 255, 0.8)')
       expect(frozenState.symbolTint).toBe('blue')

@@ -11,9 +11,9 @@ export interface AvatarProps {
 }
 
 const sizeClasses = {
-  small: 'w-16 h-16',   // 64px (game table, leaderboard)
-  medium: 'w-32 h-32',  // 128px (lobby, player slots)
-  large: 'w-64 h-64',   // 256px (profile, settings)
+  small: 'w-16 h-16', // 64px (game table, leaderboard)
+  medium: 'w-32 h-32', // 128px (lobby, player slots)
+  large: 'w-64 h-64', // 256px (profile, settings)
 }
 
 const avatarData = {
@@ -40,13 +40,13 @@ export function Avatar({
     accent: '#666666',
   }
 
-  const altText = avatarId in avatarData
-    ? `${avatar.name} - ${avatar.description}`
-    : 'Default Avatar'
+  const altText =
+    avatarId in avatarData ? `${avatar.name} - ${avatar.description}` : 'Default Avatar'
 
-  const imagePath = avatarId >= 1 && avatarId <= 5
-    ? `/assets/avatars/avatar_0${avatarId}.svg`
-    : '/assets/avatars/default.svg'
+  const imagePath =
+    avatarId >= 1 && avatarId <= 5
+      ? `/assets/avatars/avatar_0${avatarId}.svg`
+      : '/assets/avatars/default.svg'
 
   const handleImageLoad = () => {
     setIsLoading(false)
@@ -86,36 +86,31 @@ export function Avatar({
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
       aria-label={onClick ? `Select ${altText}` : undefined}
-      style={{
-        '--avatar-border-color': isSelected ? '#FFD700' : avatar.accent,
-      } as React.CSSProperties}
+      style={
+        {
+          '--avatar-border-color': isSelected ? '#FFD700' : avatar.accent,
+        } as React.CSSProperties
+      }
     >
       {isLoading && (
         <div
           data-testid="avatar-loading"
           className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-900"
         >
-          <div className="animate-pulse text-white text-2xl font-bold">
-            {avatar.name[0]}
-          </div>
+          <div className="animate-pulse text-white text-2xl font-bold">{avatar.name[0]}</div>
         </div>
       )}
 
       {hasError ? (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-900">
-          <span className="text-white text-2xl font-bold">
-            {avatar.name[0]}
-          </span>
+          <span className="text-white text-2xl font-bold">{avatar.name[0]}</span>
         </div>
       ) : (
         <img
           src={imagePath}
           alt={altText}
           role="img"
-          className={cn(
-            'w-full h-full object-cover',
-            isLoading && 'invisible'
-          )}
+          className={cn('w-full h-full object-cover', isLoading && 'invisible')}
           onLoad={handleImageLoad}
           onError={handleImageError}
         />

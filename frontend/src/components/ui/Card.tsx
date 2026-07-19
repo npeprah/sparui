@@ -89,9 +89,7 @@ interface CardFooterProps {
 }
 
 export function CardFooter({ children, className = '' }: CardFooterProps) {
-  return (
-    <div className={`mt-4 pt-4 border-t border-gray-700 ${className}`}>{children}</div>
-  )
+  return <div className={`mt-4 pt-4 border-t border-gray-700 ${className}`}>{children}</div>
 }
 
 // Attach sub-components

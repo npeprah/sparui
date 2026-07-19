@@ -193,7 +193,7 @@ describe('Card Deal Animation', () => {
       })
 
       // Total deal time for 4 cards should be reasonable
-      const totalTime = 800 + (3 * 150) // Last card: duration + stagger
+      const totalTime = 800 + 3 * 150 // Last card: duration + stagger
       expect(totalTime).toBe(1250) // 1.25 seconds for 4 cards
     })
   })

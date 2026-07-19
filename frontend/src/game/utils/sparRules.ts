@@ -15,7 +15,7 @@ export function mustFollowSuit(hand: Card[], ledSuit: Suit | null): boolean {
     return false // No suit to follow (player is leader)
   }
 
-  return hand.some((card) => card.suit === ledSuit)
+  return hand.some(card => card.suit === ledSuit)
 }
 
 /**
@@ -34,7 +34,7 @@ export function getPlayableCards(hand: Card[], ledSuit: Suit | null): Card[] {
   }
 
   // Get cards matching the led suit
-  const matchingSuitCards = hand.filter((card) => card.suit === ledSuit)
+  const matchingSuitCards = hand.filter(card => card.suit === ledSuit)
 
   // If player has cards of led suit, only those are playable
   if (matchingSuitCards.length > 0) {

@@ -66,7 +66,7 @@ export function Modal({
         >
           <motion.div
             className={`bg-gray-800 shadow-2xl ${sizeStyles[size]} max-h-[100vh] md:max-h-[90vh] overflow-y-auto rounded-t-lg md:rounded-lg`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
             variants={modal}
             initial="hidden"
             animate="visible"
@@ -81,12 +81,7 @@ export function Modal({
                     className="text-gray-400 hover:text-white transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
                     aria-label="Close modal"
                   >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"

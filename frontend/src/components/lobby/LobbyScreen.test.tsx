@@ -268,7 +268,7 @@ describe('LobbyScreen - Backend Integration', () => {
       await waitFor(() => {
         const state = useLobbyStore.getState()
         expect(state.currentPlayers).toHaveLength(1)
-        expect(state.currentPlayers.find((p) => p.id === 'player-456')).toBeUndefined()
+        expect(state.currentPlayers.find(p => p.id === 'player-456')).toBeUndefined()
       })
     })
 
@@ -344,7 +344,7 @@ describe('LobbyScreen - Backend Integration', () => {
       // Verify ready status updated
       await waitFor(() => {
         const state = useLobbyStore.getState()
-        const player2 = state.currentPlayers.find((p) => p.id === 'player-456')
+        const player2 = state.currentPlayers.find(p => p.id === 'player-456')
         expect(player2?.isReady).toBe(true)
         expect(state.allReady).toBe(false)
       })

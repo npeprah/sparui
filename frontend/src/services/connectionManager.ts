@@ -264,7 +264,7 @@ export class ConnectionManager {
    * Notify all listeners of state change
    */
   private notifyListeners(): void {
-    this.listeners.forEach((listener) => {
+    this.listeners.forEach(listener => {
       try {
         listener(this.state)
       } catch (error) {

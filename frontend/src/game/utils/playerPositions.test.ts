@@ -34,7 +34,14 @@ describe('playerPositions', () => {
       const players: Player[] = [
         { id: 'player-1', name: 'Alice', score: 0, isReady: true, isConnected: true, winStreak: 0 },
         { id: 'player-2', name: 'Bob', score: 0, isReady: true, isConnected: true, winStreak: 0 },
-        { id: 'player-3', name: 'Charlie', score: 0, isReady: true, isConnected: true, winStreak: 0 },
+        {
+          id: 'player-3',
+          name: 'Charlie',
+          score: 0,
+          isReady: true,
+          isConnected: true,
+          winStreak: 0,
+        },
       ]
       const currentPlayerId = 'player-1'
 
@@ -50,7 +57,14 @@ describe('playerPositions', () => {
       const players: Player[] = [
         { id: 'player-1', name: 'Alice', score: 0, isReady: true, isConnected: true, winStreak: 0 },
         { id: 'player-2', name: 'Bob', score: 0, isReady: true, isConnected: true, winStreak: 0 },
-        { id: 'player-3', name: 'Charlie', score: 0, isReady: true, isConnected: true, winStreak: 0 },
+        {
+          id: 'player-3',
+          name: 'Charlie',
+          score: 0,
+          isReady: true,
+          isConnected: true,
+          winStreak: 0,
+        },
         { id: 'player-4', name: 'David', score: 0, isReady: true, isConnected: true, winStreak: 0 },
       ]
       const currentPlayerId = 'player-1'
@@ -67,7 +81,14 @@ describe('playerPositions', () => {
       const players: Player[] = [
         { id: 'player-1', name: 'Alice', score: 0, isReady: true, isConnected: true, winStreak: 0 },
         { id: 'player-2', name: 'Bob', score: 0, isReady: true, isConnected: true, winStreak: 0 },
-        { id: 'player-3', name: 'Charlie', score: 0, isReady: true, isConnected: true, winStreak: 0 },
+        {
+          id: 'player-3',
+          name: 'Charlie',
+          score: 0,
+          isReady: true,
+          isConnected: true,
+          winStreak: 0,
+        },
         { id: 'player-4', name: 'David', score: 0, isReady: true, isConnected: true, winStreak: 0 },
       ]
       const currentPlayerId = 'player-3'

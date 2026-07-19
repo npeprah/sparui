@@ -22,15 +22,13 @@ export function AvatarSelector({
 }: AvatarSelectorProps) {
   return (
     <div data-testid="avatar-selector" className={cn('space-y-4', className)}>
-      <h2 className="text-2xl font-bold text-gold text-center">
-        Choose Your Avatar
-      </h2>
+      <h2 className="text-2xl font-bold text-gold text-center">Choose Your Avatar</h2>
 
       <div
         data-testid="avatar-grid"
         className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
       >
-        {avatarData.map((avatar) => (
+        {avatarData.map(avatar => (
           <div
             key={avatar.id}
             data-testid={`avatar-item-${avatar.id}`}
@@ -44,7 +42,7 @@ export function AvatarSelector({
                 : 'border-gray-700 hover:border-gray-600'
             )}
             onClick={() => onSelect(avatar.id)}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 onSelect(avatar.id)
@@ -61,12 +59,8 @@ export function AvatarSelector({
             />
 
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-white">
-                {avatar.name}
-              </h3>
-              <p className="text-sm text-gray-400">
-                {avatar.description}
-              </p>
+              <h3 className="text-lg font-semibold text-white">{avatar.name}</h3>
+              <p className="text-sm text-gray-400">{avatar.description}</p>
             </div>
           </div>
         ))}

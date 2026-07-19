@@ -236,7 +236,7 @@ describe('CardSprite Logic', () => {
     it('should validate card ranks', () => {
       const validRanks: Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
       expect(validRanks).toHaveLength(9)
-      validRanks.forEach((rank) => {
+      validRanks.forEach(rank => {
         expect(['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']).toContain(rank)
       })
     })

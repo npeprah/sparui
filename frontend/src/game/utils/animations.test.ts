@@ -184,9 +184,7 @@ describe('Animation Utilities', () => {
       expect((config.scaleX as { from: number; to: number }).from).toBe(
         ANIMATION_SCALE.WIN_PULSE_MIN
       )
-      expect((config.scaleX as { from: number; to: number }).to).toBe(
-        ANIMATION_SCALE.WIN_PULSE_MAX
-      )
+      expect((config.scaleX as { from: number; to: number }).to).toBe(ANIMATION_SCALE.WIN_PULSE_MAX)
     })
   })
 

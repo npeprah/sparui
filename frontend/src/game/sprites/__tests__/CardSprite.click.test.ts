@@ -17,12 +17,7 @@ describe('CardSprite Click vs Drag Detection Logic', () => {
   /**
    * Calculate distance between two pointer positions
    */
-  function calculateDistance(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number
-  ): number {
+  function calculateDistance(x1: number, y1: number, x2: number, y2: number): number {
     const deltaX = x2 - x1
     const deltaY = y2 - y1
     return Math.sqrt(deltaX * deltaX + deltaY * deltaY)
@@ -31,12 +26,7 @@ describe('CardSprite Click vs Drag Detection Logic', () => {
   /**
    * Determine if pointer movement should be treated as a click
    */
-  function isClick(
-    downX: number,
-    downY: number,
-    upX: number,
-    upY: number
-  ): boolean {
+  function isClick(downX: number, downY: number, upX: number, upY: number): boolean {
     const distance = calculateDistance(downX, downY, upX, upY)
     return distance <= CLICK_THRESHOLD
   }

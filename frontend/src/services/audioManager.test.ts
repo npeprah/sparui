@@ -194,14 +194,8 @@ describe('AudioManager', () => {
       audioManager.init(mockScene)
 
       // Should setup event listeners for all 16 sounds
-      expect(mockScene.events.on).toHaveBeenCalledWith(
-        'sound:card_deal',
-        expect.any(Function)
-      )
-      expect(mockScene.events.on).toHaveBeenCalledWith(
-        'sound:card_flip',
-        expect.any(Function)
-      )
+      expect(mockScene.events.on).toHaveBeenCalledWith('sound:card_deal', expect.any(Function))
+      expect(mockScene.events.on).toHaveBeenCalledWith('sound:card_flip', expect.any(Function))
       // ... etc for all sound events
     })
 
@@ -210,10 +204,7 @@ describe('AudioManager', () => {
       audioManager.preload(mockScene)
       audioManager.init(mockScene)
 
-      expect(mockScene.input.once).toHaveBeenCalledWith(
-        'pointerdown',
-        expect.any(Function)
-      )
+      expect(mockScene.input.once).toHaveBeenCalledWith('pointerdown', expect.any(Function))
     })
 
     it('should setup mobile audio unlock on Android', () => {
@@ -221,10 +212,7 @@ describe('AudioManager', () => {
       audioManager.preload(mockScene)
       audioManager.init(mockScene)
 
-      expect(mockScene.input.once).toHaveBeenCalledWith(
-        'pointerdown',
-        expect.any(Function)
-      )
+      expect(mockScene.input.once).toHaveBeenCalledWith('pointerdown', expect.any(Function))
     })
 
     it('should not setup mobile audio unlock on desktop', () => {

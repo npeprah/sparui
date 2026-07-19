@@ -49,14 +49,7 @@ export function Timer({
     <div className={`relative ${sizeStyles[size]}`}>
       {showProgress && (
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="none"
-            stroke="#374151"
-            strokeWidth="8"
-          />
+          <circle cx="50" cy="50" r="45" fill="none" stroke="#374151" strokeWidth="8" />
           <circle
             cx="50"
             cy="50"

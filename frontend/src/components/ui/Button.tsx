@@ -45,7 +45,8 @@ export function Button({
     'rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] flex items-center justify-center'
   const widthStyle = fullWidth ? 'w-full' : ''
 
-  const finalClassName = `${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${widthStyle} ${className}`.trim()
+  const finalClassName =
+    `${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${widthStyle} ${className}`.trim()
 
   // Get animation variants with reduced motion support
   const variants = getVariants(buttonVariants)

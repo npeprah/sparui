@@ -67,12 +67,7 @@ describe('Avatar and Theme Integration', () => {
         usePlayerStore.getState().setAvatar(avatarId.toString())
       })
 
-      render(
-        <AvatarSelector
-          selectedAvatarId={1}
-          onSelect={handleSelect}
-        />
-      )
+      render(<AvatarSelector selectedAvatarId={1} onSelect={handleSelect} />)
 
       // Select avatar 3 (Kwame)
       const avatarItems = screen.getAllByTestId(/avatar-item-/)
@@ -88,12 +83,7 @@ describe('Avatar and Theme Integration', () => {
     })
 
     it('should display all 5 avatars with correct names', () => {
-      render(
-        <AvatarSelector
-          selectedAvatarId={1}
-          onSelect={vi.fn()}
-        />
-      )
+      render(<AvatarSelector selectedAvatarId={1} onSelect={vi.fn()} />)
 
       // Check all avatar names are present
       expect(screen.getByText('Kofi')).toBeInTheDocument()
@@ -113,12 +103,7 @@ describe('Avatar and Theme Integration', () => {
         useThemeStore.getState().setTheme(theme)
       })
 
-      render(
-        <ThemeSelector
-          selectedTheme="afro_heritage"
-          onSelect={handleSelect}
-        />
-      )
+      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={handleSelect} />)
 
       // Select neon arcade theme
       const themeItems = screen.getAllByTestId(/theme-item-/)
@@ -146,12 +131,7 @@ describe('Avatar and Theme Integration', () => {
     })
 
     it('should display all 4 themes with correct names', () => {
-      render(
-        <ThemeSelector
-          selectedTheme="afro_heritage"
-          onSelect={vi.fn()}
-        />
-      )
+      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={vi.fn()} />)
 
       // Check all theme names are present
       expect(screen.getByText('Afro Heritage')).toBeInTheDocument()
@@ -161,12 +141,7 @@ describe('Avatar and Theme Integration', () => {
     })
 
     it('should show preview images for all themes', () => {
-      render(
-        <ThemeSelector
-          selectedTheme="afro_heritage"
-          onSelect={vi.fn()}
-        />
-      )
+      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={vi.fn()} />)
 
       const images = screen.getAllByRole('img')
       expect(images).toHaveLength(4)
@@ -199,14 +174,8 @@ describe('Avatar and Theme Integration', () => {
       // Render both selectors
       render(
         <div>
-          <AvatarSelector
-            selectedAvatarId={1}
-            onSelect={handleAvatarSelect}
-          />
-          <ThemeSelector
-            selectedTheme="afro_heritage"
-            onSelect={handleThemeSelect}
-          />
+          <AvatarSelector selectedAvatarId={1} onSelect={handleAvatarSelect} />
+          <ThemeSelector selectedTheme="afro_heritage" onSelect={handleThemeSelect} />
         </div>
       )
 
@@ -244,10 +213,7 @@ describe('Avatar and Theme Integration', () => {
             totalWins={5}
             onEditProfile={vi.fn()}
           />
-          <AvatarSelector
-            selectedAvatarId={2}
-            onSelect={vi.fn()}
-          />
+          <AvatarSelector selectedAvatarId={2} onSelect={vi.fn()} />
         </div>
       )
 
@@ -273,14 +239,8 @@ describe('Avatar and Theme Integration', () => {
 
       render(
         <div>
-          <AvatarSelector
-            selectedAvatarId={1}
-            onSelect={handleAvatarSelect}
-          />
-          <ThemeSelector
-            selectedTheme="afro_heritage"
-            onSelect={handleThemeSelect}
-          />
+          <AvatarSelector selectedAvatarId={1} onSelect={handleAvatarSelect} />
+          <ThemeSelector selectedTheme="afro_heritage" onSelect={handleThemeSelect} />
         </div>
       )
 
@@ -309,14 +269,8 @@ describe('Avatar and Theme Integration', () => {
     it('should have proper ARIA attributes', () => {
       render(
         <div>
-          <AvatarSelector
-            selectedAvatarId={1}
-            onSelect={vi.fn()}
-          />
-          <ThemeSelector
-            selectedTheme="afro_heritage"
-            onSelect={vi.fn()}
-          />
+          <AvatarSelector selectedAvatarId={1} onSelect={vi.fn()} />
+          <ThemeSelector selectedTheme="afro_heritage" onSelect={vi.fn()} />
         </div>
       )
 

@@ -148,12 +148,7 @@ describe('UIStore - Settings and Surface Integration', () => {
 
     it('should get available themes from themeStore', () => {
       const themes = useThemeStore.getState().availableThemes
-      expect(themes).toEqual([
-        'afro_heritage',
-        'neon_arcade',
-        'royal_gold',
-        'ocean_breeze',
-      ])
+      expect(themes).toEqual(['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze'])
     })
 
     it('should get theme info from themeStore', () => {

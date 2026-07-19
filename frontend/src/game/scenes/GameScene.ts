@@ -14,7 +14,6 @@ import { createFPSCounter, type FPSCounter } from '../utils/fpsCounter'
 import { AudioManager } from '../../services/audioManager'
 import { ParticleEffects } from '../systems/ParticleEffects'
 
-
 /**
  * Layout configuration for different screen sizes
  */
@@ -78,13 +77,16 @@ export class GameScene extends Phaser.Scene {
 
   // Player info UI elements (scoreboard in top-left corner)
   private scoreboardContainer: Phaser.GameObjects.Container | null = null
-  private playerScoreRows: Map<string, {
-    container: Phaser.GameObjects.Container
-    nameText: Phaser.GameObjects.Text
-    scoreText: Phaser.GameObjects.Text
-    turnIndicator: Phaser.GameObjects.Graphics
-    leaderIcon: Phaser.GameObjects.Text
-  }> = new Map()
+  private playerScoreRows: Map<
+    string,
+    {
+      container: Phaser.GameObjects.Container
+      nameText: Phaser.GameObjects.Text
+      scoreText: Phaser.GameObjects.Text
+      turnIndicator: Phaser.GameObjects.Graphics
+      leaderIcon: Phaser.GameObjects.Text
+    }
+  > = new Map()
 
   constructor() {
     super({ key: 'GameScene' })
@@ -161,7 +163,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Cleanup active particle emitters (legacy)
-    this.activeParticleEmitters.forEach((emitter) => {
+    this.activeParticleEmitters.forEach(emitter => {
       if (emitter && emitter.active) {
         emitter.stop()
         emitter.destroy()
@@ -263,13 +265,7 @@ export class GameScene extends Phaser.Scene {
     const centerY = height / 2
 
     // Play area background (darker circle)
-    const playArea = this.add.circle(
-      centerX,
-      centerY,
-      this.layout.playAreaSize / 2,
-      0x064529,
-      0.8
-    )
+    const playArea = this.add.circle(centerX, centerY, this.layout.playAreaSize / 2, 0x064529, 0.8)
     playArea.setDepth(-5)
 
     // Play area border (gold)
@@ -339,7 +335,7 @@ export class GameScene extends Phaser.Scene {
     // Find the leader (highest score)
     let leaderId: string | null = null
     let highestScore = -1
-    gameState.players.forEach((player) => {
+    gameState.players.forEach(player => {
       if (player.score > highestScore) {
         highestScore = player.score
         leaderId = player.id
@@ -347,7 +343,7 @@ export class GameScene extends Phaser.Scene {
     })
 
     // Check if there's a tie for lead
-    const playersAtHighestScore = gameState.players.filter((p) => p.score === highestScore)
+    const playersAtHighestScore = gameState.players.filter(p => p.score === highestScore)
     const hasTie = playersAtHighestScore.length > 1
 
     // Create or update player rows
@@ -414,8 +410,9 @@ export class GameScene extends Phaser.Scene {
       row.scoreText.setText(`${player.score}`)
 
       // Determine if it's this player's turn
-      const isThisPlayersTurn = (isCurrentPlayer && isMyTurn) ||
-                                 (!isCurrentPlayer && !isMyTurn && this.isPlayersTurn(player.id))
+      const isThisPlayersTurn =
+        (isCurrentPlayer && isMyTurn) ||
+        (!isCurrentPlayer && !isMyTurn && this.isPlayersTurn(player.id))
 
       // Update turn indicator
       row.turnIndicator.clear()
@@ -493,7 +490,9 @@ export class GameScene extends Phaser.Scene {
    * Get position for player hand based on position
    * Returns null if camera is not yet initialized (prevents race conditions)
    */
-  private getHandPosition(position: PlayerPosition): { x: number; y: number; rotation: number } | null {
+  private getHandPosition(
+    position: PlayerPosition
+  ): { x: number; y: number; rotation: number } | null {
     // Guard against camera not being ready (can happen during scene initialization)
     if (!this.cameras || !this.cameras.main) {
       console.warn('[GameScene] Camera not ready in getHandPosition, returning null')
@@ -538,7 +537,7 @@ export class GameScene extends Phaser.Scene {
     console.log('[GameScene] Position map:', Array.from(this.positionMap.entries()))
 
     // Find the current player and deal only their cards
-    const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
+    const currentPlayer = gameState.players.find(p => p.id === currentPlayerId)
     if (!currentPlayer || !currentPlayer.hand || currentPlayer.hand.length === 0) {
       console.error('[GameScene] Current player has no hand!')
       return
@@ -564,7 +563,9 @@ export class GameScene extends Phaser.Scene {
     owner: string,
     cardId?: string
   ): CardSprite {
-    console.log(`[GameScene] dealCardToPlayer called: ${suit} ${rank} to ${position} (owner: ${owner})`)
+    console.log(
+      `[GameScene] dealCardToPlayer called: ${suit} ${rank} to ${position} (owner: ${owner})`
+    )
 
     // Create card at deck position (top center)
     const deckX = this.cameras.main.width / 2
@@ -596,16 +597,18 @@ export class GameScene extends Phaser.Scene {
 
     // Force card to the top of the display list
     this.children.bringToTop(card)
-    console.log(`[GameScene] Card ${suit} ${rank} depth set to ${card.depth}, brought to top of display list`)
+    console.log(
+      `[GameScene] Card ${suit} ${rank} depth set to ${card.depth}, brought to top of display list`
+    )
 
     // Animate to hand position
     this.animateCardToHand(card, position, hand.length - 1)
 
     // Setup card click handler (for click/tap without drag)
-    card.onCardClick = (clickedCard) => this.onCardClicked(clickedCard)
+    card.onCardClick = clickedCard => this.onCardClicked(clickedCard)
 
     // Setup card drag handler (for drag-to-play gesture)
-    card.onCardDragPlay = (draggedCard) => this.onCardDraggedToPlay(draggedCard)
+    card.onCardDragPlay = draggedCard => this.onCardDraggedToPlay(draggedCard)
 
     console.log(`[GameScene] Card ${suit} ${rank} setup complete`)
     return card
@@ -819,7 +822,9 @@ export class GameScene extends Phaser.Scene {
           const hand = this.playerHands.get(fromPosition) || []
           const cardIndex = hand.indexOf(card)
           if (cardIndex >= 0) {
-            console.log(`[GameScene] Removing opponent card from ${fromPosition} hand after animation`)
+            console.log(
+              `[GameScene] Removing opponent card from ${fromPosition} hand after animation`
+            )
             hand.splice(cardIndex, 1)
             this.playerHands.set(fromPosition, hand)
           }
@@ -838,7 +843,7 @@ export class GameScene extends Phaser.Scene {
    * Clear all played cards (for next round)
    */
   public clearPlayedCards(): void {
-    this.playedCards.forEach((card) => {
+    this.playedCards.forEach(card => {
       // Stop any active tweens on this card to prevent onComplete errors
       this.tweens.killTweensOf(card)
       card.destroy()
@@ -861,14 +866,14 @@ export class GameScene extends Phaser.Scene {
    */
   private setupStateSubscriptions(): void {
     // Subscribe to player store (hand changes and turn changes)
-    this.playerStoreUnsubscribe = usePlayerStore.subscribe((state) => {
+    this.playerStoreUnsubscribe = usePlayerStore.subscribe(state => {
       this.syncPlayerHand(state.hand)
       // Update player info when turn changes
       this.updatePlayerInfoDisplays()
     })
 
     // Subscribe to game store (game state changes)
-    this.gameStoreUnsubscribe = useGameStore.subscribe((state) => {
+    this.gameStoreUnsubscribe = useGameStore.subscribe(state => {
       // Update player position mapping when players change
       const currentPlayerId = usePlayerStore.getState().playerId
       if (state.players.length > 0 && currentPlayerId) {
@@ -955,7 +960,7 @@ export class GameScene extends Phaser.Scene {
           ease: 'Power2',
           onComplete: () => {
             oldBackground.destroy()
-          }
+          },
         })
       }
 
@@ -991,13 +996,21 @@ export class GameScene extends Phaser.Scene {
     const currentHand = this.playerHands.get('bottom') || []
 
     console.log('[GameScene] syncPlayerHand called')
-    console.log('  - Store hand cards:', hand.map(c => `${c.suit} ${c.rank} (${c.id})`))
-    console.log('  - Current displayed cards:', currentHand.map(c => `${c.suit} ${c.rank} (${c.cardId}) active=${c.active} scene=${!!c.scene}`))
+    console.log(
+      '  - Store hand cards:',
+      hand.map(c => `${c.suit} ${c.rank} (${c.id})`)
+    )
+    console.log(
+      '  - Current displayed cards:',
+      currentHand.map(
+        c => `${c.suit} ${c.rank} (${c.cardId}) active=${c.active} scene=${!!c.scene}`
+      )
+    )
 
     // Check if any card is currently being played (animating to center)
     // Check ALL positions, not just bottom - cards stay on table until round ends
     const allPlayedCardIds = new Set<string>()
-    this.playedCards.forEach((card) => {
+    this.playedCards.forEach(card => {
       allPlayedCardIds.add(card.cardId)
     })
     console.log('  - Currently played cards:', Array.from(allPlayedCardIds))
@@ -1005,28 +1018,34 @@ export class GameScene extends Phaser.Scene {
     // Build the new hand by filtering and checking against store
     const newHandSprites: CardSprite[] = []
 
-    currentHand.forEach((cardSprite) => {
-      const stillInHand = hand.some((c) => c.id === cardSprite.cardId)
+    currentHand.forEach(cardSprite => {
+      const stillInHand = hand.some(c => c.id === cardSprite.cardId)
       const isBeingPlayed = allPlayedCardIds.has(cardSprite.cardId)
 
       if (stillInHand) {
         // Card is still in hand according to store - keep it
-        console.log(`  - Keeping card in hand: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`)
+        console.log(
+          `  - Keeping card in hand: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`
+        )
         newHandSprites.push(cardSprite)
       } else if (isBeingPlayed) {
         // Card is being played/animated - don't destroy it, but don't keep it in hand either
-        console.log(`  - Card is on table (played), not destroying: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`)
+        console.log(
+          `  - Card is on table (played), not destroying: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`
+        )
         // Card sprite stays alive on the table, but is removed from hand array
       } else {
         // Card is not in hand and not being played - destroy it
-        console.log(`  - Destroying card: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`)
+        console.log(
+          `  - Destroying card: ${cardSprite.suit} ${cardSprite.rank} (${cardSprite.cardId})`
+        )
         cardSprite.destroy()
       }
     })
 
     // Add new cards that exist in store but not in display
     hand.forEach((card, index) => {
-      const alreadyExists = newHandSprites.some((c) => c.cardId === card.id)
+      const alreadyExists = newHandSprites.some(c => c.cardId === card.id)
       if (!alreadyExists) {
         console.log(`  - Adding new card: ${card.suit} ${card.rank} (${card.id})`)
         const cardSprite = this.dealCardToPlayer(
@@ -1060,7 +1079,7 @@ export class GameScene extends Phaser.Scene {
     if (!isMyTurn) {
       // Not our turn, no cards are playable
       // Only update cards that are fully initialized and added to the scene
-      hand.forEach((card) => {
+      hand.forEach(card => {
         // Check if card is fully initialized (has active scene and input system)
         if (card.scene && card.active && card.input) {
           card.setPlayable(false)
@@ -1071,10 +1090,10 @@ export class GameScene extends Phaser.Scene {
 
     // Get playable cards based on Spar rules
     const playableCards = getPlayableCards(playerHand, currentSuit as Suit | null)
-    const playableIds = new Set(playableCards.map((c) => c.id))
+    const playableIds = new Set(playableCards.map(c => c.id))
 
     // Update card sprites - only update cards that are fully initialized
-    hand.forEach((cardSprite) => {
+    hand.forEach(cardSprite => {
       // Check if card is fully initialized (has active scene and input system)
       // This prevents calling setPlayable on cards that are still being added to the scene
       if (cardSprite.scene && cardSprite.active && cardSprite.input) {
@@ -1094,7 +1113,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // gameStarted - Game begins
-    const gameStartedHandler: ServerToClientEvents['gameStarted'] = (data) => {
+    const gameStartedHandler: ServerToClientEvents['gameStarted'] = data => {
       useGameStore.getState().setGamePhase('playing')
       useGameStore.getState().setRoundPhase('playing')
       useGameStore.getState().setLeader(data.leaderId)
@@ -1105,7 +1124,7 @@ export class GameScene extends Phaser.Scene {
     this.socketHandlers.set('gameStarted', gameStartedHandler)
 
     // cardPlayed - A player played a card
-    const cardPlayedHandler: ServerToClientEvents['cardPlayed'] = (data) => {
+    const cardPlayedHandler: ServerToClientEvents['cardPlayed'] = data => {
       const { playerId, card, currentTurn } = data
 
       console.log('[GameScene] cardPlayed event received:', data)
@@ -1164,7 +1183,7 @@ export class GameScene extends Phaser.Scene {
     this.socketHandlers.set('cardPlayed', cardPlayedHandler)
 
     // roundWon - Round finished, someone won
-    const roundWonHandler: ServerToClientEvents['roundWon'] = (data) => {
+    const roundWonHandler: ServerToClientEvents['roundWon'] = data => {
       const { winnerId, isDry, isShowDry } = data
       const roundsWon = data.roundsWon
 
@@ -1185,7 +1204,7 @@ export class GameScene extends Phaser.Scene {
       // Update win streaks
       const players = useGameStore.getState().players
       let winnerStreak = 0
-      players.forEach((player) => {
+      players.forEach(player => {
         if (player.id === winnerId) {
           useGameStore.getState().incrementWinStreak(player.id)
           winnerStreak = player.winStreak + 1 // Get the new streak value
@@ -1217,14 +1236,14 @@ export class GameScene extends Phaser.Scene {
         // Victory explosion for round win
         this.particleEffects.playVictoryExplosion({
           x: winnerCard.x,
-          y: winnerCard.y
+          y: winnerCard.y,
         })
 
         // Fire streak effect if player has 3+ win streak
         if (winnerStreak >= 3) {
           this.particleEffects.playFireStreakEffect({
             x: winnerCard.x,
-            y: winnerCard.y
+            y: winnerCard.y,
           })
 
           // Play fire streak sound
@@ -1245,7 +1264,7 @@ export class GameScene extends Phaser.Scene {
     this.socketHandlers.set('roundWon', roundWonHandler)
 
     // gameEnded - Game finished
-    const gameEndedHandler: ServerToClientEvents['gameEnded'] = (data) => {
+    const gameEndedHandler: ServerToClientEvents['gameEnded'] = data => {
       const { winnerId, finalScores } = data
       // Extract winnerName and winnerScore from the event data. The backend may
       // include these extra fields beyond the declared event contract (see ticket 02).
@@ -1280,7 +1299,7 @@ export class GameScene extends Phaser.Scene {
     this.socketHandlers.set('gameEnded', gameEndedHandler)
 
     // turnChanged - Turn switched to another player
-    const turnChangedHandler: ServerToClientEvents['turnChanged'] = (data) => {
+    const turnChangedHandler: ServerToClientEvents['turnChanged'] = data => {
       const { currentPlayerId, timeRemaining } = data
 
       // Update whose turn it is
@@ -1299,14 +1318,14 @@ export class GameScene extends Phaser.Scene {
     this.socketHandlers.set('turnChanged', turnChangedHandler)
 
     // timerUpdate - Timer countdown
-    const timerUpdateHandler: ServerToClientEvents['timerUpdate'] = (data) => {
+    const timerUpdateHandler: ServerToClientEvents['timerUpdate'] = data => {
       useGameStore.getState().setTimeRemaining(data.timeRemaining)
     }
     socketService.on('timerUpdate', timerUpdateHandler)
     this.socketHandlers.set('timerUpdate', timerUpdateHandler)
 
     // game:restarted - Game restarted by host
-    const gameRestartedHandler: ServerToClientEvents['game:restarted'] = (data) => {
+    const gameRestartedHandler: ServerToClientEvents['game:restarted'] = data => {
       console.log('[GameScene] Game restarted:', data)
       console.log('[GameScene] Full restart data:', JSON.stringify(data, null, 2))
 
@@ -1323,8 +1342,8 @@ export class GameScene extends Phaser.Scene {
       }
 
       // 3. Clear all player hands (stop tweens first, then destroy sprites)
-      this.playerHands.forEach((hand) => {
-        hand.forEach((card) => {
+      this.playerHands.forEach(hand => {
+        hand.forEach(card => {
           // Stop any active tweens on this card to prevent onComplete errors
           this.tweens.killTweensOf(card)
           card.destroy()
@@ -1338,7 +1357,7 @@ export class GameScene extends Phaser.Scene {
       this.playerHands.set('right', [])
 
       // 4. Reset player score rows (destroy old UI)
-      this.playerScoreRows.forEach((row) => {
+      this.playerScoreRows.forEach(row => {
         row.container.destroy()
       })
       this.playerScoreRows.clear()
@@ -1363,17 +1382,24 @@ export class GameScene extends Phaser.Scene {
         console.log('[GameScene] Position map rebuilt:', Array.from(this.positionMap.entries()))
 
         // 7. Initialize playerStore hand with current player's cards - CRITICAL
-        const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
+        const currentPlayer = gameState.players.find(p => p.id === currentPlayerId)
         if (currentPlayer && currentPlayer.hand) {
-          console.log('[GameScene] Initializing playerStore hand with', currentPlayer.hand.length, 'cards')
-          console.log('[GameScene] Hand cards:', currentPlayer.hand.map((c) => `${c.suit} ${c.rank} (${c.id})`))
+          console.log(
+            '[GameScene] Initializing playerStore hand with',
+            currentPlayer.hand.length,
+            'cards'
+          )
+          console.log(
+            '[GameScene] Hand cards:',
+            currentPlayer.hand.map(c => `${c.suit} ${c.rank} (${c.id})`)
+          )
           usePlayerStore.getState().setHand(currentPlayer.hand)
           console.log('[GameScene] playerStore hand initialized successfully')
         } else {
           console.error('[GameScene] ERROR: Could not find current player or hand!', {
             currentPlayer,
             currentPlayerId,
-            availablePlayers: gameState.players.map((p) => p.id),
+            availablePlayers: gameState.players.map(p => p.id),
           })
         }
 
@@ -1397,7 +1423,12 @@ export class GameScene extends Phaser.Scene {
         const isMyTurn = data.gameState.currentTurn === currentPlayerId
         usePlayerStore.getState().setIsMyTurn(isMyTurn)
         usePlayerStore.getState().setCanPlay(isMyTurn) // Also set canPlay to match turn state
-        console.log('[GameScene] Turn state set after reset - isMyTurn:', isMyTurn, 'currentTurn:', data.gameState.currentTurn)
+        console.log(
+          '[GameScene] Turn state set after reset - isMyTurn:',
+          isMyTurn,
+          'currentTurn:',
+          data.gameState.currentTurn
+        )
       }
 
       // 12. Recreate the scoreboard UI

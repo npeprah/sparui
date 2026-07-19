@@ -49,8 +49,8 @@ describe('Animation Constants', () => {
         'Elastic',
       ]
 
-      Object.values(ANIMATION_EASING).forEach((easing) => {
-        const hasValidPrefix = validEasings.some((valid) => easing.startsWith(valid))
+      Object.values(ANIMATION_EASING).forEach(easing => {
+        const hasValidPrefix = validEasings.some(valid => easing.startsWith(valid))
         expect(hasValidPrefix).toBe(true)
       })
     })
@@ -78,7 +78,7 @@ describe('Animation Constants', () => {
 
   describe('ANIMATION_ALPHA', () => {
     it('should have alpha values between 0 and 1', () => {
-      Object.values(ANIMATION_ALPHA).forEach((alpha) => {
+      Object.values(ANIMATION_ALPHA).forEach(alpha => {
         expect(alpha).toBeGreaterThanOrEqual(0)
         expect(alpha).toBeLessThanOrEqual(1)
       })
@@ -106,20 +106,20 @@ describe('Animation Constants', () => {
 
   describe('GLOW_CONFIG', () => {
     it('should have valid color values', () => {
-      Object.values(GLOW_CONFIG).forEach((config) => {
+      Object.values(GLOW_CONFIG).forEach(config => {
         expect(config.color).toBeGreaterThanOrEqual(0)
         expect(config.color).toBeLessThanOrEqual(0xffffff)
       })
     })
 
     it('should have valid thickness values', () => {
-      Object.values(GLOW_CONFIG).forEach((config) => {
+      Object.values(GLOW_CONFIG).forEach(config => {
         expect(config.thickness).toBeGreaterThan(0)
       })
     })
 
     it('should have alpha values between 0 and 1', () => {
-      Object.values(GLOW_CONFIG).forEach((config) => {
+      Object.values(GLOW_CONFIG).forEach(config => {
         expect(config.alpha).toBeGreaterThanOrEqual(0)
         expect(config.alpha).toBeLessThanOrEqual(1)
       })
@@ -147,7 +147,7 @@ describe('Animation Constants', () => {
 
   describe('SOUND_EVENTS', () => {
     it('should have sound event names prefixed with "sound:"', () => {
-      Object.values(SOUND_EVENTS).forEach((event) => {
+      Object.values(SOUND_EVENTS).forEach(event => {
         expect(event).toMatch(/^sound:/)
       })
     })

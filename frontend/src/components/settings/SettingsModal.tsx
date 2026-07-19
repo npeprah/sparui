@@ -15,14 +15,8 @@ const avatarOptions = [
 ]
 
 export function SettingsModal() {
-  const {
-    isSettingsOpen,
-    closeSettings,
-    soundEnabled,
-    musicEnabled,
-    toggleSound,
-    toggleMusic,
-  } = useUIStore()
+  const { isSettingsOpen, closeSettings, soundEnabled, musicEnabled, toggleSound, toggleMusic } =
+    useUIStore()
 
   const { playerName, avatar, setPlayerName, setAvatar } = usePlayerStore()
 
@@ -38,7 +32,6 @@ export function SettingsModal() {
     setLocalAvatar(avatar)
     setLocalTheme(selectedTheme)
   }, [playerName, avatar, selectedTheme, isSettingsOpen])
-
 
   const handleSave = () => {
     const trimmedName = localPlayerName.trim()
@@ -119,12 +112,7 @@ export function SettingsModal() {
               onClick={closeSettings}
               className="text-gray-400 hover:text-white transition-colors p-1"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -144,7 +132,7 @@ export function SettingsModal() {
               id="player-name"
               type="text"
               value={localPlayerName}
-              onChange={(e) => setLocalPlayerName(e.target.value)}
+              onChange={e => setLocalPlayerName(e.target.value)}
               className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-gold focus:outline-none"
               maxLength={20}
             />
@@ -164,11 +152,11 @@ export function SettingsModal() {
                 return (
                   <div
                     key={option.id}
-                    ref={(el) => (avatarRefs.current[index] = el)}
+                    ref={el => (avatarRefs.current[index] = el)}
                     data-avatar-index={index}
                     tabIndex={0}
                     className="flex flex-col items-center cursor-pointer group"
-                    onKeyDown={(e) => {
+                    onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
                         handleAvatarSelect(option.id)
@@ -193,11 +181,8 @@ export function SettingsModal() {
           {/* Surface Theme Selection */}
           <div className="mb-8">
             <h3 className="text-lg font-medium text-gray-300 mb-4">Table Surface</h3>
-            <div
-              data-testid="surface-theme-grid"
-              className="grid grid-cols-2 gap-4"
-            >
-              {availableThemes.map((theme) => {
+            <div data-testid="surface-theme-grid" className="grid grid-cols-2 gap-4">
+              {availableThemes.map(theme => {
                 const info = getThemeInfo(theme)
                 const isSelected = localTheme === theme
 
@@ -207,7 +192,7 @@ export function SettingsModal() {
                     role="button"
                     aria-label={info.name}
                     onClick={() => setLocalTheme(theme)}
-                    onKeyDown={(e) => {
+                    onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
                         setLocalTheme(theme)
@@ -218,9 +203,10 @@ export function SettingsModal() {
                     <div
                       className={`
                         rounded-lg overflow-hidden transition-all duration-200
-                        ${isSelected
-                          ? 'ring-4 ring-gold shadow-lg'
-                          : 'ring-2 ring-gray-700 hover:ring-gray-500'
+                        ${
+                          isSelected
+                            ? 'ring-4 ring-gold shadow-lg'
+                            : 'ring-2 ring-gray-700 hover:ring-gray-500'
                         }
                       `}
                     >
@@ -271,7 +257,10 @@ export function SettingsModal() {
               <span className="text-gray-300">Sound Effects</span>
             </label>
 
-            <label htmlFor="background-music" className="flex items-center space-x-3 cursor-pointer">
+            <label
+              htmlFor="background-music"
+              className="flex items-center space-x-3 cursor-pointer"
+            >
               <input
                 type="checkbox"
                 id="background-music"

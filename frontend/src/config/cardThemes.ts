@@ -14,62 +14,62 @@
  */
 
 export interface CardTheme {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  emoji: string;
-  isDefault?: boolean;
+  id: string
+  name: string
+  displayName: string
+  description: string
+  emoji: string
+  isDefault?: boolean
   colors: {
     // Background gradient stops
     background: {
-      primary: string;
-      secondary: string;
-      tertiary: string;
-      quaternary: string;
-    };
+      primary: string
+      secondary: string
+      tertiary: string
+      quaternary: string
+    }
     // Kente pattern overlay colors (with alpha)
     patterns: {
-      stripe1: string;
-      stripe2: string;
-      stripe3: string;
-      stripe4: string;
-    };
+      stripe1: string
+      stripe2: string
+      stripe3: string
+      stripe4: string
+    }
     // Border and accent colors
     border: {
-      primary: string;
-      secondary: string;
-      decorative: string;
-    };
+      primary: string
+      secondary: string
+      decorative: string
+    }
     // Suit symbol colors
     suits: {
-      hearts: string;
-      diamonds: string;
-      clubs: string;
-      spades: string;
-    };
+      hearts: string
+      diamonds: string
+      clubs: string
+      spades: string
+    }
     // Text colors
     text: {
-      primary: string;
-      secondary: string;
-      shadow: string;
-    };
+      primary: string
+      secondary: string
+      shadow: string
+    }
     // Effect colors
     effects: {
-      glow: string;
-      shadow: string;
-      hover: string;
-    };
-  };
+      glow: string
+      shadow: string
+      hover: string
+    }
+  }
   // Animation parameters
   animations: {
     hoverGlow: {
-      color: string;
-      intensity: number;
-      spread: number;
-    };
-    pulseSpeed: number; // seconds
-  };
+      color: string
+      intensity: number
+      spread: number
+    }
+    pulseSpeed: number // seconds
+  }
 }
 
 export const cardThemes: Record<string, CardTheme> = {
@@ -379,32 +379,32 @@ export const cardThemes: Record<string, CardTheme> = {
       pulseSpeed: 1.2,
     },
   },
-};
+}
 
 /**
  * Get the default theme
  */
 export const getDefaultTheme = (): CardTheme => {
-  return cardThemes['afro-heritage'];
-};
+  return cardThemes['afro-heritage']
+}
 
 /**
  * Get theme by ID
  */
 export const getThemeById = (id: string): CardTheme | undefined => {
-  return cardThemes[id];
-};
+  return cardThemes[id]
+}
 
 /**
  * Get all theme IDs
  */
 export const getAllThemeIds = (): string[] => {
-  return Object.keys(cardThemes);
-};
+  return Object.keys(cardThemes)
+}
 
 /**
  * Get all themes as array
  */
 export const getAllThemes = (): CardTheme[] => {
-  return Object.values(cardThemes);
-};
+  return Object.values(cardThemes)
+}

@@ -161,7 +161,9 @@ describe('LobbyActions', () => {
         />
       )
 
-      expect(screen.getByText(/all players are ready! click to start the game/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(/all players are ready! click to start the game/i)
+      ).toBeInTheDocument()
     })
   })
 

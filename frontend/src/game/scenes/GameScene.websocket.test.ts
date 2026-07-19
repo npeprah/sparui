@@ -99,10 +99,10 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
       // Verify only the played card was removed
       const remainingHand = usePlayerStore.getState().hand
       expect(remainingHand.length).toBe(3)
-      expect(remainingHand.find((c) => c.id === 'hearts-K')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'diamonds-Q')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'clubs-J')).toBeDefined()
-      expect(remainingHand.find((c) => c.id === 'spades-A')).toBeUndefined()
+      expect(remainingHand.find(c => c.id === 'hearts-K')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'diamonds-Q')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'clubs-J')).toBeDefined()
+      expect(remainingHand.find(c => c.id === 'spades-A')).toBeUndefined()
     })
 
     it('should emit game:play_card event when current player plays a card', () => {
@@ -151,7 +151,7 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
       // Player 2 wins with 2 points
       useGameStore.getState().updateScore('player-2', 2)
 
-      const player2 = useGameStore.getState().players.find((p) => p.id === 'player-2')
+      const player2 = useGameStore.getState().players.find(p => p.id === 'player-2')
       expect(player2?.score).toBe(7)
     })
 
@@ -167,7 +167,7 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
 
       useGameStore.getState().incrementWinStreak('player-1')
 
-      const player1 = useGameStore.getState().players.find((p) => p.id === 'player-1')
+      const player1 = useGameStore.getState().players.find(p => p.id === 'player-1')
       expect(player1?.winStreak).toBe(1)
     })
 
@@ -183,7 +183,7 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
 
       useGameStore.getState().resetWinStreak('player-1')
 
-      const player1 = useGameStore.getState().players.find((p) => p.id === 'player-1')
+      const player1 = useGameStore.getState().players.find(p => p.id === 'player-1')
       expect(player1?.winStreak).toBe(0)
     })
 
@@ -230,7 +230,7 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
       // Set winner (assuming winnerId is tracked)
       // In actual implementation, this might be stored differently
       const players = useGameStore.getState().players
-      const winner = players.find((p) => p.score >= 10)
+      const winner = players.find(p => p.score >= 10)
 
       expect(winner?.id).toBe('player-1')
       expect(winner?.score).toBe(10)
@@ -336,7 +336,7 @@ describe('GameScene - WebSocket Event Handling Logic', () => {
       // Round ends, player-2 wins
       useGameStore.getState().updateScore('player-2', 1)
 
-      const player2 = useGameStore.getState().players.find((p) => p.id === 'player-2')
+      const player2 = useGameStore.getState().players.find(p => p.id === 'player-2')
       expect(player2?.score).toBe(1)
 
       // Next round

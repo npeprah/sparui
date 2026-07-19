@@ -45,7 +45,7 @@ describe('GameScene Initialization Race Conditions', () => {
     it('should return valid position when cameras are initialized', () => {
       // Simulate the logic with initialized camera
       const cameras = {
-        main: { width: 1280, height: 720 }
+        main: { width: 1280, height: 720 },
       }
 
       let result: any = null
@@ -117,7 +117,7 @@ describe('GameScene Initialization Race Conditions', () => {
     it('should execute when camera is ready', () => {
       const isSceneReady = true
       const cameras = {
-        main: { width: 1280, height: 720 }
+        main: { width: 1280, height: 720 },
       }
 
       let executed = false

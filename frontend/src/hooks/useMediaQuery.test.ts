@@ -35,8 +35,7 @@ describe('useMediaQuery', () => {
 
   it('should detect tablet breakpoint (768px - 1023px)', () => {
     matchMediaMock.mockImplementation((query: string) => ({
-      matches:
-        query.includes('min-width: 768px') && query.includes('max-width: 1023px'),
+      matches: query.includes('min-width: 768px') && query.includes('max-width: 1023px'),
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),

@@ -46,9 +46,11 @@ describe('PhaserGame Component', () => {
     render(<PhaserGame />)
 
     expect(mockGameConstructor).toHaveBeenCalledTimes(1)
-    expect(mockGameConstructor).toHaveBeenCalledWith(expect.objectContaining({
-      parent: 'phaser-game',
-    }))
+    expect(mockGameConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parent: 'phaser-game',
+      })
+    )
   })
 
   it('should destroy Phaser game instance on unmount', () => {

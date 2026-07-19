@@ -49,8 +49,21 @@ export interface ServerToClientEvents {
   // Game events
   gameStarted: (data: { leaderId: string; round: number }) => void
   'game:restarted': (data: { roomCode: string; gameState: BackendGameState }) => void
-  cardPlayed: (data: { playerId: string; card: Card; currentTurn?: string; ledSuit?: string | null; roundComplete?: boolean }) => void
-  roundWon: (data: { winnerId: string; roundsWon?: Record<string, number>; isDry: boolean; isShowDry: boolean; currentRound?: number; gameOver?: boolean }) => void
+  cardPlayed: (data: {
+    playerId: string
+    card: Card
+    currentTurn?: string
+    ledSuit?: string | null
+    roundComplete?: boolean
+  }) => void
+  roundWon: (data: {
+    winnerId: string
+    roundsWon?: Record<string, number>
+    isDry: boolean
+    isShowDry: boolean
+    currentRound?: number
+    gameOver?: boolean
+  }) => void
   gameEnded: (data: { winnerId: string; finalScores: Record<string, number> }) => void
 
   // Turn events
@@ -254,7 +267,7 @@ class SocketService {
       this.handleServerEvent('connected', { playerId: '' })
     }
 
-    this.ws.onmessage = (event) => {
+    this.ws.onmessage = event => {
       // Handle potentially multiple JSON messages in a single WebSocket frame
       // This can happen when the server sends multiple events in quick succession
       const rawData = event.data as string
@@ -318,12 +331,12 @@ class SocketService {
       console.error('Failed to parse WebSocket message:', rawData)
     }
 
-    this.ws.onerror = (error) => {
+    this.ws.onerror = error => {
       console.error('WebSocket error:', error)
       this.handleServerEvent('error', { error: 'WebSocket connection error', code: 'WS_ERROR' })
     }
 
-    this.ws.onclose = (event) => {
+    this.ws.onclose = event => {
       console.log('WebSocket closed:', event.code, event.reason)
       this.ws = null
 
@@ -339,7 +352,7 @@ class SocketService {
   private handleServerEvent(event: string, data: unknown): void {
     const handlers = this.eventHandlers.get(event)
     if (handlers && handlers.size > 0) {
-      handlers.forEach((handler) => {
+      handlers.forEach(handler => {
         try {
           handler(data)
         } catch (error) {
@@ -372,7 +385,9 @@ class SocketService {
     this.reconnectAttempts++
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
 
-    console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+    console.log(
+      `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+    )
 
     setTimeout(() => {
       console.log('Attempting to reconnect...')
@@ -390,7 +405,7 @@ class SocketService {
     const queue = [...this.messageQueue]
     this.messageQueue = []
 
-    queue.forEach((message) => {
+    queue.forEach(message => {
       try {
         this.ws!.send(message)
       } catch (error) {

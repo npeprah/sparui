@@ -119,7 +119,9 @@ describe('SettingsModal Component', () => {
 
       rerender(<SettingsModal />)
 
-      const updatedAvatars = screen.getByTestId('avatar-selection-grid').querySelectorAll('[data-testid="avatar-container"]')
+      const updatedAvatars = screen
+        .getByTestId('avatar-selection-grid')
+        .querySelectorAll('[data-testid="avatar-container"]')
       expect(updatedAvatars[3].className).toMatch(/selected/i)
     })
 
@@ -333,9 +335,7 @@ describe('SettingsModal Component', () => {
       render(<SettingsModal />)
 
       const modal = screen.getByRole('dialog')
-      const focusableElements = modal.querySelectorAll(
-        'button, input, [tabindex="0"]'
-      )
+      const focusableElements = modal.querySelectorAll('button, input, [tabindex="0"]')
 
       expect(focusableElements.length).toBeGreaterThan(0)
     })

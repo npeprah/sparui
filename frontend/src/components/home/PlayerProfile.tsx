@@ -21,7 +21,14 @@ interface PlayerProfileProps {
  * - Stats: Total games, wins, win rate
  * - Edit Profile button
  */
-export function PlayerProfile({ playerName, avatarId = 1, totalGames, totalWins, onEditProfile, className = '' }: PlayerProfileProps) {
+export function PlayerProfile({
+  playerName,
+  avatarId = 1,
+  totalGames,
+  totalWins,
+  onEditProfile,
+  className = '',
+}: PlayerProfileProps) {
   // Calculate win rate
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0
 
@@ -29,7 +36,11 @@ export function PlayerProfile({ playerName, avatarId = 1, totalGames, totalWins,
 
   return (
     <motion.div variants={itemVariants} className={className}>
-      <Card padding="md" variant="elevated" className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gold/20">
+      <Card
+        padding="md"
+        variant="elevated"
+        className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gold/20"
+      >
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
           {/* Avatar */}
           <div className="flex-shrink-0">
@@ -42,7 +53,9 @@ export function PlayerProfile({ playerName, avatarId = 1, totalGames, totalWins,
 
           {/* Player Info */}
           <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl md:text-3xl font-bold text-gold mb-4">{playerName || 'Guest'}</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-gold mb-4">
+              {playerName || 'Guest'}
+            </h2>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-3 md:gap-4 mb-4">

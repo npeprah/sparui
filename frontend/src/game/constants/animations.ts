@@ -107,11 +107,11 @@ export const ANIMATION_ALPHA = {
 export const ANIMATION_ROTATION = {
   // Deal rotation range
   DEAL_MIN: -0.3, // ~-17 degrees
-  DEAL_MAX: 0.3,  // ~17 degrees
+  DEAL_MAX: 0.3, // ~17 degrees
 
   // Play rotation range (slight random tilt) - Updated to match design spec
   PLAY_MIN: -0.0873, // -5 degrees in radians
-  PLAY_MAX: 0.0873,  // 5 degrees in radians
+  PLAY_MAX: 0.0873, // 5 degrees in radians
 
   // Flip rotation
   FLIP_Y_AXIS: Math.PI, // 180 degrees (simulated with scale)
@@ -305,10 +305,7 @@ export function triggerHaptic(pattern: keyof typeof HAPTIC_PATTERNS): void {
  * Helper function to emit sound event (placeholder)
  * Future implementation will hook into audio system
  */
-export function emitSoundEvent(
-  scene: Phaser.Scene,
-  event: keyof typeof SOUND_EVENTS
-): void {
+export function emitSoundEvent(scene: Phaser.Scene, event: keyof typeof SOUND_EVENTS): void {
   // Emit event on scene for audio system to listen to
   scene.events.emit(SOUND_EVENTS[event])
 

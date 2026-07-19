@@ -56,14 +56,14 @@ export const useLobbyStore = create<LobbyState>((set, get) => ({
   allReady: false,
 
   // Actions
-  setRoomCode: (code) => set({ roomCode: code }),
+  setRoomCode: code => set({ roomCode: code }),
 
-  setHostId: (id) => set({ hostId: id }),
+  setHostId: id => set({ hostId: id }),
 
-  addPlayer: (player) =>
-    set((state) => {
+  addPlayer: player =>
+    set(state => {
       // Prevent duplicates
-      if (state.currentPlayers.find((p) => p.id === player.id)) {
+      if (state.currentPlayers.find(p => p.id === player.id)) {
         return state
       }
       return {
@@ -71,35 +71,35 @@ export const useLobbyStore = create<LobbyState>((set, get) => ({
       }
     }),
 
-  removePlayer: (playerId) =>
-    set((state) => ({
-      currentPlayers: state.currentPlayers.filter((p) => p.id !== playerId),
+  removePlayer: playerId =>
+    set(state => ({
+      currentPlayers: state.currentPlayers.filter(p => p.id !== playerId),
     })),
 
   updatePlayerReady: (playerId, isReady) =>
-    set((state) => ({
-      currentPlayers: state.currentPlayers.map((p) => (p.id === playerId ? { ...p, isReady } : p)),
+    set(state => ({
+      currentPlayers: state.currentPlayers.map(p => (p.id === playerId ? { ...p, isReady } : p)),
     })),
 
-  updateSettings: (newSettings) =>
-    set((state) => ({
+  updateSettings: newSettings =>
+    set(state => ({
       settings: { ...state.settings, ...newSettings },
     })),
 
-  setIsHost: (isHost) => set({ isHost }),
+  setIsHost: isHost => set({ isHost }),
 
-  setIsReady: (isReady) => set({ isReady }),
+  setIsReady: isReady => set({ isReady }),
 
-  setIsInLobby: (inLobby) => set({ isInLobby: inLobby }),
+  setIsInLobby: inLobby => set({ isInLobby: inLobby }),
 
-  setIsConnecting: (connecting) => set({ isConnecting: connecting }),
+  setIsConnecting: connecting => set({ isConnecting: connecting }),
 
-  setCurrentPlayers: (players) => set({ currentPlayers: players }),
+  setCurrentPlayers: players => set({ currentPlayers: players }),
 
-  setAllReady: (allReady) => set({ allReady }),
+  setAllReady: allReady => set({ allReady }),
 
-  isPlayerReady: (playerId) => {
-    const player = get().currentPlayers.find((p) => p.id === playerId)
+  isPlayerReady: playerId => {
+    const player = get().currentPlayers.find(p => p.id === playerId)
     return player?.isReady || false
   },
 

@@ -42,7 +42,7 @@ interface PlayerState {
 
 export const usePlayerStore = create<PlayerState>()(
   persist(
-    (set) => ({
+    set => ({
       // Initial state
       playerId: '',
       playerName: 'Guest',
@@ -57,56 +57,62 @@ export const usePlayerStore = create<PlayerState>()(
       canPlay: false,
 
       // Actions
-      setPlayerId: (id) => set({ playerId: id }),
+      setPlayerId: id => set({ playerId: id }),
 
-      setPlayerName: (name) => set({ playerName: name }),
+      setPlayerName: name => set({ playerName: name }),
 
-      setAvatar: (avatar) => set({ avatar }),
+      setAvatar: avatar => set({ avatar }),
 
-      setToken: (token) => set({ token }),
+      setToken: token => set({ token }),
 
-      setHand: (cards) => set({ hand: cards }),
+      setHand: cards => set({ hand: cards }),
 
-      addCardToHand: (card) =>
-        set((state) => ({
+      addCardToHand: card =>
+        set(state => ({
           hand: [...state.hand, card],
         })),
 
-      removeCardFromHand: (cardId) =>
-        set((state) => {
+      removeCardFromHand: cardId =>
+        set(state => {
           console.log('[playerStore] removeCardFromHand called')
           console.log('  - cardId to remove:', cardId)
-          console.log('  - Current hand before removal:', state.hand.map(c => `${c.suit} ${c.rank} (${c.id})`))
+          console.log(
+            '  - Current hand before removal:',
+            state.hand.map(c => `${c.suit} ${c.rank} (${c.id})`)
+          )
 
-          const newHand = state.hand.filter((c) => c.id !== cardId)
+          const newHand = state.hand.filter(c => c.id !== cardId)
 
-          console.log('  - New hand after removal:', newHand.map(c => `${c.suit} ${c.rank} (${c.id})`))
+          console.log(
+            '  - New hand after removal:',
+            newHand.map(c => `${c.suit} ${c.rank} (${c.id})`)
+          )
           console.log('  - Removed', state.hand.length - newHand.length, 'cards')
 
           return { hand: newHand }
         }),
 
-      setIsMyTurn: (isTurn) => set({ isMyTurn: isTurn }),
+      setIsMyTurn: isTurn => set({ isMyTurn: isTurn }),
 
-      setCanPlay: (can) => set({ canPlay: can }),
+      setCanPlay: can => set({ canPlay: can }),
 
       incrementWins: () =>
-        set((state) => ({
+        set(state => ({
           totalWins: state.totalWins + 1,
         })),
 
       incrementGames: () =>
-        set((state) => ({
+        set(state => ({
           totalGames: state.totalGames + 1,
         })),
 
-      addPoints: (points) =>
-        set((state) => ({
+      addPoints: points =>
+        set(state => ({
           totalPoints: state.totalPoints + points,
         })),
 
-      updateLongestStreak: (streak) =>
-        set((state) => ({
+      updateLongestStreak: streak =>
+        set(state => ({
           longestWinStreak: Math.max(state.longestWinStreak, streak),
         })),
 
@@ -125,7 +131,7 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: 'spar-player-storage',
-      partialize: (state) => ({
+      partialize: state => ({
         playerName: state.playerName,
         avatar: state.avatar,
         token: state.token,

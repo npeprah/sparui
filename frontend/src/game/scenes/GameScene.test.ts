@@ -341,12 +341,7 @@ describe('GameScene Logic', () => {
       // Second card: depth 1001
       // Third card: depth 1002
       // Fourth card: depth 1003
-      const playedCardsDepths = [
-        BASE_DEPTH + 0,
-        BASE_DEPTH + 1,
-        BASE_DEPTH + 2,
-        BASE_DEPTH + 3,
-      ]
+      const playedCardsDepths = [BASE_DEPTH + 0, BASE_DEPTH + 1, BASE_DEPTH + 2, BASE_DEPTH + 3]
 
       expect(playedCardsDepths[0]).toBe(1000)
       expect(playedCardsDepths[1]).toBe(1001)

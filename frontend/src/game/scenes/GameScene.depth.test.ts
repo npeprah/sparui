@@ -98,7 +98,7 @@ describe('GameScene - Card Depth Ordering Logic', () => {
       const earlierDepths = depths.slice(0, -1)
 
       // Latest card should be above all earlier cards
-      earlierDepths.forEach((earlierDepth) => {
+      earlierDepths.forEach(earlierDepth => {
         expect(latestCardDepth).toBeGreaterThan(earlierDepth)
       })
     })

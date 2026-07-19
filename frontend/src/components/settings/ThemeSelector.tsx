@@ -59,15 +59,13 @@ export function ThemeSelector({
 
   return (
     <div data-testid="theme-selector" className={cn('space-y-4', className)}>
-      <h2 className="text-2xl font-bold text-gold text-center">
-        Choose Your Theme
-      </h2>
+      <h2 className="text-2xl font-bold text-gold text-center">Choose Your Theme</h2>
 
       <div
         data-testid="theme-grid"
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        {themes.map((theme) => (
+        {themes.map(theme => (
           <div
             key={theme.id}
             data-testid={`theme-item-${theme.id}`}
@@ -81,7 +79,7 @@ export function ThemeSelector({
                 : 'border-gray-700 hover:border-gray-600'
             )}
             onClick={() => handleThemeClick(theme.id)}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 handleThemeClick(theme.id)
@@ -103,12 +101,8 @@ export function ThemeSelector({
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-white">
-                {theme.name}
-              </h3>
-              <p className="text-xs text-gray-400">
-                {theme.description}
-              </p>
+              <h3 className="text-lg font-semibold text-white">{theme.name}</h3>
+              <p className="text-xs text-gray-400">{theme.description}</p>
             </div>
           </div>
         ))}
@@ -116,11 +110,7 @@ export function ThemeSelector({
 
       {showApplyButton && (
         <div className="flex justify-center mt-4">
-          <Button
-            variant="primary"
-            onClick={handleApply}
-            disabled={previewTheme === selectedTheme}
-          >
+          <Button variant="primary" onClick={handleApply} disabled={previewTheme === selectedTheme}>
             Apply Theme
           </Button>
         </div>

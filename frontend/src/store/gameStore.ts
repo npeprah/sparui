@@ -121,7 +121,7 @@ function convertBackendCard(backendCard: BackendCard): Card {
   }
 }
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>(set => ({
   // Initial state
   roomCode: '',
   hostId: null,
@@ -139,31 +139,31 @@ export const useGameStore = create<GameState>((set) => ({
   settings: DEFAULT_SETTINGS,
 
   // Actions
-  setRoomCode: (code) => set({ roomCode: code }),
+  setRoomCode: code => set({ roomCode: code }),
 
-  setHostId: (hostId) => set({ hostId }),
+  setHostId: hostId => set({ hostId }),
 
-  setGamePhase: (phase) => set({ gamePhase: phase }),
+  setGamePhase: phase => set({ gamePhase: phase }),
 
-  setRoundPhase: (phase) => set({ roundPhase: phase }),
+  setRoundPhase: phase => set({ roundPhase: phase }),
 
-  addPlayer: (player) =>
-    set((state) => ({
+  addPlayer: player =>
+    set(state => ({
       players: [...state.players, player],
     })),
 
-  removePlayer: (playerId) =>
-    set((state) => ({
-      players: state.players.filter((p) => p.id !== playerId),
+  removePlayer: playerId =>
+    set(state => ({
+      players: state.players.filter(p => p.id !== playerId),
     })),
 
   updatePlayer: (playerId, updates) =>
-    set((state) => ({
-      players: state.players.map((p) => (p.id === playerId ? { ...p, ...updates } : p)),
+    set(state => ({
+      players: state.players.map(p => (p.id === playerId ? { ...p, ...updates } : p)),
     })),
 
   playCard: (playerId, card) =>
-    set((state) => {
+    set(state => {
       const newPlayedCards = new Map(state.playedCards)
       newPlayedCards.set(playerId, card)
       return {
@@ -172,29 +172,27 @@ export const useGameStore = create<GameState>((set) => ({
       }
     }),
 
-  setLeader: (playerId) => set({ leaderId: playerId }),
+  setLeader: playerId => set({ leaderId: playerId }),
 
   updateScore: (playerId, points) =>
-    set((state) => ({
-      players: state.players.map((p) =>
-        p.id === playerId ? { ...p, score: p.score + points } : p
-      ),
+    set(state => ({
+      players: state.players.map(p => (p.id === playerId ? { ...p, score: p.score + points } : p)),
     })),
 
-  incrementWinStreak: (playerId) =>
-    set((state) => ({
-      players: state.players.map((p) =>
+  incrementWinStreak: playerId =>
+    set(state => ({
+      players: state.players.map(p =>
         p.id === playerId ? { ...p, winStreak: p.winStreak + 1 } : p
       ),
     })),
 
-  resetWinStreak: (playerId) =>
-    set((state) => ({
-      players: state.players.map((p) => (p.id === playerId ? { ...p, winStreak: 0 } : p)),
+  resetWinStreak: playerId =>
+    set(state => ({
+      players: state.players.map(p => (p.id === playerId ? { ...p, winStreak: 0 } : p)),
     })),
 
   nextRound: () =>
-    set((state) => ({
+    set(state => ({
       currentRound: state.currentRound + 1,
       playedCards: new Map(),
       currentSuit: null,
@@ -214,17 +212,17 @@ export const useGameStore = create<GameState>((set) => ({
       players: [],
     }),
 
-  setGameWinner: (winner) => set({ gameWinner: winner, winnerId: winner?.id || null }),
+  setGameWinner: winner => set({ gameWinner: winner, winnerId: winner?.id || null }),
 
-  updateSettings: (newSettings) =>
-    set((state) => ({
+  updateSettings: newSettings =>
+    set(state => ({
       settings: { ...state.settings, ...newSettings },
     })),
 
-  setTimeRemaining: (time) => set({ timeRemaining: time }),
+  setTimeRemaining: time => set({ timeRemaining: time }),
 
-  initializeFromBackend: (backendState) =>
-    set((state) => {
+  initializeFromBackend: backendState =>
+    set(state => {
       console.log('[gameStore] ===== INITIALIZING FROM BACKEND =====')
       console.log('[gameStore] Backend state:', backendState)
 

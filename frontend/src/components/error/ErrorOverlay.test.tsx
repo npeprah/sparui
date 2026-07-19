@@ -12,19 +12,25 @@ describe('ErrorOverlay', () => {
 
   describe('Visibility', () => {
     it('should not render when state is CONNECTED', () => {
-      render(<ErrorOverlay state={ConnectionState.CONNECTED} attemptCount={0} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.CONNECTED} attemptCount={0} onRetry={mockOnRetry} />
+      )
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
     it('should not render when state is DISCONNECTED', () => {
-      render(<ErrorOverlay state={ConnectionState.DISCONNECTED} attemptCount={0} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.DISCONNECTED} attemptCount={0} onRetry={mockOnRetry} />
+      )
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
     it('should render when state is RECONNECTING', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
@@ -45,31 +51,46 @@ describe('ErrorOverlay', () => {
 
   describe('Reconnecting State', () => {
     it('should display reconnection message', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByText(/attempting to reconnect/i)).toBeInTheDocument()
     })
 
     it('should display attempt count', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={3} maxAttempts={5} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay
+          state={ConnectionState.RECONNECTING}
+          attemptCount={3}
+          maxAttempts={5}
+          onRetry={mockOnRetry}
+        />
+      )
 
       expect(screen.getByText(/attempt 3 of 5/i)).toBeInTheDocument()
     })
 
     it('should display default max attempts (5)', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={2} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={2} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByText(/attempt 2 of 5/i)).toBeInTheDocument()
     })
 
     it('should display loading spinner', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByRole('status')).toBeInTheDocument()
     })
 
     it('should not display retry button during reconnection', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument()
     })
@@ -112,7 +133,14 @@ describe('ErrorOverlay', () => {
     })
 
     it('should display refresh page message after max attempts', () => {
-      render(<ErrorOverlay state={ConnectionState.ERROR} attemptCount={5} maxAttempts={5} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay
+          state={ConnectionState.ERROR}
+          attemptCount={5}
+          maxAttempts={5}
+          onRetry={mockOnRetry}
+        />
+      )
 
       expect(screen.getByText(/please refresh the page/i)).toBeInTheDocument()
     })
@@ -167,27 +195,35 @@ describe('ErrorOverlay', () => {
 
   describe('Accessibility', () => {
     it('should have dialog role', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
 
     it('should have aria-labelledby', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       const dialog = screen.getByRole('dialog')
       expect(dialog).toHaveAttribute('aria-labelledby')
     })
 
     it('should have aria-describedby', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       const dialog = screen.getByRole('dialog')
       expect(dialog).toHaveAttribute('aria-describedby')
     })
 
     it('should have loading status role during reconnection', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByRole('status')).toBeInTheDocument()
     })
@@ -203,7 +239,12 @@ describe('ErrorOverlay', () => {
   describe('Edge Cases', () => {
     it('should handle null error message', () => {
       render(
-        <ErrorOverlay state={ConnectionState.ERROR} attemptCount={5} errorMessage={null as any} onRetry={mockOnRetry} />
+        <ErrorOverlay
+          state={ConnectionState.ERROR}
+          attemptCount={5}
+          errorMessage={null as any}
+          onRetry={mockOnRetry}
+        />
       )
 
       expect(screen.getByText(/connection lost/i)).toBeInTheDocument()
@@ -211,27 +252,43 @@ describe('ErrorOverlay', () => {
 
     it('should handle undefined error message', () => {
       render(
-        <ErrorOverlay state={ConnectionState.ERROR} attemptCount={5} errorMessage={undefined} onRetry={mockOnRetry} />
+        <ErrorOverlay
+          state={ConnectionState.ERROR}
+          attemptCount={5}
+          errorMessage={undefined}
+          onRetry={mockOnRetry}
+        />
       )
 
       expect(screen.getByText(/connection lost/i)).toBeInTheDocument()
     })
 
     it('should handle empty error message', () => {
-      render(<ErrorOverlay state={ConnectionState.ERROR} attemptCount={5} errorMessage="" onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay
+          state={ConnectionState.ERROR}
+          attemptCount={5}
+          errorMessage=""
+          onRetry={mockOnRetry}
+        />
+      )
 
       expect(screen.getByText(/connection lost/i)).toBeInTheDocument()
     })
 
     it('should handle attempt count of 0', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={0} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={0} onRetry={mockOnRetry} />
+      )
 
       // Should still render but show attempt 0
       expect(screen.getByText(/attempt 0 of 5/i)).toBeInTheDocument()
     })
 
     it('should handle missing onRetry callback', () => {
-      render(<ErrorOverlay state={ConnectionState.ERROR} attemptCount={5} onRetry={undefined as any} />)
+      render(
+        <ErrorOverlay state={ConnectionState.ERROR} attemptCount={5} onRetry={undefined as any} />
+      )
 
       const retryButton = screen.queryByRole('button', { name: /retry connection/i })
       // Should still render button but not crash on click
@@ -241,7 +298,9 @@ describe('ErrorOverlay', () => {
 
   describe('User-Friendly Messages', () => {
     it('should display user-friendly title for reconnection', () => {
-      render(<ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />)
+      render(
+        <ErrorOverlay state={ConnectionState.RECONNECTING} attemptCount={1} onRetry={mockOnRetry} />
+      )
 
       expect(screen.getByText(/connection interrupted/i)).toBeInTheDocument()
     })

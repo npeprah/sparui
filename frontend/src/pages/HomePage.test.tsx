@@ -26,7 +26,7 @@ vi.mock('../utils/animations', () => ({
   pageVariants: {},
   staggerContainer: {},
   staggerItem: {},
-  getVariants: vi.fn((variants) => variants || {}),
+  getVariants: vi.fn(variants => variants || {}),
   getPrefersReducedMotion: vi.fn(() => false),
 }))
 
@@ -104,7 +104,9 @@ describe('HomePage', () => {
     ;(usePlayerStore as any).mockImplementation((selector: any) =>
       selector ? selector(mockPlayerStore) : mockPlayerStore
     )
-    ;(useUIStore as any).mockImplementation((selector: any) => (selector ? selector(mockUIStore) : mockUIStore))
+    ;(useUIStore as any).mockImplementation((selector: any) =>
+      selector ? selector(mockUIStore) : mockUIStore
+    )
     ;(useLobbyStore as any).mockImplementation((selector: any) =>
       selector ? selector(mockLobbyStore) : mockLobbyStore
     )

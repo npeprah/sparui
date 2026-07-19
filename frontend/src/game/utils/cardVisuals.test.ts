@@ -82,7 +82,7 @@ describe('Card Visual Utilities', () => {
       const result = applyCardVisualState(mockSprite as any, 'frozen')
 
       expect(result.state).toBe('frozen')
-      expect(mockSprite.setTint).toHaveBeenCalledWith(0x00BFFF)
+      expect(mockSprite.setTint).toHaveBeenCalledWith(0x00bfff)
     })
   })
 

@@ -59,7 +59,10 @@ describe('SettingsModal - Surface Selection', () => {
       setTheme: mockSetTheme,
       getThemeInfo: (theme: string) => ({
         id: theme,
-        name: theme.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        name: theme
+          .split('_')
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' '),
         description: `Description for ${theme}`,
         preview: `/assets/surfaces/surface_${theme}.png`,
       }),
@@ -92,9 +95,9 @@ describe('SettingsModal - Surface Selection', () => {
     it('should show surface preview images', () => {
       render(<SettingsModal />)
 
-      const previews = screen.getAllByRole('img').filter(img =>
-        img.getAttribute('src')?.includes('/assets/surfaces/')
-      )
+      const previews = screen
+        .getAllByRole('img')
+        .filter(img => img.getAttribute('src')?.includes('/assets/surfaces/'))
 
       expect(previews).toHaveLength(4)
       expect(previews[0]).toHaveAttribute('src', '/assets/surfaces/surface_afro_heritage.png')
@@ -179,7 +182,6 @@ describe('SettingsModal - Surface Selection', () => {
         closeSettings: mockCloseSettings,
       })
       rerender(<SettingsModal />)
-
       ;(useUIStore as any).mockReturnValue({
         isSettingsOpen: true,
         closeSettings: mockCloseSettings,
@@ -199,11 +201,11 @@ describe('SettingsModal - Surface Selection', () => {
     it('should display surface theme descriptions', () => {
       render(<SettingsModal />)
 
-      const surfaceButtons = screen.getAllByRole('button').filter(btn =>
-        btn.querySelector('img[src*="/assets/surfaces/"]')
-      )
+      const surfaceButtons = screen
+        .getAllByRole('button')
+        .filter(btn => btn.querySelector('img[src*="/assets/surfaces/"]'))
 
-      surfaceButtons.forEach((button) => {
+      surfaceButtons.forEach(button => {
         const surfaceName = button.querySelector('p')?.textContent
         expect(surfaceName).toBeTruthy()
       })
@@ -212,12 +214,12 @@ describe('SettingsModal - Surface Selection', () => {
     it('should have proper keyboard navigation for surface selection', () => {
       render(<SettingsModal />)
 
-      const surfaceButtons = screen.getAllByRole('button').filter(btn =>
-        btn.querySelector('img[src*="/assets/surfaces/"]')
-      )
+      const surfaceButtons = screen
+        .getAllByRole('button')
+        .filter(btn => btn.querySelector('img[src*="/assets/surfaces/"]'))
 
       // Each button should be focusable
-      surfaceButtons.forEach((button) => {
+      surfaceButtons.forEach(button => {
         button.focus()
         expect(document.activeElement).toBe(button)
       })
@@ -266,18 +268,18 @@ describe('SettingsModal - Surface Selection', () => {
     it('should have hover effect on surface buttons', () => {
       render(<SettingsModal />)
 
-      const surfaceButtons = screen.getAllByRole('button').filter(btn =>
-        btn.querySelector('img[src*="/assets/surfaces/"]')
-      )
+      const surfaceButtons = screen
+        .getAllByRole('button')
+        .filter(btn => btn.querySelector('img[src*="/assets/surfaces/"]'))
 
       // At least one non-selected button should have hover effect
-      const nonSelectedButtons = surfaceButtons.filter((button) => {
+      const nonSelectedButtons = surfaceButtons.filter(button => {
         const buttonContainer = button.querySelector('div')
         return buttonContainer && !buttonContainer.className.includes('ring-gold')
       })
 
       expect(nonSelectedButtons.length).toBeGreaterThan(0)
-      nonSelectedButtons.forEach((button) => {
+      nonSelectedButtons.forEach(button => {
         const buttonContainer = button.querySelector('div')
         expect(buttonContainer?.className).toContain('hover:ring-gray-')
       })

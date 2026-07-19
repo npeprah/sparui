@@ -39,11 +39,7 @@ export function PlayerSlot({ player, slotNumber, isCurrentPlayer = false }: Play
   return (
     <motion.div
       className={`bg-gray-700 rounded-lg p-4 flex items-center gap-4 transition-all border-2 ${
-        player.isHost
-          ? 'border-gold'
-          : player.isReady
-            ? 'border-green-500'
-            : 'border-transparent'
+        player.isHost ? 'border-gold' : player.isReady ? 'border-green-500' : 'border-transparent'
       } ${isCurrentPlayer ? 'ring-2 ring-iceBlue' : ''}`}
       variants={joinVariants}
       initial="hidden"
@@ -53,10 +49,7 @@ export function PlayerSlot({ player, slotNumber, isCurrentPlayer = false }: Play
     >
       {/* Avatar */}
       <div className="relative">
-        <motion.div
-          animate={player.isReady ? 'pulse' : 'initial'}
-          variants={pulse}
-        >
+        <motion.div animate={player.isReady ? 'pulse' : 'initial'} variants={pulse}>
           {player.avatar ? (
             <Avatar
               avatarId={getAvatarIdFromString(player.avatar)}
@@ -64,9 +57,11 @@ export function PlayerSlot({ player, slotNumber, isCurrentPlayer = false }: Play
               className={`ring-2 ${player.isReady ? 'ring-green-500' : 'ring-transparent'}`}
             />
           ) : (
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl ${
-              player.isReady ? 'bg-green-600' : 'bg-fireRed'
-            }`}>
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl ${
+                player.isReady ? 'bg-green-600' : 'bg-fireRed'
+              }`}
+            >
               <span>{player.username.charAt(0).toUpperCase()}</span>
             </div>
           )}

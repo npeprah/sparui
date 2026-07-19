@@ -145,9 +145,7 @@ describe('GameScene - Player 2 Start Race Condition', () => {
     it('should handle store updates that occur during scene creation', () => {
       // Setup initial player state
       usePlayerStore.getState().setPlayerId('player-2')
-      usePlayerStore.getState().setHand([
-        { id: 'card-1', suit: 'hearts', rank: '6' },
-      ])
+      usePlayerStore.getState().setHand([{ id: 'card-1', suit: 'hearts', rank: '6' }])
 
       // In real scenario, setupStateSubscriptions() is called in create()
       // Then dealCardsFromBackendState() is called

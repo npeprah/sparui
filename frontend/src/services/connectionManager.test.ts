@@ -99,19 +99,19 @@ describe('ConnectionManager', () => {
     it('should calculate correct delays for each attempt (1s, 2s, 4s, 8s, 16s)', () => {
       // Attempt 1: 1s (attemptCount=1, delay = 1000 * 2^0)
       manager['attemptCount'] = 1
-      expect(manager.getNextDelay()).toBe(1000)  // 1s
+      expect(manager.getNextDelay()).toBe(1000) // 1s
 
       // Attempt 2: 2s (attemptCount=2, delay = 1000 * 2^1)
       manager['attemptCount'] = 2
-      expect(manager.getNextDelay()).toBe(2000)  // 2s
+      expect(manager.getNextDelay()).toBe(2000) // 2s
 
       // Attempt 3: 4s (attemptCount=3, delay = 1000 * 2^2)
       manager['attemptCount'] = 3
-      expect(manager.getNextDelay()).toBe(4000)  // 4s
+      expect(manager.getNextDelay()).toBe(4000) // 4s
 
       // Attempt 4: 8s (attemptCount=4, delay = 1000 * 2^3)
       manager['attemptCount'] = 4
-      expect(manager.getNextDelay()).toBe(8000)  // 8s
+      expect(manager.getNextDelay()).toBe(8000) // 8s
 
       // Attempt 5: 16s (attemptCount=5, delay = 1000 * 2^4)
       manager['attemptCount'] = 5

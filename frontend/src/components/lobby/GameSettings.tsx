@@ -46,7 +46,7 @@ export function GameSettings({ settings, isHost, onSettingsChange }: GameSetting
             Points to Win
           </label>
           <div className="flex gap-2 md:gap-3">
-            {POINTS_OPTIONS.map((points) => (
+            {POINTS_OPTIONS.map(points => (
               <button
                 key={points}
                 onClick={() => handlePointsChange(points)}
@@ -65,19 +65,22 @@ export function GameSettings({ settings, isHost, onSettingsChange }: GameSetting
 
         {/* Surface Theme */}
         <div>
-          <label htmlFor="surface-theme" className="block text-xs md:text-sm font-medium text-gray-300 mb-2 md:mb-3">
+          <label
+            htmlFor="surface-theme"
+            className="block text-xs md:text-sm font-medium text-gray-300 mb-2 md:mb-3"
+          >
             Surface Theme
           </label>
           <select
             id="surface-theme"
             value={settings.surfaceTheme}
-            onChange={(e) => handleThemeChange(e.target.value as SurfaceTheme)}
+            onChange={e => handleThemeChange(e.target.value as SurfaceTheme)}
             disabled={!isHost}
             className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-700 text-white text-sm md:text-base rounded-lg border-2 border-transparent focus:border-iceBlue focus:outline-none transition-all min-h-[48px] ${
               !isHost ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-600'
             }`}
           >
-            {SURFACE_THEMES.map((theme) => (
+            {SURFACE_THEMES.map(theme => (
               <option key={theme.value} value={theme.value}>
                 {theme.label}
               </option>
@@ -87,9 +90,13 @@ export function GameSettings({ settings, isHost, onSettingsChange }: GameSetting
 
         {/* Max Players Display */}
         <div>
-          <label className="block text-xs md:text-sm font-medium text-gray-300 mb-2 md:mb-3">Max Players</label>
+          <label className="block text-xs md:text-sm font-medium text-gray-300 mb-2 md:mb-3">
+            Max Players
+          </label>
           <div className="px-3 md:px-4 py-2 md:py-3 bg-gray-700 rounded-lg min-h-[48px] flex items-center">
-            <span className="text-white font-bold text-base md:text-lg">{settings.maxPlayers} Players</span>
+            <span className="text-white font-bold text-base md:text-lg">
+              {settings.maxPlayers} Players
+            </span>
           </div>
         </div>
       </div>

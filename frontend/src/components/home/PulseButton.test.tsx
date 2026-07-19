@@ -5,7 +5,11 @@ import { PulseButton } from './PulseButton'
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div data-testid="pulse-wrapper" {...props}>{children}</div>,
+    div: ({ children, ...props }: any) => (
+      <div data-testid="pulse-wrapper" {...props}>
+        {children}
+      </div>
+    ),
   },
 }))
 

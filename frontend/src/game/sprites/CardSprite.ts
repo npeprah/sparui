@@ -22,10 +22,7 @@ import {
   removeDisabledState,
   createGlowEffect,
 } from '../utils/cardAnimations'
-import {
-  applyCardVisualState,
-  transitionToState,
-} from '../utils/cardVisuals'
+import { applyCardVisualState, transitionToState } from '../utils/cardVisuals'
 
 /**
  * CardSprite - Interactive card game object
@@ -104,7 +101,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
     console.log(`[CardSprite] Card created at (${x}, ${y}) with depth ${this.depth}`)
 
-    console.log(`[CardSprite] Card added to scene, visible: ${this.visible}, active: ${this.active}`)
+    console.log(
+      `[CardSprite] Card added to scene, visible: ${this.visible}, active: ${this.active}`
+    )
 
     // Setup interactions
     this.setupInteractions()
@@ -846,14 +845,18 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
     // Store the current depth before animation to preserve it
     const currentDepth = this.depth
-    console.log(`[CardSprite] animateDeal - Starting with depth ${currentDepth} for ${this.suit} ${this.rank}`)
+    console.log(
+      `[CardSprite] animateDeal - Starting with depth ${currentDepth} for ${this.suit} ${this.rank}`
+    )
 
     this.scene.tweens.add({
       ...dealConfig,
       onStart: () => {
         // Aggressively set depth to ensure it's maintained
         this.setDepth(currentDepth)
-        console.log(`[CardSprite] animateDeal onStart - Set depth to ${currentDepth}, actual depth: ${this.depth}`)
+        console.log(
+          `[CardSprite] animateDeal onStart - Set depth to ${currentDepth}, actual depth: ${this.depth}`
+        )
       },
       onUpdate: () => {
         // Force depth on every frame to ensure it never gets reset
@@ -864,7 +867,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       onComplete: () => {
         // Final depth set after animation completes
         this.setDepth(currentDepth)
-        console.log(`[CardSprite] animateDeal onComplete - Final depth: ${this.depth} for ${this.suit} ${this.rank}`)
+        console.log(
+          `[CardSprite] animateDeal onComplete - Final depth: ${this.depth} for ${this.suit} ${this.rank}`
+        )
 
         // Store final position
         this.originalY = targetY

@@ -5,7 +5,7 @@ import { PageTransition } from './PageTransition'
 describe('PageTransition', () => {
   beforeEach(() => {
     // Mock matchMedia for reduced motion tests
-    window.matchMedia = vi.fn().mockImplementation((query) => ({
+    window.matchMedia = vi.fn().mockImplementation(query => ({
       matches: false,
       media: query,
       onchange: null,

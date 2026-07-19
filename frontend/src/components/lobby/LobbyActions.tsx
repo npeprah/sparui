@@ -76,7 +76,7 @@ export function LobbyActions({
           <p className="text-xs text-gray-400">
             {isReady
               ? 'Waiting for host to start the game...'
-              : 'Click Ready when you\'re ready to play!'}
+              : "Click Ready when you're ready to play!"}
           </p>
         )}
       </div>

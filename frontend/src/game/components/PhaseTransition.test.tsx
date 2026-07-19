@@ -11,13 +11,27 @@ describe('PhaseTransition', () => {
 
   describe('Visibility', () => {
     it('should render when visible prop is true', () => {
-      render(<PhaseTransition visible={true} phase="waiting" message="Test" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="waiting"
+          message="Test"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
 
     it('should not render when visible prop is false', () => {
-      render(<PhaseTransition visible={false} phase="waiting" message="Test" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={false}
+          phase="waiting"
+          message="Test"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
@@ -25,13 +39,27 @@ describe('PhaseTransition', () => {
 
   describe('Waiting → Playing Transition', () => {
     it('should display "Game Starting" message', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByText(/game starting/i)).toBeInTheDocument()
     })
 
     it('should display countdown (3, 2, 1)', async () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       // Should show 3 initially
       expect(screen.getByText('3')).toBeInTheDocument()
@@ -42,7 +70,14 @@ describe('PhaseTransition', () => {
     })
 
     it('should complete after 2 seconds', async () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       await waitFor(() => expect(mockOnComplete).toHaveBeenCalled(), { timeout: 2500 })
     })
@@ -64,7 +99,14 @@ describe('PhaseTransition', () => {
     })
 
     it('should display default winner name if not provided', () => {
-      render(<PhaseTransition visible={true} phase="round_end" fromPhase="playing" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="round_end"
+          fromPhase="playing"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByText(/round complete/i)).toBeInTheDocument()
     })
@@ -101,27 +143,54 @@ describe('PhaseTransition', () => {
 
   describe('Round End → Playing Transition', () => {
     it('should display "Next Round" message', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="round_end" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="round_end"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByText(/next round/i)).toBeInTheDocument()
     })
 
     it('should display round number if provided', () => {
       render(
-        <PhaseTransition visible={true} phase="playing" fromPhase="round_end" roundNumber={3} onComplete={mockOnComplete} />
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="round_end"
+          roundNumber={3}
+          onComplete={mockOnComplete}
+        />
       )
 
       expect(screen.getByText(/round 3/i)).toBeInTheDocument()
     })
 
     it('should display "Clearing table..." message', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="round_end" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="round_end"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByText(/clearing table/i)).toBeInTheDocument()
     })
 
     it('should complete after 2 seconds', async () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="round_end" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="round_end"
+          onComplete={mockOnComplete}
+        />
+      )
 
       await waitFor(() => expect(mockOnComplete).toHaveBeenCalled(), { timeout: 2500 })
     })
@@ -129,7 +198,14 @@ describe('PhaseTransition', () => {
 
   describe('Playing → Game Over Transition', () => {
     it('should display "Game Over" message', () => {
-      render(<PhaseTransition visible={true} phase="game_over" fromPhase="playing" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="game_over"
+          fromPhase="playing"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByText(/game over/i)).toBeInTheDocument()
     })
@@ -198,7 +274,14 @@ describe('PhaseTransition', () => {
     it('should have 2-second duration for all transitions', async () => {
       const startTime = Date.now()
 
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       await waitFor(() => expect(mockOnComplete).toHaveBeenCalled(), { timeout: 2500 })
 
@@ -212,7 +295,12 @@ describe('PhaseTransition', () => {
   describe('Styling', () => {
     it('should have full-screen overlay', () => {
       const { container } = render(
-        <PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
       )
 
       const overlay = container.firstChild as HTMLElement
@@ -222,7 +310,12 @@ describe('PhaseTransition', () => {
 
     it('should have semi-transparent backdrop', () => {
       const { container } = render(
-        <PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
       )
 
       const overlay = container.firstChild as HTMLElement
@@ -231,7 +324,12 @@ describe('PhaseTransition', () => {
 
     it('should have high z-index (above game)', () => {
       const { container } = render(
-        <PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
       )
 
       const overlay = container.firstChild as HTMLElement
@@ -241,20 +339,41 @@ describe('PhaseTransition', () => {
 
   describe('Accessibility', () => {
     it('should have dialog role', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
 
     it('should have aria-labelledby', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       const dialog = screen.getByRole('dialog')
       expect(dialog).toHaveAttribute('aria-labelledby')
     })
 
     it('should announce status changes for screen readers', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByRole('status')).toBeInTheDocument()
     })
@@ -262,13 +381,27 @@ describe('PhaseTransition', () => {
 
   describe('Edge Cases', () => {
     it('should handle missing winnerName gracefully', () => {
-      render(<PhaseTransition visible={true} phase="round_end" fromPhase="playing" onComplete={mockOnComplete} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="round_end"
+          fromPhase="playing"
+          onComplete={mockOnComplete}
+        />
+      )
 
       expect(screen.getByText(/round complete/i)).toBeInTheDocument()
     })
 
     it('should handle missing onComplete callback', () => {
-      render(<PhaseTransition visible={true} phase="playing" fromPhase="waiting" onComplete={undefined as any} />)
+      render(
+        <PhaseTransition
+          visible={true}
+          phase="playing"
+          fromPhase="waiting"
+          onComplete={undefined as any}
+        />
+      )
 
       // Should render without crashing
       expect(screen.getByRole('dialog')).toBeInTheDocument()

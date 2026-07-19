@@ -24,7 +24,7 @@ export function mapPlayersToPositions(
   const positionMap = new Map<PlayerPosition, string>()
 
   // Find current player index
-  const currentIndex = players.findIndex((p) => p.id === currentPlayerId)
+  const currentIndex = players.findIndex(p => p.id === currentPlayerId)
   if (currentIndex === -1) {
     return positionMap // Return empty if current player not found
   }

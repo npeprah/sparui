@@ -20,7 +20,7 @@ export function PlayerList({ players, maxPlayers, currentPlayerId }: PlayerListP
           Players ({players.length}/{maxPlayers})
         </h2>
         <div className="text-xs md:text-sm text-gray-400">
-          {players.filter((p) => p.isReady).length} ready
+          {players.filter(p => p.isReady).length} ready
         </div>
       </div>
 
