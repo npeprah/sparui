@@ -576,7 +576,9 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 		PlayerID: c.PlayerID,
 		PlayedAt: time.Now(),
 		IsOnFire: player.IsOnFire,
-		IsFrozen: false, // TODO: Implement freeze logic
+		// A card is only known to be "frozen" once a round resolves and an
+		// opponent breaks a fire streak; that is set in updateFireStreak, not here.
+		IsFrozen: false,
 	}
 	gameState.PlayedCards = append(gameState.PlayedCards, playedCard)
 
@@ -670,6 +672,10 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 		slog.Info("Round won", "winnerId", winnerID, "roundsWon", winner.RoundsWon)
 	}
 
+	// Fire streak & freeze counter (ticket 08). State/visual only - NO points
+	// are awarded for fire or freeze.
+	c.updateFireStreak(gameState, winnerID, winner)
+
 	// Check if the game is over. A Spar game is exactly TotalRounds (5) rounds;
 	// the winner of the final round wins the game and scores by the value of
 	// their winning card (6 -> 3, 7 -> 2, 8+ -> 1). Those points are added to
@@ -744,6 +750,10 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 			"currentRound": gameState.CurrentRound,
 			"roundsWon":    c.getPlayerRoundsWon(gameState),
 			"gameOver":     gameOver,
+			// Fire streak / freeze counter state (ticket 08) for the client to
+			// render. State/visual only - no points involved.
+			"fireStreakPlayer": gameState.FireStreakPlayer,
+			"freezeTriggered":  gameState.FreezeTriggered,
 		},
 	}
 	c.broadcastToRoomIncludingSelf(c.RoomID, roundWonPayload)
@@ -765,6 +775,9 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 	gameState.PlayedCards = []entity.PlayedCard{}
 	gameState.LedSuit = nil
 	gameState.RoundWinner = ""
+	// FreezeTriggered is a momentary "just happened" flag; the roundWon broadcast
+	// above already carried it, so clear it now that the next round is starting.
+	gameState.FreezeTriggered = false
 
 	// Reset player round state
 	for i := range gameState.Players {
@@ -797,6 +810,89 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 		},
 	}
 	c.broadcastToRoomIncludingSelf(c.RoomID, turnChangedPayload)
+}
+
+// fireStreakThreshold is the number of consecutive round wins AS LEADER required
+// to ignite a fire streak. Once a player reaches this many consecutive
+// leader-wins they are "on fire", and the card they open the NEXT round with is
+// marked on fire. This is state/visual only - no points are awarded.
+const fireStreakThreshold = 3
+
+// updateFireStreak maintains the fire-streak and freeze-counter state after a
+// round winner has been determined, but before the round is reset for the next
+// round (so gameState.LeaderID still refers to the round that was just played).
+//
+// A player builds a fire streak by winning consecutive rounds AS THE ROUND'S
+// LEADER. The leader is whoever won the previous round (round 1's leader is the
+// initial leader), so a run of leader-wins is the same player winning
+// consecutive rounds. Reaching fireStreakThreshold (3) consecutive leader-wins
+// ignites the streak: player.IsOnFire is set, which is what marks the card that
+// player opens the following (4th) round with as on fire (see handlePlayCard).
+//
+// When an opponent instead wins the round, an ACTIVE fire streak (a leader who
+// was on fire) is broken and the freeze counter triggers. Fire and freeze are
+// state/visual only - this function never awards points.
+func (c *Client) updateFireStreak(gameState *entity.GameState, winnerID string, winner *entity.GamePlayer) {
+	if winner == nil {
+		return
+	}
+
+	roundLeaderID := gameState.LeaderID
+	wonAsLeader := winnerID == roundLeaderID
+
+	// Capture whether an active fire streak is being broken, before mutating any
+	// streak state below. Only a streak that actually reached the fire threshold
+	// (the leader was on fire) can trigger the freeze counter.
+	fireStreakBroken := false
+	if !wonAsLeader {
+		if brokenLeader := gameState.GetPlayer(roundLeaderID); brokenLeader != nil && brokenLeader.IsOnFire {
+			fireStreakBroken = true
+		}
+	}
+
+	// Only the round winner can carry a streak; reset every other player's.
+	for i := range gameState.Players {
+		p := &gameState.Players[i]
+		if p.ID != winnerID {
+			p.WinStreak = 0
+			p.IsOnFire = false
+		}
+	}
+
+	// Extend the winner's streak only when they won as the round's leader.
+	// Stealing a round as a non-leader starts a fresh streak at 1.
+	if wonAsLeader {
+		winner.WinStreak++
+	} else {
+		winner.WinStreak = 1
+	}
+
+	// Ignite (or sustain) the fire streak at the 3-consecutive-leader-win
+	// threshold.
+	if winner.WinStreak >= fireStreakThreshold {
+		winner.IsOnFire = true
+		gameState.FireStreakPlayer = winnerID
+	} else {
+		winner.IsOnFire = false
+		gameState.FireStreakPlayer = ""
+	}
+
+	// Freeze counter: an opponent breaking an active fire streak freezes it.
+	gameState.FreezeTriggered = fireStreakBroken
+	if fireStreakBroken {
+		// Mark the breaker's winning card frozen so a state snapshot can render
+		// the freeze; the fire streak is over, so clear its holder.
+		for i := range gameState.PlayedCards {
+			if gameState.PlayedCards[i].PlayerID == winnerID {
+				gameState.PlayedCards[i].IsFrozen = true
+			}
+		}
+		gameState.FireStreakPlayer = ""
+		slog.Info("Fire streak broken - freeze triggered",
+			"breakerId", winnerID,
+			"brokenLeaderId", roundLeaderID,
+		)
+	}
 }
 
 // calculateRoundWinner determines the winner based on highest card of led suit

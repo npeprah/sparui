@@ -53,6 +53,10 @@ func convertPlayedCardsToFrontendFormat(playedCards []entity.PlayedCard) []inter
 		result = append(result, map[string]interface{}{
 			"playerId": pc.PlayerID,
 			"card":     convertCardToFrontendFormat(&pc.Card),
+			// Fire streak / freeze card state (ticket 08) so the client can
+			// render the on-fire card and the freeze effect.
+			"isOnFire": pc.IsOnFire,
+			"isFrozen": pc.IsFrozen,
 		})
 	}
 	return result
