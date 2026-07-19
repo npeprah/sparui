@@ -144,6 +144,12 @@ export interface ServerToClientEvents {
     isShowDry: boolean
     currentRound?: number
     gameOver?: boolean
+    // Fire streak / freeze counter state (ticket 08) - visual only, no points.
+    // `frozenCard` is the breaker's winning card that broke a fire streak,
+    // present only when `freezeTriggered` is true.
+    fireStreakPlayer?: string
+    freezeTriggered?: boolean
+    frozenCard?: Card | null
   }) => void
   gameEnded: (data: GameEndedResponse) => void
   turnChanged: (data: TurnChangedPayload) => void

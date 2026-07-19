@@ -740,6 +740,21 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 		)
 	}
 
+	// The freeze counter marks the breaker's winning card frozen in
+	// PlayedCards, but no delivered event serializes PlayedCards at this point
+	// (cardPlayed already fired for that card, and PlayedCards is reset before
+	// the next round). Carry the frozen card on the roundWon payload so the
+	// client can render which card froze. Present only when a freeze triggered.
+	var frozenCard map[string]interface{}
+	if gameState.FreezeTriggered {
+		for i := range gameState.PlayedCards {
+			if gameState.PlayedCards[i].IsFrozen {
+				frozenCard = convertCardToFrontendFormat(&gameState.PlayedCards[i].Card)
+				break
+			}
+		}
+	}
+
 	// Broadcast roundWon event
 	roundWonPayload := map[string]interface{}{
 		"event": "roundWon",
@@ -754,6 +769,7 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 			// render. State/visual only - no points involved.
 			"fireStreakPlayer": gameState.FireStreakPlayer,
 			"freezeTriggered":  gameState.FreezeTriggered,
+			"frozenCard":       frozenCard,
 		},
 	}
 	c.broadcastToRoomIncludingSelf(c.RoomID, roundWonPayload)
