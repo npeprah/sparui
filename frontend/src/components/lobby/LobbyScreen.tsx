@@ -147,6 +147,17 @@ export function LobbyScreen() {
       })
     })
 
+    // Backend event: room:player_disconnected (transient - reconnection window
+    // open; the player is still listed, removal arrives later via
+    // room:player_left).
+    socketService.on('room:player_disconnected', data => {
+      console.log('Player disconnected:', data)
+      addNotification({
+        type: 'warning',
+        message: 'A player disconnected. Waiting for them to reconnect...',
+      })
+    })
+
     // Backend event: room:player_ready
     socketService.on('room:player_ready', data => {
       console.log('Player ready status changed:', data)
@@ -329,6 +340,7 @@ export function LobbyScreen() {
       socketService.off('room:created')
       socketService.off('room:player_joined')
       socketService.off('room:player_left')
+      socketService.off('room:player_disconnected')
       socketService.off('room:player_ready')
       socketService.off('room:settings_updated')
       socketService.off('game:started')
@@ -432,8 +444,8 @@ export function LobbyScreen() {
       return
     }
 
-    // Match backend API spec - only send the settings object
-    socketService.emit('lobby:update_settings', newSettings)
+    // Contract: settings are nested under `settings` (partial updates allowed).
+    socketService.emit('lobby:update_settings', { settings: newSettings })
 
     // Optimistic update
     updateSettings(newSettings)

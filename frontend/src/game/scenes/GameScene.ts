@@ -150,6 +150,8 @@ export class GameScene extends Phaser.Scene {
    */
   shutdown() {
     this.cleanupSubscriptions()
+    // Stop the local turn countdown so its interval doesn't leak past the scene.
+    useGameStore.getState().stopTurnCountdown()
     this.fpsCounter?.destroy()
 
     // Cleanup AudioManager
@@ -1112,16 +1114,11 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // gameStarted - Game begins
-    const gameStartedHandler: ServerToClientEvents['gameStarted'] = data => {
-      useGameStore.getState().setGamePhase('playing')
-      useGameStore.getState().setRoundPhase('playing')
-      useGameStore.getState().setLeader(data.leaderId)
-
-      console.log('[GameScene] Game started:', data)
-    }
-    socketService.on('gameStarted', gameStartedHandler)
-    this.socketHandlers.set('gameStarted', gameStartedHandler)
+    // NOTE: the game-start flow is handled in LobbyScreen (event `game:started`),
+    // which seeds the game store and navigates here; GameScene then reads that
+    // seeded state via dealCardsFromBackendState(). The former bare `gameStarted`
+    // listener was dead (the server never emits it) and read an absent field, so
+    // it has been removed as part of the wire-contract alignment.
 
     // cardPlayed - A player played a card
     const cardPlayedHandler: ServerToClientEvents['cardPlayed'] = data => {
@@ -1265,18 +1262,13 @@ export class GameScene extends Phaser.Scene {
 
     // gameEnded - Game finished
     const gameEndedHandler: ServerToClientEvents['gameEnded'] = data => {
-      const { winnerId, finalScores } = data
-      // Extract winnerName and winnerScore from the event data. The backend may
-      // include these extra fields beyond the declared event contract (see ticket 02).
-      const extra = data as { winnerName?: string; winnerScore?: number }
-      const winnerName = extra.winnerName || 'Unknown'
-      const winnerScore = extra.winnerScore || finalScores?.[winnerId] || 0
+      const { winnerId, winnerName, winnerScore, finalRoundsWon } = data
 
-      // Set the game winner info
+      // Set the game winner info (fields aligned with the backend contract)
       useGameStore.getState().setGameWinner({
         id: winnerId,
-        name: winnerName,
-        score: winnerScore,
+        name: winnerName || 'Unknown',
+        score: winnerScore ?? finalRoundsWon?.[winnerId] ?? 0,
       })
 
       // Set game phase to finished
@@ -1293,7 +1285,7 @@ export class GameScene extends Phaser.Scene {
         audioManager.play(isCurrentPlayerWinner ? 'sound:game_victory' : 'sound:game_defeat')
       }
 
-      console.log('[GameScene] Game ended:', { winnerId, winnerName, winnerScore, finalScores })
+      console.log('[GameScene] Game ended:', { winnerId, winnerName, winnerScore, finalRoundsWon })
     }
     socketService.on('gameEnded', gameEndedHandler)
     this.socketHandlers.set('gameEnded', gameEndedHandler)
@@ -1306,8 +1298,9 @@ export class GameScene extends Phaser.Scene {
       const isMyTurn = currentPlayerId === usePlayerStore.getState().playerId
       usePlayerStore.getState().setIsMyTurn(isMyTurn)
 
-      // Update timer
-      useGameStore.getState().setTimeRemaining(timeRemaining)
+      // Seed the local countdown from the server-provided value and tick it
+      // down locally between server updates (no hardcoded constant).
+      useGameStore.getState().startTurnCountdown(timeRemaining)
 
       // Update card playability based on new turn state
       this.updatePlayableCards(useGameStore.getState().currentSuit)
@@ -1317,9 +1310,10 @@ export class GameScene extends Phaser.Scene {
     socketService.on('turnChanged', turnChangedHandler)
     this.socketHandlers.set('turnChanged', turnChangedHandler)
 
-    // timerUpdate - Timer countdown
+    // timerUpdate - authoritative server tick (ticket 04 engine). Re-seed the
+    // local countdown from `secondsRemaining` so it stays in sync between ticks.
     const timerUpdateHandler: ServerToClientEvents['timerUpdate'] = data => {
-      useGameStore.getState().setTimeRemaining(data.timeRemaining)
+      useGameStore.getState().startTurnCountdown(data.secondsRemaining)
     }
     socketService.on('timerUpdate', timerUpdateHandler)
     this.socketHandlers.set('timerUpdate', timerUpdateHandler)
