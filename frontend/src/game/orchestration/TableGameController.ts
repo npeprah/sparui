@@ -63,6 +63,8 @@ export class TableGameController {
   private readonly handlers = new Map<string, (data: unknown) => void>()
   private readonly unsubscribers: Array<() => void> = []
   private roundWinTimer: ReturnType<typeof setTimeout> | null = null
+  /** Players whose dry declaration has already been landed this game (dedupe). */
+  private readonly declaredDry = new Set<string>()
   private destroyed = false
 
   constructor(
@@ -174,6 +176,7 @@ export class TableGameController {
     this.register('game:restarted', data => this.onReinit(data.gameState))
     this.register('game:started', data => this.onReinit(data.gameState))
     this.register('game:player_declared_dry', data => this.onPlayerDeclaredDry(data))
+    this.register('game:dry_declared', data => this.onPlayerDeclaredDry(data))
     this.register('game:flag_resolved', data => this.onFlagResolved(data))
     this.register('game:flag_error', data => this.onFlagError(data))
     this.register('game:dry_error', data => this.onFlagError(data))
@@ -334,6 +337,7 @@ export class TableGameController {
     // cancel any pending beat so it cannot fire nextRound() against the fresh game.
     this.clearRoundWinTimer()
     if (!gameState) return
+    this.declaredDry.clear()
     const localId = this.player.getState().playerId
 
     this.game.getState().stopTurnCountdown()
@@ -351,8 +355,17 @@ export class TableGameController {
   }
 
   private onPlayerDeclaredDry(
-    data: Parameters<ServerToClientEvents['game:player_declared_dry']>[0]
+    data:
+      | Parameters<ServerToClientEvents['game:player_declared_dry']>[0]
+      | Parameters<ServerToClientEvents['game:dry_declared']>[0]
   ): void {
+    // The declarer receives the private game:dry_declared echo (card always
+    // present); the rest of the room receives game:player_declared_dry. Both
+    // route here so the declaring player gets the same set-aside card, callout
+    // and SFX as everyone else. Dedupe by player so the beat never doubles if
+    // both events ever reach one client.
+    if (this.declaredDry.has(data.playerId)) return
+    this.declaredDry.add(data.playerId)
     this.game.getState().recordDryDeclaration(data.playerId, {
       isShown: data.isShown,
       card: data.card ?? null,
