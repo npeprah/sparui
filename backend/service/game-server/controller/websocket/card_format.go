@@ -86,13 +86,20 @@ func convertGameStateToFrontendFormat(gs *entity.GameState) map[string]interface
 			"isOnFire":   player.IsOnFire,
 		}
 
-		// Add dry card if present
+		// Add dry card if present. A show-dry is revealed face-up (card
+		// included); a hidden dry exposes only the fact + type + owner - the
+		// card identity stays secret until a successful flag reveals it
+		// (ticket 07). This is the state the UI reads to render face-down vs
+		// face-up dry cards.
 		if player.DryCard != nil {
-			playerData["dryCard"] = map[string]interface{}{
-				"card":     convertCardToFrontendFormat(&player.DryCard.Card),
+			dryData := map[string]interface{}{
 				"type":     player.DryCard.Type,
 				"playerId": player.DryCard.PlayerID,
 			}
+			if player.DryCard.Type == entity.DryShown {
+				dryData["card"] = convertCardToFrontendFormat(&player.DryCard.Card)
+			}
+			playerData["dryCard"] = dryData
 		}
 
 		players = append(players, playerData)
