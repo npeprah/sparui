@@ -56,7 +56,7 @@ interface PlaySoundOptions {
  * ```typescript
  * const audioManager = AudioManager.getInstance()
  * audioManager.preload(scene)  // In PreloadScene
- * audioManager.init(scene)     // In GameScene.create()
+ * audioManager.init(scene)     // In TableScene.create()
  * audioManager.play('sound:card_deal')
  * ```
  */

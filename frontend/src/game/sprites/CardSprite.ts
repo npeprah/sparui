@@ -130,7 +130,7 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     this.setOrigin(0.5, 0.5)
     this.setInteractive({ useHandCursor: true })
 
-    // Set initial depth to ensure card is visible (will be adjusted by GameScene)
+    // Set initial depth to ensure card is visible (will be adjusted by TableScene)
     this.setDepth(200)
 
     // Add to scene

@@ -19,6 +19,7 @@
 
 import { socketService } from './socketService'
 import { useGameStore } from '../store/gameStore'
+import { usePlayerStore } from '../store/playerStore'
 import type { Suit, Rank, Card, BackendGameState, LobbySettings } from '../store/types'
 import type { FlagResolvedResponse, GameEndedResponse } from './wireContract'
 
@@ -163,6 +164,11 @@ class SparTestHarness implements SparTestApi {
 
     socketService.on('auth:success', data => {
       this.playerId = data.playerId
+      // Establish the SAME local identity the menu chrome (HomePage) sets on
+      // auth. The e2e harness drives the game directly on /game, bypassing the
+      // menu, so without this the TableScene/TableGameController cannot identify
+      // the local seat (empty playerId => no local hand, everyone an opponent).
+      usePlayerStore.getState().setPlayerId(data.playerId)
       this.record('auth:success', data)
     })
 

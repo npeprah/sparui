@@ -149,6 +149,14 @@ export class TableScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.teardown, this)
     this.events.once(Phaser.Scenes.Events.DESTROY, this.teardown, this)
+
+    // Test-only readiness beacon (VITE_SPAR_TEST): lets the Playwright harness
+    // wait until the scene AND its controller are fully wired before it starts a
+    // game, so the controller never misses the first game:started (which seeds
+    // the local hand). Statically stripped from production builds.
+    if (import.meta.env.VITE_SPAR_TEST === 'true') {
+      ;(window as unknown as { __tableSceneReady?: boolean }).__tableSceneReady = true
+    }
   }
 
   update(): void {
@@ -172,14 +180,9 @@ export class TableScene extends Phaser.Scene {
   // =========================================================================
 
   private buildBackground(): void {
-    const themeKey = `surface_${useThemeStore.getState().selectedTheme}`
-    if (this.textures.exists(themeKey)) {
-      const bg = this.add.image(TABLE.centerX, TABLE.centerY, themeKey)
-      const scale = Math.max(TABLE.width / bg.width, TABLE.height / bg.height)
-      bg.setScale(scale).setDepth(-1000)
-      return
-    }
-    // Fallback gradient wash in the treatment's palette.
+    // Gradient wash painted in-engine from the active treatment's palette. The
+    // table STRUCTURE is fixed and the base colour reskins per theme, so there
+    // are no per-theme surface image assets to load.
     const palette = this.chromePalette()
     const g = this.add.graphics().setDepth(-1000)
     g.fillGradientStyle(palette.bgTop, palette.bgTop, palette.bgBottom, palette.bgBottom, 1)
