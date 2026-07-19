@@ -23,6 +23,10 @@ const SOUND_CONFIG = {
   'sound:show_dry_declaration': 'assets/sounds/sfx/game_events/show_dry_declaration.wav',
   'sound:fire_streak': 'assets/sounds/sfx/game_events/fire_streak.wav',
   'sound:freeze_effect': 'assets/sounds/sfx/game_events/freeze_effect.wav',
+  // Repurposed (Ticket 10): off-suit plays are legal now (flag-policed), so this
+  // is NOT a "wrong suit" cue. Intended trigger: the pre-leader rejection - a
+  // follower attempting to open a trick before the leader has led. Wire the
+  // emit at that rejection site (trigger site not yet present in this branch).
   'sound:invalid_move': 'assets/sounds/sfx/game_events/invalid_move.wav',
   'sound:phase_transition': 'assets/sounds/sfx/game_events/phase_transition.wav',
 } as const

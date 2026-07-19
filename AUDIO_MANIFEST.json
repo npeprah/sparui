@@ -1,0 +1,154 @@
+{
+  "$comment": "Ticket 10 - Spar SFX manifest. Every clip is ORIGINAL audio synthesized by scripts/generate_sfx.py from math primitives (no samples, no third-party recordings). The project owns these bytes outright, so all are commercial-use safe. Format matches what the frontend loads (frontend/src/services/audioManager.ts): mono, 44100 Hz, 16-bit PCM WAV. Durations are in seconds and reproducible (RNG seeded per clip).",
+  "format": {
+    "container": "WAV",
+    "encoding": "PCM signed 16-bit little-endian",
+    "channels": 1,
+    "sample_rate_hz": 44100
+  },
+  "generator": "scripts/generate_sfx.py",
+  "all_commercial_use_safe": true,
+  "sounds": [
+    {
+      "key": "sound:card_deal",
+      "file": "frontend/public/assets/sounds/sfx/cards/card_deal.wav",
+      "duration_s": 0.16,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Paper whoosh + pitched tick for dealing a card."
+    },
+    {
+      "key": "sound:card_flip",
+      "file": "frontend/public/assets/sounds/sfx/cards/card_flip.wav",
+      "duration_s": 0.14,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Crisp 'fwip' with rising blip and noise transient."
+    },
+    {
+      "key": "sound:card_play",
+      "file": "frontend/public/assets/sounds/sfx/cards/card_play.wav",
+      "duration_s": 0.16,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Signature 'thwack': low thump body + bright click + quick pitch drop. Most-played card sound."
+    },
+    {
+      "key": "sound:card_hover",
+      "file": "frontend/public/assets/sounds/sfx/cards/card_hover.wav",
+      "duration_s": 0.09,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Subtle high UI blip for card hover."
+    },
+    {
+      "key": "sound:card_shuffle",
+      "file": "frontend/public/assets/sounds/sfx/cards/card_shuffle.wav",
+      "duration_s": 0.526,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Riffle shuffle: a run of short filtered-noise ticks."
+    },
+    {
+      "key": "sound:card_collect",
+      "file": "frontend/public/assets/sounds/sfx/cards/card_collect.wav",
+      "duration_s": 0.4,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Upward sparkle sweep with bright pings for raking in cards."
+    },
+    {
+      "key": "sound:win_round",
+      "file": "frontend/public/assets/sounds/sfx/game_events/round_win.wav",
+      "duration_s": 0.82,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Bright ascending major arpeggio (C-E-G-C) with a short echo."
+    },
+    {
+      "key": "sound:lose_round",
+      "file": "frontend/public/assets/sounds/sfx/game_events/round_loss.wav",
+      "duration_s": 0.7,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Descending 'wah-wah' two-tone let-down."
+    },
+    {
+      "key": "sound:game_victory",
+      "file": "frontend/public/assets/sounds/sfx/game_events/game_victory.wav",
+      "duration_s": 1.68,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Triumphant fanfare: rising arpeggio into a held major chord stab."
+    },
+    {
+      "key": "sound:game_defeat",
+      "file": "frontend/public/assets/sounds/sfx/game_events/game_defeat.wav",
+      "duration_s": 1.6,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Deflating descending 'doom' with a dour low chord."
+    },
+    {
+      "key": "sound:dry_declaration",
+      "file": "frontend/public/assets/sounds/sfx/game_events/dry_declaration.wav",
+      "duration_s": 0.36,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Cheeky descending square 'boing' for a face-down dry declaration."
+    },
+    {
+      "key": "sound:show_dry_declaration",
+      "file": "frontend/public/assets/sounds/sfx/game_events/show_dry_declaration.wav",
+      "duration_s": 0.58,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Brighter ascending square + sparkle for a face-up show-dry declaration."
+    },
+    {
+      "key": "sound:fire_streak",
+      "file": "frontend/public/assets/sounds/sfx/game_events/fire_streak.wav",
+      "duration_s": 1.28,
+      "source": "original synthesized soundalike",
+      "commercial_use_safe": true,
+      "soundalike_of": "arcade announcer 'on fire!' hype sting (Mortal Kombat / NBA Jam vibe)",
+      "soundalike_note": "EVOKES, does not copy. Built from a crackle (high-passed noise), a rising sweep, a bright chord stab, and a generic formant 'exclamation' blip. No sampled recording, no words, no pitch-contour or timbre match of any trademarked clip.",
+      "description": "Fire-streak 'on fire!' sting played when a win streak ignites."
+    },
+    {
+      "key": "sound:freeze_effect",
+      "file": "frontend/public/assets/sounds/sfx/game_events/freeze_effect.wav",
+      "duration_s": 1.24,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Icy crystalline shimmer descending with a glassy tremolo."
+    },
+    {
+      "key": "sound:invalid_move",
+      "file": "frontend/public/assets/sounds/sfx/game_events/invalid_move.wav",
+      "duration_s": 0.4,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Firm dissonant 'denied' buzz (nnt-nnt).",
+      "repurpose_note": "Ticket 10: off-suit plays are LEGAL now (flag/challenge-policed), so this is no longer a 'wrong suit' cue. Intended trigger: the pre-leader rejection - a follower attempting to open a trick before the leader has led. Wire the emit at that rejection site when it lands; the trigger site is not yet present on this branch, so no wiring was invented. See code comments at frontend/src/services/audioManager.ts and frontend/src/game/constants/animations.ts (SOUND_EVENTS.INVALID_MOVE)."
+    },
+    {
+      "key": "sound:phase_transition",
+      "file": "frontend/public/assets/sounds/sfx/game_events/phase_transition.wav",
+      "duration_s": 0.7,
+      "source": "original synthesized",
+      "commercial_use_safe": true,
+      "description": "Swelling whoosh sweep marking a new game phase."
+    },
+    {
+      "key": "(unwired) toasty",
+      "file": "frontend/public/assets/sounds/sfx/game_events/toasty.wav",
+      "duration_s": 0.54,
+      "source": "original synthesized soundalike",
+      "commercial_use_safe": true,
+      "soundalike_of": "surprise arcade 'toasty!' easter-egg shout (Mortal Kombat vibe)",
+      "soundalike_note": "EVOKES, does not copy. A quick high rising vocal-ish formant blip (generic rising vowel) with a tiny noise onset and a bright tail ping. No sampled recording, no word, no timbre/pitch match of any trademarked clip.",
+      "description": "Easter-egg 'toasty' byte. Asset is generated but NOT yet wired into the loader (audioManager SOUND_CONFIG intentionally left at 16 keys to keep existing tests green). Intended trigger: a rare random easter-egg moment (e.g. a fast/flashy card play or streak spike). Add a 'sound:toasty' key to SOUND_CONFIG and update the audioManager/PreloadScene sound-count tests when wiring it in."
+    }
+  ]
+}

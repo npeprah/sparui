@@ -216,6 +216,9 @@ export const SOUND_EVENTS = {
   SHOW_DRY_DECLARATION: 'sound:show_dry_declaration',
   FIRE_STREAK: 'sound:fire_streak',
   FREEZE_EFFECT: 'sound:freeze_effect',
+  // Repurposed (Ticket 10): emit only for the pre-leader rejection (a follower
+  // trying to open before the leader has led). Off-suit plays are legal and must
+  // NOT trigger this - they are policed by the flag/challenge mechanic instead.
   INVALID_MOVE: 'sound:invalid_move',
   PHASE_TRANSITION: 'sound:phase_transition',
 } as const
