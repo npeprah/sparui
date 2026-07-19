@@ -40,6 +40,22 @@
 - **Blocked:** 1 (TASK-011 - integration test deferred)
 - **Status:** Infrastructure solid and production-ready
 
+### Week 4 Progress - 🔄 IN PROGRESS (Frontend Design Integration)
+- **Total Tasks:** 14 frontend implementation tasks
+- **Completed:** 0 tasks (0%)
+- **In Progress:** 0 tasks
+- **Ready to Start:** 14 tasks (ALL ASSETS AVAILABLE)
+- **Status:** Week 4 frontend implementation ready to begin with complete design asset handoff
+- **Task Breakdown Document:** `/Users/nana/go/src/github.com/npeprah/sparui/WEEK4_FRONTEND_TASKS.md`
+- **Phases:**
+  - Phase 1: Card Visual States & Typography (P0) - 4 tasks
+  - Phase 2: Card Animations (P1) - 2 tasks
+  - Phase 3: Particle Effects Integration (P1) - 3 tasks
+  - Phase 4: Avatar System Integration (P1) - 1 task
+  - Phase 5: Surface Background System (P2) - 1 task
+  - Phase 6: Polish and Optimization (P2) - 3 tasks
+- **Next Steps:** Begin with Phase 1 (Typography & Card States) to establish visual foundation
+
 ### Week 2 Progress - ✅ 100% COMPLETE (10/10 tasks - ALL ASSETS GENERATED) 🎉
 - **Total Tasks:** 10 (5 Design + 5 Frontend)
 - **Completed:** 10 tasks (100%)
@@ -3064,13 +3080,121 @@ Week 1: Setup → Week 2: Assets → Week 3: Game Scene → Week 4: Core Logic �
 
 ---
 
+---
+
+## Week 4 Frontend Implementation Task Breakdown
+
+**Status:** ✅ READY TO BEGIN - Complete task breakdown document created
+**Document:** `/Users/nana/go/src/github.com/npeprah/sparui/WEEK4_FRONTEND_TASKS.md`
+**Created:** December 29, 2025
+**Total Tasks:** 14 atomic, testable tasks
+**Estimated Time:** 28-44 hours (3-5 days)
+
+### Task Summary by Phase
+
+**Phase 1: Card Visual States & Typography (P0 - Critical)**
+- [W4-001] Implement Card Typography System (M: 2-4 hrs)
+- [W4-002] Implement Card Visual States (M: 3-4 hrs)
+- [W4-003] Implement Fire and Frozen Card States (M: 3-4 hrs)
+- [W4-004] Implement Card Color Palettes by Suit (S: 1-2 hrs)
+
+**Phase 2: Card Animations (P1 - High)**
+- [W4-005] Implement Card Deal Animation (M: 2-3 hrs)
+- [W4-006] Implement Play/Flip/Win/Lose/Collect Animations (L: 4-6 hrs)
+
+**Phase 3: Particle Effects Integration (P1 - High)**
+- [W4-007] Integrate Particle Effect Textures (M: 3-4 hrs)
+- [W4-008] Implement Winner Celebration Particles (M: 2-3 hrs)
+- [W4-009] Implement Fire & Freeze Particles for Card States (S: 1-2 hrs)
+
+**Phase 4: Avatar System Integration (P1 - High)**
+- [W4-010] Implement Avatar Component and Selection (M: 2-3 hrs)
+
+**Phase 5: Surface Background System (P2 - Medium)**
+- [W4-011] Implement Surface Loading and Switching (M: 3-4 hrs)
+
+**Phase 6: Polish and Optimization (P2 - Medium)**
+- [W4-012] Optimize Rendering Performance (M: 2-3 hrs)
+- [W4-013] Implement Design Consistency Validation (S: 1-2 hrs)
+- [W4-014] Implement Accessibility Enhancements (M: 2-3 hrs)
+
+### Design Asset Handoffs Used
+
+**From Designer:**
+1. **Card Design Handoff** - Complete visual specifications for all card states, animations, typography, and color palettes
+   - File: `/Users/nana/go/src/github.com/npeprah/sparui/CARD_DESIGN_HANDOFF.md`
+   - Content: 634 lines of pixel-perfect specifications
+   - Includes: Typography (Orbitron font), 6 visual states, 5 animation types, 4 suit color palettes, Kente patterns
+
+2. **Avatar Design Handoff** - Complete avatar system specifications with 5 character designs
+   - File: `/Users/nana/go/src/github.com/npeprah/sparui/AVATAR_DESIGN_HANDOFF.md`
+   - Content: 977 lines of character design specs
+   - Includes: 5 avatars (256x256px), 3 display sizes, arcade styling, cultural representation
+
+3. **Surface Design Document** - Complete surface background themes and integration
+   - File: `/Users/nana/go/src/github.com/npeprah/sparui/frontend/public/assets/surfaces/SURFACE_DESIGNS.md`
+   - Content: 489 lines of theme specifications
+   - Includes: 4 themed surfaces (1920x1080px), responsive scaling, accessibility validation
+
+### Success Criteria
+
+**Visual Fidelity:**
+- All card states match design handoff pixel-perfect
+- Typography exactly matches specs (Orbitron font, sizes, weights, shadows)
+- Color palettes match hex codes exactly
+- Animations match timing, easing, property values from specs
+- Particle effects match design intent
+- Avatars display correctly at all sizes with proper styling
+- Surfaces display correctly and scale responsively
+
+**Performance:**
+- Desktop: 58-62 FPS sustained during gameplay
+- Mobile: 38-42 FPS sustained during gameplay
+- Tablet: 48-52 FPS sustained during gameplay
+- Load time: < 2 seconds on 4G connection
+- Zero memory leaks after 20+ rounds
+
+**Code Quality:**
+- All new code passes TypeScript strict mode
+- Test coverage: 85%+ for new code
+- Zero ESLint errors or warnings
+- All tests passing (unit, integration, visual, performance)
+
+**Accessibility:**
+- WCAG AA compliance for contrast ratios
+- Keyboard navigation functional
+- Reduced motion preference respected
+- Screen reader announcements for game events
+- Colorblind-friendly design validated
+
+### Suggested Execution Order (5 days)
+
+**Day 1:** Typography System + Color Palettes + Card Visual States (P0)
+**Day 2:** Fire & Frozen States + Particle Textures (P0 + P1)
+**Day 3:** Deal Animation + Play/Flip/Win/Lose/Collect Animations (P1)
+**Day 4:** Winner Celebrations + Fire/Freeze Particles + Avatar Component + Surface System (P1 + P2)
+**Day 5:** Performance Optimization + Design Consistency + Accessibility (P2)
+
+### Ready to Begin
+
+All design assets are complete and available:
+- 34 card images in `/frontend/public/assets/cards/`
+- 34 particle textures in `/frontend/public/assets/particles/`
+- 5 player avatars in `/frontend/public/assets/avatars/`
+- 4 surface backgrounds in `/frontend/public/assets/surfaces/`
+- 16+ sound effects in `/frontend/public/assets/sounds/sfx/`
+
+The designer has delivered pixel-perfect specifications. The frontend engineer has everything needed to implement the vision exactly as designed.
+
+---
+
 **Checkpoint Status:** 🎉 ALL DESIGN ASSETS 100% COMPLETE - HISTORIC MILESTONE - WEEK 2 DONE
-**Last Updated:** December 20, 2025 - Historic Design Achievement: All 77 design assets generated and delivered (Cards 34/34, Particles 34/34, Avatars 5/5, Surfaces 4/4, Sounds complete)
-**Next Major Update:** After Week 4 frontend integration of all assets begins
+**Last Updated:** December 29, 2025 - Week 4 frontend task breakdown created, ready for implementation
+**Next Major Update:** After Week 4 frontend integration begins
 **Overall Project Health:** EXCEPTIONAL - Backend MVP 100% complete + All design assets 100% generated + Frontend ready for final integration
 **Design Assets:** 77 files generated (34 cards, 34 particles, 5 avatars, 4 surfaces, 16+ sounds) - all actual files, not specs
 **Week 2 Status:** 100% COMPLETE with all assets generated and verified in directories
 **Backend Progress:** 100% complete (Week 3: 10/10, Week 5: 4/4, Week 6: 3/3) - Full game lifecycle operational
 **Backend Statistics:** 280+ tests, 100% pass rate, 82%+ coverage, 0 race conditions, ~11,000 lines production code
-**Frontend Status:** Week 2 100% complete, all assets now available for integration
-**Next Priority:** Week 4 frontend integration - integrate all visual/audio assets + connect to backend game engine
+**Frontend Status:** Week 2 100% complete, all assets now available for integration, Week 4 task breakdown complete
+**Next Priority:** Week 4 frontend implementation - Begin with Phase 1 (Typography & Card States) using WEEK4_FRONTEND_TASKS.md

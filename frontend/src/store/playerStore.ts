@@ -46,7 +46,7 @@ export const usePlayerStore = create<PlayerState>()(
       // Initial state
       playerId: '',
       playerName: 'Guest',
-      avatar: '',
+      avatar: 'avatar_01', // Default to first avatar
       token: null,
       totalWins: 0,
       totalGames: 0,

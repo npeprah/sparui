@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="url(#grad1)" stroke="#FF4444" stroke-width="4"/>
+
+  <!-- Face -->
+  <circle cx="128" cy="128" r="80" fill="#8B4513"/>
+
+  <!-- Eyes -->
+  <circle cx="105" cy="115" r="8" fill="#000"/>
+  <circle cx="151" cy="115" r="8" fill="#000"/>
+
+  <!-- Smile -->
+  <path d="M 100 145 Q 128 165 156 145" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Hair (Afro style) -->
+  <ellipse cx="128" cy="85" rx="55" ry="45" fill="#000"/>
+
+  <!-- Label: K for Kofi -->
+  <text x="128" y="200" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FFD700" text-anchor="middle">KOFI</text>
+
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6666;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF0000;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

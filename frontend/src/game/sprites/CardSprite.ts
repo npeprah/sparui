@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import type { Suit, Rank } from '../../store/types'
+import type { CardState } from '../constants/cardStates'
 import { getCardAssetKey } from '../constants/cards'
 import {
   createFlipAnimation,
@@ -9,6 +10,23 @@ import {
   calculateCollectStagger,
 } from '../utils/animations'
 import { emitSoundEvent, triggerHaptic, GLOW_CONFIG } from '../constants/animations'
+import {
+  createCardDealAnimation,
+  createCardPlayAnimation,
+  createSuitSymbolPulseAnimation,
+  createHoverFloatAnimation,
+  createHoverExitAnimation,
+  createFireStateAnimation,
+  createFrozenStateAnimation,
+  applyDisabledState,
+  removeDisabledState,
+  createGlowEffect,
+  updateGlowPosition,
+} from '../utils/cardAnimations'
+import {
+  applyCardVisualState,
+  transitionToState,
+} from '../utils/cardVisuals'
 
 /**
  * CardSprite - Interactive card game object
@@ -25,11 +43,15 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private _playable: boolean = false
   private _selected: boolean = false
   private _faceDown: boolean = false
+  private _visualState: CardState = 'default'
 
   // Visual effect properties
   private hoverTween?: Phaser.Tweens.Tween
   private glowEffect?: Phaser.GameObjects.Graphics
   private originalY: number
+  private originalScale: number = 1
+  private suitPulseTween?: Phaser.Tweens.Tween
+  private stateTween?: Phaser.Tweens.Tween
 
   // Event callbacks
   public onCardClick?: (card: CardSprite) => void
@@ -71,19 +93,55 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     this.cardId = `${suit}_${rank}_${Date.now()}`
     this.originalY = y
 
-    console.log(`[CardSprite] Card created at (${x}, ${y}) with depth ${this.depth}`)
-
     // Setup sprite
     this.setOrigin(0.5, 0.5)
     this.setInteractive({ useHandCursor: true })
 
+    // Set initial depth to ensure card is visible (will be adjusted by GameScene)
+    this.setDepth(200)
+
     // Add to scene
     scene.add.existing(this)
+
+    console.log(`[CardSprite] Card created at (${x}, ${y}) with depth ${this.depth}`)
 
     console.log(`[CardSprite] Card added to scene, visible: ${this.visible}, active: ${this.active}`)
 
     // Setup interactions
     this.setupInteractions()
+
+    // Apply default visual state
+    applyCardVisualState(this, 'default')
+  }
+
+  /**
+   * Set the visual state of the card
+   * @param state - The visual state to apply
+   */
+  public setState(state: CardState): this {
+    // Don't transition if already in the target state
+    if (this._visualState === state) {
+      return this
+    }
+
+    // Special handling for playable state
+    if (!this._playable && (state === 'hover' || state === 'active')) {
+      // Can't hover or activate if not playable
+      state = 'disabled'
+    }
+
+    const previousState = this._visualState
+    this._visualState = state
+    transitionToState(this, previousState, state)
+
+    return this
+  }
+
+  /**
+   * Get the current visual state
+   */
+  public getVisualState(): CardState {
+    return this._visualState
   }
 
   /**
@@ -122,11 +180,17 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     // Guard: check if card still exists before doing anything
     if (!this.scene || !this.active) return this
 
+    const wasPlayable = this._playable
     this._playable = playable
 
-    // Always keep cards fully visible - no greying/ghosting
-    this.setAlpha(1)
-    this.setTint(0xffffff)
+    // Update visual state based on playable status
+    if (!wasPlayable && playable) {
+      // Becoming playable - restore default state
+      this.setState('default')
+    } else if (wasPlayable && !playable) {
+      // Becoming unplayable - apply disabled state
+      this.setState('disabled')
+    }
 
     // Always keep cards interactive - backend will reject invalid plays
     // This allows players to attempt plays and receive feedback from server
@@ -222,23 +286,21 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * Hover enter effect - lift and scale card
+   * Hover enter effect - using exact specifications from design doc
+   * Duration: 600ms, translateY: -30px, scale: 1.05
    */
   private onHoverEnter(): void {
+    // Don't hover if in disabled state
+    if (this._visualState === 'disabled') return
+
     // Stop any existing hover tween
     if (this.hoverTween) {
       this.hoverTween.stop()
     }
 
-    // Lift and scale up
-    this.hoverTween = this.scene.tweens.add({
-      targets: this,
-      y: this.originalY - 30, // Lift 30px
-      scaleX: this.scaleX * 1.1,
-      scaleY: this.scaleY * 1.1,
-      duration: 200,
-      ease: 'Cubic.easeOut',
-    })
+    // Use exact hover animation from design spec
+    const hoverConfig = createHoverFloatAnimation(this, this.originalY, this.originalScale)
+    this.hoverTween = this.scene.tweens.add(hoverConfig)
 
     // Add glow effect
     this.showHoverGlow()
@@ -253,15 +315,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.hoverTween.stop()
     }
 
-    // Return to original position and scale
-    this.hoverTween = this.scene.tweens.add({
-      targets: this,
-      y: this.originalY,
-      scaleX: this.scaleX / 1.1,
-      scaleY: this.scaleY / 1.1,
-      duration: 200,
-      ease: 'Cubic.easeOut',
-    })
+    // Use exact exit animation from design spec
+    const exitConfig = createHoverExitAnimation(this, this.originalY, this.originalScale)
+    this.hoverTween = this.scene.tweens.add(exitConfig)
 
     // Remove glow
     this.hideHoverGlow()
@@ -640,12 +696,25 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     // Clean up scene-level event handlers
     this.unregisterSceneHandlers()
 
+    // Stop all tweens
     if (this.hoverTween) {
       this.hoverTween.stop()
     }
+    if (this.suitPulseTween) {
+      this.suitPulseTween.stop()
+    }
+    if (this.stateTween) {
+      this.stateTween.stop()
+    }
+
+    // Clean up glow effect
     if (this.glowEffect) {
       this.glowEffect.destroy()
     }
+
+    // Clear state effects
+    this.clearStateEffects()
+
     super.destroy(fromScene)
   }
 
@@ -658,5 +727,202 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       rank: this.rank,
       id: this.cardId,
     }
+  }
+
+  /**
+   * Set card to fire state - animated gradient border and glow
+   * Used when player is on a fire streak
+   */
+  public setFireState(enabled: boolean): this {
+    if (enabled && this._visualState !== 'fire') {
+      this.setState('fire')
+      this.clearStateEffects()
+
+      // Create fire glow effect
+      this.glowEffect = createGlowEffect(this.scene, this, 'fire')
+
+      // Animate the fire glow
+      const fireConfig = createFireStateAnimation(this.glowEffect)
+      this.stateTween = this.scene.tweens.add(fireConfig)
+
+      // Emit fire sound
+      emitSoundEvent(this.scene, 'FIRE_STREAK')
+    } else if (!enabled && this._visualState === 'fire') {
+      this.setState('default')
+      this.clearStateEffects()
+    }
+
+    return this
+  }
+
+  /**
+   * Set card to frozen state - ice blue crystalline border
+   * Used when card is affected by freeze counter
+   */
+  public setFrozenState(enabled: boolean): this {
+    if (enabled && this._visualState !== 'frozen') {
+      this.setState('frozen')
+      this.clearStateEffects()
+
+      // Create frozen glow effect
+      this.glowEffect = createGlowEffect(this.scene, this, 'frozen')
+
+      // Animate the frozen glow
+      const frozenConfig = createFrozenStateAnimation(this.glowEffect)
+      this.stateTween = this.scene.tweens.add(frozenConfig)
+
+      // Apply blue tint to card
+      this.setTint(0xccddff)
+
+      // Emit freeze sound
+      emitSoundEvent(this.scene, 'FREEZE_EFFECT')
+    } else if (!enabled && this._visualState === 'frozen') {
+      this.setState('default')
+      this.clearStateEffects()
+      this.clearTint()
+    }
+
+    return this
+  }
+
+  /**
+   * Set card to disabled state - not playable
+   * Opacity: 0.5, grayscale filter, no interaction
+   */
+  public setDisabledState(disabled: boolean): this {
+    if (disabled && this._visualState !== 'disabled') {
+      this.setState('disabled')
+      this.clearStateEffects()
+      applyDisabledState(this)
+    } else if (!disabled && this._visualState === 'disabled') {
+      this.setState('default')
+      removeDisabledState(this)
+    }
+
+    return this
+  }
+
+  /**
+   * Clear all state effects (glow, tweens)
+   */
+  private clearStateEffects(): void {
+    if (this.stateTween) {
+      this.stateTween.stop()
+      this.stateTween = undefined
+    }
+
+    if (this.glowEffect) {
+      this.glowEffect.destroy()
+      this.glowEffect = undefined
+    }
+  }
+
+  /**
+   * Start continuous suit symbol pulse animation
+   * 2s cycle as specified in design doc
+   */
+  public startSuitPulse(): this {
+    if (this.suitPulseTween) {
+      this.suitPulseTween.stop()
+    }
+
+    const pulseConfig = createSuitSymbolPulseAnimation(this)
+    this.suitPulseTween = this.scene.tweens.add(pulseConfig)
+
+    return this
+  }
+
+  /**
+   * Stop suit symbol pulse animation
+   */
+  public stopSuitPulse(): this {
+    if (this.suitPulseTween) {
+      this.suitPulseTween.stop()
+      this.suitPulseTween = undefined
+
+      // Reset to original scale
+      this.setScale(this.originalScale)
+    }
+
+    return this
+  }
+
+  /**
+   * Animate card deal with exact design specifications
+   * @param targetX - Destination X coordinate
+   * @param targetY - Destination Y coordinate
+   * @param cardIndex - Index for stagger delay (150ms per card)
+   */
+  public animateDeal(targetX: number, targetY: number, cardIndex: number = 0): this {
+    const dealConfig = createCardDealAnimation(this, targetX, targetY, cardIndex)
+
+    // Store the current depth before animation to preserve it
+    const currentDepth = this.depth
+    console.log(`[CardSprite] animateDeal - Starting with depth ${currentDepth} for ${this.suit} ${this.rank}`)
+
+    this.scene.tweens.add({
+      ...dealConfig,
+      onStart: () => {
+        // Aggressively set depth to ensure it's maintained
+        this.setDepth(currentDepth)
+        console.log(`[CardSprite] animateDeal onStart - Set depth to ${currentDepth}, actual depth: ${this.depth}`)
+      },
+      onUpdate: () => {
+        // Force depth on every frame to ensure it never gets reset
+        this.setDepth(currentDepth)
+        // Also force to top of display list on every frame
+        this.scene.children.bringToTop(this)
+      },
+      onComplete: () => {
+        // Final depth set after animation completes
+        this.setDepth(currentDepth)
+        console.log(`[CardSprite] animateDeal onComplete - Final depth: ${this.depth} for ${this.suit} ${this.rank}`)
+
+        // Store final position
+        this.originalY = targetY
+        this.originalScale = this.scaleX
+
+        // Start suit pulse after deal
+        this.startSuitPulse()
+
+        // Emit deal sound with stagger
+        setTimeout(() => {
+          emitSoundEvent(this.scene, 'CARD_DEAL')
+        }, cardIndex * 50) // Slight sound stagger
+      },
+    })
+
+    return this
+  }
+
+  /**
+   * Animate card play with exact design specifications
+   * Duration: 400ms, includes squash effect and random rotation
+   * @param tableCenterX - Table center X coordinate
+   * @param tableCenterY - Table center Y coordinate
+   */
+  public animatePlay(tableCenterX: number, tableCenterY: number): this {
+    // Stop suit pulse when playing
+    this.stopSuitPulse()
+
+    const playConfig = createCardPlayAnimation(this, tableCenterX, tableCenterY)
+
+    this.scene.tweens.add({
+      ...playConfig,
+      onComplete: () => {
+        // Emit play sound
+        emitSoundEvent(this.scene, 'CARD_PLAY')
+        triggerHaptic('CARD_PLAY')
+      },
+    })
+
+    return this
+  }
+
+  /**
+   * Get current card state
+   */
+  public get cardState(): string {
+    return this._visualState
   }
 }

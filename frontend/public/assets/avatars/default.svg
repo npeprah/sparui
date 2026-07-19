@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#666" stroke="#999" stroke-width="4"/>
+
+  <!-- Face -->
+  <circle cx="128" cy="128" r="80" fill="#888"/>
+
+  <!-- Eyes -->
+  <circle cx="105" cy="115" r="8" fill="#333"/>
+  <circle cx="151" cy="115" r="8" fill="#333"/>
+
+  <!-- Neutral expression -->
+  <path d="M 105 145 L 151 145" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Question mark -->
+  <text x="128" y="200" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#DDD" text-anchor="middle">?</text>
+</svg>

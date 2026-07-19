@@ -9,25 +9,25 @@
  * Animation durations (in milliseconds)
  */
 export const ANIMATION_DURATION = {
-  // Card dealing animations
-  DEAL: 400,
-  DEAL_ROTATION: 400,
+  // Card dealing animations - Updated to match design specs
+  DEAL: 800, // Updated from 400ms to match design spec
+  DEAL_ROTATION: 800,
   DEAL_STAGGER: 150, // Delay between each card dealt
 
-  // Card flip animations
-  FLIP: 350,
-  FLIP_HALFWAY: 175, // Half of flip duration for texture swap
+  // Card flip animations - Updated to match design specs
+  FLIP: 400, // Updated from 350ms to match design spec
+  FLIP_HALFWAY: 200, // Half of flip duration for texture swap
 
   // Card play animations
-  PLAY: 400,
+  PLAY: 400, // Matches design spec
   PLAY_HOVER: 200,
 
-  // Win/Lose effect animations
-  WIN_PULSE: 1000,
-  WIN_GLOW: 800,
-  LOSE_FADE: 600,
+  // Win/Lose effect animations - Updated to match design specs
+  WIN_PULSE: 300, // Updated from 1000ms to match design spec
+  WIN_GLOW: 300,
+  LOSE_FADE: 600, // Matches design spec
   LOSE_SHRINK: 600,
-  COLLECT_TO_WINNER: 800,
+  COLLECT_TO_WINNER: 500, // Updated from 800ms to match design spec
 
   // Interaction animations
   HOVER_LIFT: 200,
@@ -75,9 +75,9 @@ export const ANIMATION_SCALE = {
   HOVER_SCALE: 1.1,
   HOVER_LIFT_Y: -30, // pixels
 
-  // Win effects
+  // Win effects - Updated to match design spec
   WIN_PULSE_MIN: 1.0,
-  WIN_PULSE_MAX: 1.08,
+  WIN_PULSE_MAX: 1.05, // Updated from 1.08 to match design spec
 
   // Lose effects
   LOSE_SCALE: 0.95,
@@ -109,9 +109,9 @@ export const ANIMATION_ROTATION = {
   DEAL_MIN: -0.3, // ~-17 degrees
   DEAL_MAX: 0.3,  // ~17 degrees
 
-  // Play rotation range (slight random tilt)
-  PLAY_MIN: -0.15, // ~-8.6 degrees
-  PLAY_MAX: 0.15,  // ~8.6 degrees
+  // Play rotation range (slight random tilt) - Updated to match design spec
+  PLAY_MIN: -0.0873, // -5 degrees in radians
+  PLAY_MAX: 0.0873,  // 5 degrees in radians
 
   // Flip rotation
   FLIP_Y_AXIS: Math.PI, // 180 degrees (simulated with scale)

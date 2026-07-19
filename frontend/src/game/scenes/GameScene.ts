@@ -10,18 +10,14 @@ import {
 import { emitSoundEvent, triggerHaptic } from '../constants/animations'
 import { useGameStore } from '../../store/gameStore'
 import { usePlayerStore } from '../../store/playerStore'
+import { useThemeStore } from '../../store/themeStore'
 import { mapPlayersToPositions, type PlayerPosition } from '../utils/playerPositions'
 import { getPlayableCards } from '../utils/sparRules'
 import { socketService } from '../../services/socketService'
 import type { ServerToClientEvents } from '../../services/socketService'
 import { createFPSCounter, type FPSCounter } from '../utils/fpsCounter'
-import {
-  createConfettiEffect,
-  createSparkleEffect,
-  cleanupParticleEmitters,
-  isMobileDevice,
-} from '../utils/particles'
 import { AudioManager } from '../../services/audioManager'
+import { ParticleEffects } from '../systems/ParticleEffects'
 
 
 /**
@@ -62,6 +58,10 @@ export class GameScene extends Phaser.Scene {
   // Store subscriptions
   private gameStoreUnsubscribe?: () => void
   private playerStoreUnsubscribe?: () => void
+  private themeStoreUnsubscribe?: () => void
+
+  // Background image reference (for theme updates)
+  private backgroundImage?: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle
 
   // Player position mapping (position -> player ID)
   private positionMap: Map<PlayerPosition, string> = new Map()
@@ -74,6 +74,9 @@ export class GameScene extends Phaser.Scene {
 
   // Active particle emitters (for cleanup)
   private activeParticleEmitters: Phaser.GameObjects.Particles.ParticleEmitter[] = []
+
+  // Particle effects system
+  private particleEffects: ParticleEffects | null = null
 
   // Scene initialization flag (prevents race conditions)
   private isSceneReady: boolean = false
@@ -105,6 +108,9 @@ export class GameScene extends Phaser.Scene {
     // Initialize AudioManager
     this.setupAudioManager()
 
+    // Initialize particle effects system
+    this.particleEffects = new ParticleEffects(this)
+
     // Create FPS counter (dev mode only)
     this.fpsCounter = createFPSCounter(this)
 
@@ -119,6 +125,9 @@ export class GameScene extends Phaser.Scene {
 
     // Setup WebSocket event listeners
     this.setupWebSocketListeners()
+
+    // Setup theme change listener
+    this.setupThemeListener()
 
     console.log('[GameScene] About to call dealCardsFromBackendState()')
 
@@ -150,7 +159,13 @@ export class GameScene extends Phaser.Scene {
     const audioManager = AudioManager.getInstance()
     audioManager.destroy()
 
-    // Cleanup active particle emitters
+    // Cleanup particle effects system
+    if (this.particleEffects) {
+      this.particleEffects.cleanup()
+      this.particleEffects = null
+    }
+
+    // Cleanup active particle emitters (legacy)
     this.activeParticleEmitters.forEach((emitter) => {
       if (emitter && emitter.active) {
         emitter.stop()
@@ -192,19 +207,46 @@ export class GameScene extends Phaser.Scene {
   private createBackground(): void {
     const { width, height } = this.cameras.main
 
-    // Table surface - rich green felt
-    const background = this.add.rectangle(width / 2, height / 2, width, height, 0x0a5f38)
-    background.setDepth(-10)
+    // Get selected theme from store
+    const themeStore = useThemeStore.getState()
+    const themeKey = `surface_${themeStore.selectedTheme}`
 
-    // Subtle texture overlay (pattern)
-    const graphics = this.add.graphics()
-    graphics.fillStyle(0x000000, 0.05)
-    for (let x = 0; x < width; x += 40) {
-      for (let y = 0; y < height; y += 40) {
-        graphics.fillCircle(x, y, 2)
-      }
+    // Clean up existing background if it exists
+    if (this.backgroundImage) {
+      this.backgroundImage.destroy()
     }
-    graphics.setDepth(-9)
+
+    // Try to use the selected theme surface
+    if (this.textures.exists(themeKey)) {
+      const background = this.add.image(width / 2, height / 2, themeKey)
+
+      // Scale to cover the entire screen
+      const scaleX = width / background.width
+      const scaleY = height / background.height
+      const scale = Math.max(scaleX, scaleY)
+      background.setScale(scale)
+
+      background.setDepth(-1000) // Much lower depth to ensure it's always behind cards
+      background.setAlpha(1) // Ensure it's fully visible initially
+      this.backgroundImage = background
+      console.log('[GameScene] Background image created with depth:', background.depth)
+    } else {
+      // Fallback to default green felt if theme not loaded
+      console.warn(`[GameScene] Theme texture '${themeKey}' not found, using default`)
+      const background = this.add.rectangle(width / 2, height / 2, width, height, 0x0a5f38)
+      background.setDepth(-1000) // Much lower depth to ensure it's always behind cards
+      this.backgroundImage = background
+
+      // Subtle texture overlay (pattern)
+      const graphics = this.add.graphics()
+      graphics.fillStyle(0x000000, 0.05)
+      for (let x = 0; x < width; x += 40) {
+        for (let y = 0; y < height; y += 40) {
+          graphics.fillCircle(x, y, 2)
+        }
+      }
+      graphics.setDepth(-9)
+    }
 
     // Table title
     const title = this.add.text(width / 2, 40, 'SPAR', {
@@ -572,6 +614,15 @@ export class GameScene extends Phaser.Scene {
     this.playerHands.set(position, hand)
     console.log(`[GameScene] Added card to ${position} hand (now ${hand.length} cards)`)
 
+    // Set depth immediately to ensure card is above background
+    // Higher index = higher depth = appears on top
+    // Use 200 as base to ensure cards are well above background and any other elements
+    card.setDepth(200 + (hand.length - 1)) // Base 200 ensures visibility above background
+
+    // Force card to the top of the display list
+    this.children.bringToTop(card)
+    console.log(`[GameScene] Card ${suit} ${rank} depth set to ${card.depth}, brought to top of display list`)
+
     // Animate to hand position
     this.animateCardToHand(card, position, hand.length - 1)
 
@@ -608,35 +659,25 @@ export class GameScene extends Phaser.Scene {
     const targetX = startX + index * (cardWidth + this.layout.handSpacing)
     const targetY = handPosition.y
 
-    // Calculate stagger delay
-    const delay = calculateDealStagger(index)
+    // Use new animateDeal method with exact specifications from design doc
+    // 800ms duration, 150ms stagger, bounce easing
+    card.animateDeal(targetX, targetY, index)
 
-    // Create deal animation with rotation
-    const dealConfig = createDealAnimation(card, targetX, targetY, delay)
+    // Handle post-animation setup
+    // Note: The animateDeal method handles sound and suit pulse automatically
+    this.time.delayedCall(800 + index * 150, () => {
+      // Guard: check if card still exists before accessing it
+      if (!card.scene || !card.active) return
 
-    // Add animation with sound effect and completion callback
-    this.tweens.add({
-      ...dealConfig,
-      onStart: () => {
-        // Emit sound event for card deal
-        emitSoundEvent(this, 'CARD_DEAL')
-      },
-      onComplete: () => {
-        // Guard: check if card still exists before accessing it
-        if (!card.scene || !card.active) return
-
-        // Flip face up if bottom player
-        if (position === 'bottom') {
-          card.setFaceDown(false)
-          card.setPlayable(true) // Make playable for testing
-        }
-        card.updateOriginalY(targetY)
+      // Flip face up if bottom player
+      if (position === 'bottom') {
+        card.setFaceDown(false)
+        card.setPlayable(true) // Make playable for testing
 
         // Haptic feedback on mobile for bottom player
-        if (position === 'bottom') {
-          triggerHaptic('LIGHT')
-        }
-      },
+        triggerHaptic('LIGHT')
+      }
+      card.updateOriginalY(targetY)
     })
   }
 
@@ -670,7 +711,8 @@ export class GameScene extends Phaser.Scene {
 
         // Set depth so cards to the right overlap cards to the left
         // Higher index = higher depth = appears on top and receives pointer events
-        card.setDepth(index)
+        // Base 200 ensures cards are always visible above background (-10)
+        card.setDepth(200 + index)
       })
     })
   }
@@ -779,21 +821,22 @@ export class GameScene extends Phaser.Scene {
         break
     }
 
-    // Create play animation with random rotation
-    const playConfig = createPlayAnimation(card, targetX, targetY, CARD_SCALES.PLAYED)
+    // Use new animatePlay method with exact specifications from design doc
+    // 400ms duration, squash effect, random rotation
+    // Note: The method handles sound and haptic feedback automatically
+    card.setScale(CARD_SCALES.PLAYED)
+    card.animatePlay(targetX, targetY)
 
-    // Add animation with sound effect and haptic feedback
+    // Store in played cards Map
+    this.playedCards.set(fromPosition, card)
+
+    // Add delayed cleanup for opponent cards
     this.tweens.add({
-      ...playConfig,
-      onStart: () => {
-        // Emit sound event for card play
-        emitSoundEvent(this, 'CARD_PLAY')
-
-        // Haptic feedback on mobile for bottom player
-        if (fromPosition === 'bottom') {
-          triggerHaptic('CARD_PLAY')
-        }
-      },
+      targets: card,
+      scaleX: CARD_SCALES.PLAYED,
+      scaleY: CARD_SCALES.PLAYED,
+      duration: 1, // Immediate
+      delay: 400, // After animation completes
       onComplete: () => {
         // For opponent cards (not bottom), remove from hand Map after animation
         // Bottom player cards are removed via store subscription in syncPlayerHand()
@@ -878,11 +921,85 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Setup theme change listener
+   */
+  private setupThemeListener(): void {
+    // Subscribe to theme store
+    this.themeStoreUnsubscribe = useThemeStore.subscribe((state, prevState) => {
+      // Only update if theme actually changed and scene is ready
+      if (this.isSceneReady && state.selectedTheme !== prevState.selectedTheme) {
+        console.log('[GameScene] Theme changed to:', state.selectedTheme)
+        this.updateBackgroundTheme()
+      }
+    })
+  }
+
+  /**
+   * Update background to new theme with smooth fade transition
+   */
+  private updateBackgroundTheme(): void {
+    const { width, height } = this.cameras.main
+    const themeStore = useThemeStore.getState()
+    const themeKey = `surface_${themeStore.selectedTheme}`
+
+    // Store reference to old background for fade out
+    const oldBackground = this.backgroundImage
+
+    // Try to use the new theme surface
+    if (this.textures.exists(themeKey)) {
+      const newBackground = this.add.image(width / 2, height / 2, themeKey)
+
+      // Scale to cover the entire screen
+      const scaleX = width / newBackground.width
+      const scaleY = height / newBackground.height
+      const scale = Math.max(scaleX, scaleY)
+      newBackground.setScale(scale)
+
+      newBackground.setDepth(-1000) // Much lower depth to ensure it's always behind cards
+
+      // Start new background as transparent
+      newBackground.setAlpha(0)
+
+      // Fade in new background
+      this.tweens.add({
+        targets: newBackground,
+        alpha: 1,
+        duration: 300,
+        ease: 'Power2',
+      })
+
+      // Update reference to new background
+      this.backgroundImage = newBackground
+
+      // Fade out and destroy old background if it exists
+      if (oldBackground) {
+        this.tweens.add({
+          targets: oldBackground,
+          alpha: 0,
+          duration: 300,
+          ease: 'Power2',
+          onComplete: () => {
+            oldBackground.destroy()
+          }
+        })
+      }
+
+      console.log('[GameScene] Background updated to theme:', themeStore.selectedTheme)
+    } else {
+      console.warn(`[GameScene] Theme texture '${themeKey}' not found, using default`)
+      const background = this.add.rectangle(width / 2, height / 2, width, height, 0x0a5f38)
+      background.setDepth(-1000) // Much lower depth to ensure it's always behind cards
+      this.backgroundImage = background
+    }
+  }
+
+  /**
    * Cleanup store subscriptions
    */
   private cleanupSubscriptions(): void {
     this.gameStoreUnsubscribe?.()
     this.playerStoreUnsubscribe?.()
+    this.themeStoreUnsubscribe?.()
     this.cleanupWebSocketListeners()
   }
 
@@ -1092,9 +1209,11 @@ export class GameScene extends Phaser.Scene {
 
       // Update win streaks
       const players = useGameStore.getState().players
+      let winnerStreak = 0
       players.forEach((player) => {
         if (player.id === winnerId) {
           useGameStore.getState().incrementWinStreak(player.id)
+          winnerStreak = player.winStreak + 1 // Get the new streak value
         } else {
           useGameStore.getState().resetWinStreak(player.id)
         }
@@ -1118,28 +1237,25 @@ export class GameScene extends Phaser.Scene {
         }
       })
 
-      // Trigger confetti particles for winner
-      if (winnerCard) {
-        const isMobile = isMobileDevice(this)
-        const confettiEmitters = createConfettiEffect(this, {
+      // Trigger particle effects based on game state
+      if (winnerCard && this.particleEffects) {
+        // Victory explosion for round win
+        this.particleEffects.playVictoryExplosion({
           x: winnerCard.x,
-          y: winnerCard.y,
-          quantity: 30,
-          isMobile,
+          y: winnerCard.y
         })
-        this.activeParticleEmitters.push(...confettiEmitters)
 
-        // Also add sparkles
-        const sparkleEmitter = createSparkleEffect(this, {
-          x: winnerCard.x,
-          y: winnerCard.y,
-          quantity: 15,
-          isMobile,
-        })
-        this.activeParticleEmitters.push(sparkleEmitter)
+        // Fire streak effect if player has 3+ win streak
+        if (winnerStreak >= 3) {
+          this.particleEffects.playFireStreakEffect({
+            x: winnerCard.x,
+            y: winnerCard.y
+          })
 
-        // Cleanup particles after animation
-        cleanupParticleEmitters([...confettiEmitters, sparkleEmitter], 2000)
+          // Play fire streak sound
+          const audioManager = AudioManager.getInstance()
+          audioManager.play('sound:fire_streak')
+        }
       }
 
       // Wait for animations, then clean up
@@ -1169,6 +1285,17 @@ export class GameScene extends Phaser.Scene {
 
       // Set game phase to finished
       useGameStore.getState().setGamePhase('finished')
+
+      // Play victory particle effects
+      if (this.particleEffects) {
+        // Play combined victory effect (confetti + explosion)
+        this.particleEffects.playGameVictoryEffect()
+
+        // Play victory sound
+        const audioManager = AudioManager.getInstance()
+        const isCurrentPlayerWinner = winnerId === usePlayerStore.getState().playerId
+        audioManager.play(isCurrentPlayerWinner ? 'sound:game_victory' : 'sound:game_defeat')
+      }
 
       console.log('[GameScene] Game ended:', { winnerId, winnerName, winnerScore, finalScores })
     }

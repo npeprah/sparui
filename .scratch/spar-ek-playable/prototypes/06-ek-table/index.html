@@ -1,0 +1,927 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spar EK Table - Prototype (Ticket 06)</title>
+<!--
+  ============================================================================
+  THROWAWAY UI PROTOTYPE - Ticket 06: "What should the EK-style card table
+  look and feel like?"  DO NOT SHIP. No build step, no backend, mock data only.
+
+  3 radically different variants, switchable via ?variant=A|B|C and the floating
+  bottom-center switcher (arrows / arrow keys).
+    A = Classic EK  : big central pile, wide bottom fan, opponents across the top.
+    B = Comic Panel : side-rail opponents, halftone pop-art chrome, POW bursts.
+    C = Neon Arcade : big fewer cards, centerpiece timer ring, avatar+count chips.
+
+  Motion beats (top-right control deck, or press D/P/W/F/G, or Auto loop):
+    DEAL  PLAY  ROUND WIN  FIRE STREAK  FLAG
+  ============================================================================
+-->
+<style>
+  :root {
+    --card-w: 92px;
+    --card-h: 130px;
+    --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);      /* overshoot */
+    --bounce-hard: cubic-bezier(0.18, 1.9, 0.5, 1);   /* stronger overshoot */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    transition: background 0.4s ease;
+  }
+
+  /* ---------- shared card ---------- */
+  .card {
+    position: absolute;
+    width: var(--card-w);
+    height: var(--card-h);
+    border-radius: 12px;
+    background: #fffdf7;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 10px 18px rgba(0,0,0,0.35);
+    transform-origin: bottom center;
+    will-change: transform, opacity;
+    transition: transform 0.55s var(--bounce), opacity 0.3s ease;
+    overflow: hidden;
+  }
+  .card .rank { position: absolute; font-weight: 900; line-height: 1; }
+  .card .rank.tl { top: 7px; left: 9px; font-size: 20px; }
+  .card .rank.br { bottom: 7px; right: 9px; font-size: 20px; transform: rotate(180deg); }
+  .card .pip-lg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 46px; }
+  .card.red  { color: #E4002B; }
+  .card.blk  { color: #14100c; }
+  .card.playable { cursor: pointer; }
+  .card.playable::after {
+    content: ""; position: absolute; inset: 0; border-radius: 12px;
+    box-shadow: inset 0 0 0 4px #FFD700; opacity: 0; transition: opacity .2s;
+  }
+  .card.playable:hover::after { opacity: 1; }
+  .card.playable:hover { transform: var(--hover-tf, translateY(-18px)) !important; z-index: 50; }
+
+  /* card back */
+  .card.back { color: #fff; }
+  .card.back .backart {
+    position: absolute; inset: 6px; border-radius: 8px;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 8px, transparent 8px 16px),
+      radial-gradient(circle at 50% 40%, #ff8a3d, #c81d5a 70%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; box-shadow: inset 0 0 0 3px rgba(255,255,255,.5);
+  }
+
+  .card.on-fire { animation: firewiggle .28s infinite; }
+  .card .flames {
+    position: absolute; inset: -30% -10% -10% -10%; pointer-events: none;
+    display: none; align-items: flex-end; justify-content: center;
+    font-size: 48px; filter: drop-shadow(0 0 12px #ff6a00);
+  }
+  .card.on-fire .flames { display: flex; animation: flamepulse .5s infinite alternate; }
+  .card.on-fire { box-shadow: 0 0 24px 6px #ff7a00, 0 0 48px 12px #ff3d00; }
+  @keyframes firewiggle { 0%,100%{ transform: var(--rest-tf) rotate(-2deg);} 50%{ transform: var(--rest-tf) rotate(2deg);} }
+  @keyframes flamepulse { from { transform: translateY(4px) scale(.9);} to { transform: translateY(-6px) scale(1.1);} }
+  @keyframes flamepulse2 { from{opacity:.7;} to{opacity:1;} }
+
+  /* ---------- opponent generic ---------- */
+  .opp-count-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-weight: 900; border-radius: 999px; padding: 3px 10px; font-size: 14px;
+  }
+
+  /* ---------- turn timer ---------- */
+  .timerbar-wrap { border-radius: 999px; overflow: hidden; }
+  .timerbar-fill { height: 100%; transition: width 0.2s linear; }
+
+  /* ---------- control deck (dev) ---------- */
+  #controls {
+    position: fixed; top: 12px; right: 12px; z-index: 9000;
+    display: flex; flex-direction: column; gap: 6px; align-items: stretch;
+    background: rgba(10,10,20,.82); padding: 10px; border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.5); backdrop-filter: blur(4px);
+  }
+  #controls .lbl { color: #ffd700; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; text-align:center; }
+  #controls button {
+    font: inherit; font-weight: 800; font-size: 12px; cursor: pointer;
+    border: 0; border-radius: 8px; padding: 7px 10px; color: #14100c;
+    background: #ffd700; box-shadow: 0 3px 0 #b58a00; transition: transform .08s;
+  }
+  #controls button:active { transform: translateY(2px); box-shadow: 0 1px 0 #b58a00; }
+  #controls button.auto.on { background: #37e07a; box-shadow: 0 3px 0 #1c8a45; }
+  #controls .hint { color:#9aa; font-size:9px; text-align:center; max-width:150px; }
+
+  /* PROTOTYPE watermark */
+  #proto-tag {
+    position: fixed; top: 12px; left: 12px; z-index: 9000;
+    background: repeating-linear-gradient(45deg,#111 0 12px,#ffd400 12px 24px);
+    color: #fff; font-weight: 900; font-size: 11px; letter-spacing: 1px;
+    padding: 6px 10px; border-radius: 6px; text-shadow: 0 1px 2px #000;
+    border: 2px solid #000;
+  }
+
+  /* ---------- switcher (dev) ---------- */
+  #switcher {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 9500; display: flex; align-items: center; gap: 4px;
+    background: #101018; border: 3px solid #ffd700; border-radius: 999px;
+    padding: 5px 6px; box-shadow: 0 8px 26px rgba(0,0,0,.6);
+  }
+  #switcher button {
+    width: 40px; height: 40px; border-radius: 999px; border: 0; cursor: pointer;
+    font-size: 20px; font-weight: 900; color: #101018; background: #ffd700;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 0 #b58a00; transition: transform .08s;
+  }
+  #switcher button:active { transform: translateY(2px); box-shadow: 0 1px 0 #b58a00; }
+  #switcher .curlabel {
+    color: #fff; font-weight: 900; font-size: 14px; padding: 0 16px;
+    min-width: 230px; text-align: center; letter-spacing: .3px;
+  }
+  #switcher .curlabel b { color: #ffd700; }
+
+  /* ---------- banners (variant-styled) ---------- */
+  #banner {
+    position: fixed; left: 50%; top: 42%; transform: translate(-50%,-50%) scale(0);
+    z-index: 8500; pointer-events: none; text-align: center;
+    opacity: 0;
+  }
+  #banner.show { animation: bannerpop .6s var(--bounce-hard) forwards; }
+  @keyframes bannerpop {
+    0% { transform: translate(-50%,-50%) scale(0) rotate(-12deg); opacity: 0; }
+    60% { opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(1) rotate(-4deg); opacity: 1; }
+  }
+  #banner.hide { animation: bannerout .3s ease forwards; }
+  @keyframes bannerout { to { transform: translate(-50%,-50%) scale(.6); opacity: 0; } }
+
+  /* variant A banner: comic starburst */
+  body[data-variant="A"] #banner .msg {
+    font-size: 62px; font-weight: 900; color: #fff; padding: 30px 60px;
+    background: radial-gradient(circle at 50% 40%, #ff5a1f, #E4002B);
+    border: 6px solid #14100c;
+    border-radius: 20px;
+    text-shadow: 3px 3px 0 #14100c, -2px -2px 0 #14100c;
+    box-shadow: 0 0 0 8px #FFD700, 0 20px 40px rgba(0,0,0,.5);
+  }
+  /* variant B banner: speech bubble / halftone */
+  body[data-variant="B"] #banner .msg {
+    font-size: 60px; font-weight: 900; color: #14100c;
+    font-family: "Impact","Arial Black",sans-serif; letter-spacing: 2px;
+    padding: 26px 54px; background: #ffd400;
+    border: 8px solid #14100c; border-radius: 8px;
+    box-shadow: 12px 12px 0 #14100c;
+    text-transform: uppercase;
+  }
+  body[data-variant="B"] #banner .msg::before {
+    content:""; position:absolute; left:40px; bottom:-34px; width:0; height:0;
+    border:18px solid transparent; border-top-color:#14100c; border-bottom:0;
+  }
+  /* variant C banner: neon glow */
+  body[data-variant="C"] #banner .msg {
+    font-size: 58px; font-weight: 900; color: #fff; letter-spacing: 4px;
+    padding: 26px 56px; background: rgba(13,2,33,.85);
+    border: 3px solid #00F5FF; border-radius: 14px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px #FF006E, 0 0 22px #FF006E;
+    box-shadow: 0 0 24px #00F5FF, inset 0 0 24px rgba(0,245,255,.35);
+  }
+
+  /* floating POW bursts (variant B mostly, reused) */
+  .pow {
+    position: fixed; z-index: 8400; font-weight: 900; pointer-events: none;
+    font-family: "Impact","Arial Black",sans-serif; color: #ffd400;
+    text-shadow: 3px 3px 0 #14100c; font-size: 54px;
+    animation: powpop .6s var(--bounce-hard) forwards;
+  }
+  @keyframes powpop {
+    0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+    50% { transform: scale(1.25) rotate(6deg); opacity: 1; }
+    100% { transform: scale(1) rotate(-4deg); opacity: 0; }
+  }
+
+  /* confetti / sparks */
+  .spark {
+    position: fixed; z-index: 8300; width: 12px; height: 12px; border-radius: 2px;
+    pointer-events: none;
+  }
+
+  /* =========================================================================
+     VARIANT A - CLASSIC EK  (warm afro-heritage cream / red / gold)
+     ========================================================================= */
+  body[data-variant="A"] {
+    background:
+      radial-gradient(circle at 50% 42%, #ffe9c7 0%, #f6c98a 42%, #e0964a 100%);
+  }
+  body[data-variant="A"] #stage { position: absolute; inset: 0; }
+  /* opponents across the top */
+  body[data-variant="A"] .a-opp-row {
+    position: absolute; top: 22px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 70px;
+  }
+  body[data-variant="A"] .a-opp { position: relative; width: 150px; text-align: center; }
+  body[data-variant="A"] .a-opp .name {
+    font-weight: 900; font-size: 16px; color: #5a2a0a;
+    background: #ffd700; display: inline-block; padding: 3px 14px;
+    border-radius: 999px; border: 3px solid #5a2a0a; margin-bottom: 6px;
+  }
+  body[data-variant="A"] .a-opp.active .name { background: #E4002B; color: #fff; animation: nudge 1s infinite; }
+  @keyframes nudge { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  body[data-variant="A"] .a-opp .fan { position: relative; height: 92px; }
+  body[data-variant="A"] .a-opp .fan .card { --card-w: 46px; --card-h: 66px; top: 8px; }
+  body[data-variant="A"] .a-opp .cnt {
+    position:absolute; right: 6px; top: 40px; z-index: 30;
+    background:#14100c; color:#ffd700; border:2px solid #ffd700;
+  }
+  /* big central pile */
+  body[data-variant="A"] #play-pile {
+    position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%);
+    width: 220px; height: 250px;
+  }
+  body[data-variant="A"] #play-pile .pileglow {
+    position:absolute; inset:-24px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,215,0,.55), transparent 68%);
+  }
+  body[data-variant="A"] #play-pile .pilelabel {
+    position:absolute; top:-40px; left:50%; transform:translateX(-50%);
+    font-weight:900; color:#5a2a0a; font-size:14px; letter-spacing:2px;
+  }
+  /* bottom hand - wide arc */
+  body[data-variant="A"] #hand {
+    position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+    width: 640px; height: 200px;
+  }
+  body[data-variant="A"] .you-badge {
+    position:absolute; bottom: 8px; left: 18px; z-index: 40;
+    background:#E4002B; color:#fff; border:3px solid #14100c;
+    font-weight:900; padding:6px 14px; border-radius:999px; font-size:15px;
+  }
+  body[data-variant="A"] #hud-score {
+    position: absolute; bottom: 18px; right: 20px; z-index: 40;
+    background:#fffdf7; border:4px solid #5a2a0a; border-radius:14px;
+    padding:10px 16px; font-weight:900; color:#5a2a0a; box-shadow:0 6px 0 #5a2a0a;
+    text-align:right;
+  }
+  body[data-variant="A"] #hud-score .fire { color:#E4002B; }
+
+  /* =========================================================================
+     VARIANT B - COMIC PANEL  (pop-art halftone: yellow / red / ink black)
+     ========================================================================= */
+  body[data-variant="B"] {
+    background:
+      radial-gradient(rgba(0,0,0,.14) 2px, transparent 2px) 0 0 / 14px 14px,
+      linear-gradient(135deg, #ffd400 0%, #ffb700 100%);
+  }
+  body[data-variant="B"] #stage { position: absolute; inset: 0; }
+  body[data-variant="B"] #stage::after {
+    /* central comic panel frame */
+    content:""; position:absolute; inset: 14px; border: 6px solid #14100c;
+    border-radius: 6px; pointer-events:none;
+    box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 10px #14100c;
+  }
+  /* side rails */
+  body[data-variant="B"] .b-rail {
+    position: absolute; top: 60px; bottom: 190px; width: 190px;
+    display: flex; flex-direction: column; justify-content: space-around; align-items: center;
+  }
+  body[data-variant="B"] .b-rail.left { left: 30px; }
+  body[data-variant="B"] .b-rail.right { right: 30px; }
+  body[data-variant="B"] .b-opp {
+    background:#fff; border:5px solid #14100c; border-radius:8px; padding:8px;
+    text-align:center; width: 150px; box-shadow: 6px 6px 0 #14100c;
+    position: relative;
+  }
+  body[data-variant="B"] .b-opp.active { background:#ff4d6d; box-shadow: 6px 6px 0 #14100c, 0 0 0 4px #14100c; }
+  body[data-variant="B"] .b-opp .name {
+    font-family:"Impact","Arial Black",sans-serif; font-size:18px; letter-spacing:1px;
+    text-transform:uppercase; color:#14100c;
+  }
+  body[data-variant="B"] .b-opp .fan { position:relative; height:60px; margin-top:6px; }
+  body[data-variant="B"] .b-opp .fan .card { --card-w: 40px; --card-h: 56px; top: 4px; }
+  body[data-variant="B"] .b-opp .cnt { background:#14100c; color:#ffd400; margin-top:4px; }
+  /* offset central pile inside panel */
+  body[data-variant="B"] #play-pile {
+    position:absolute; left: 50%; top: 40%; transform: translate(-50%,-50%);
+    width: 200px; height: 230px;
+  }
+  body[data-variant="B"] #play-pile .pilelabel {
+    position:absolute; top:-38px; left:50%; transform:translateX(-50%) rotate(-3deg);
+    font-family:"Impact",sans-serif; font-size:20px; letter-spacing:2px; color:#14100c;
+    background:#fff; padding:2px 12px; border:3px solid #14100c;
+  }
+  body[data-variant="B"] #play-pile .pileglow { display:none; }
+  /* bottom hand - tighter arc, ink outlined cards */
+  body[data-variant="B"] #hand {
+    position:absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    width: 560px; height: 180px;
+  }
+  body[data-variant="B"] #hand .card, body[data-variant="B"] .card {
+    box-shadow: 0 5px 0 #14100c, 0 8px 0 rgba(0,0,0,.25);
+    border: 3px solid #14100c;
+  }
+  body[data-variant="B"] .you-badge {
+    position:absolute; bottom: 10px; left: 40px; z-index: 40;
+    background:#14100c; color:#ffd400; font-family:"Impact",sans-serif;
+    font-size:20px; letter-spacing:2px; padding:6px 16px; border-radius:4px;
+    transform: rotate(-3deg);
+  }
+  body[data-variant="B"] #hud-score {
+    position:absolute; bottom: 14px; right: 40px; z-index: 40;
+    background:#fff; border:5px solid #14100c; box-shadow:6px 6px 0 #14100c;
+    padding:8px 16px; font-family:"Impact",sans-serif; font-size:16px; letter-spacing:1px;
+    color:#14100c; text-align:right;
+  }
+  body[data-variant="B"] #hud-score .fire { color:#E4002B; }
+
+  /* =========================================================================
+     VARIANT C - NEON ARCADE  (dark base, neon pink/cyan, avatar chips)
+     ========================================================================= */
+  body[data-variant="C"] {
+    --card-w: 108px; --card-h: 152px;
+    background:
+      radial-gradient(circle at 50% 30%, #2a0a4a 0%, #12042a 55%, #05010f 100%);
+    color: #eaf6ff;
+  }
+  body[data-variant="C"] #stage { position:absolute; inset:0; }
+  body[data-variant="C"] #stage::before {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,245,255,.05) 0 2px, transparent 2px 40px),
+      repeating-linear-gradient(90deg, rgba(255,0,110,.04) 0 2px, transparent 2px 40px);
+  }
+  /* opponents as compact avatar + count chips, top strip */
+  body[data-variant="C"] .c-chip-row {
+    position:absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    display:flex; gap: 18px;
+  }
+  body[data-variant="C"] .c-chip {
+    display:flex; align-items:center; gap:10px;
+    background: rgba(255,255,255,.05); border:2px solid #00F5FF;
+    border-radius: 999px; padding: 6px 14px 6px 6px;
+    box-shadow: 0 0 14px rgba(0,245,255,.35);
+  }
+  body[data-variant="C"] .c-chip.active {
+    border-color:#FF006E; box-shadow: 0 0 22px #FF006E;
+  }
+  body[data-variant="C"] .c-chip .av {
+    width: 40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size: 22px; background: linear-gradient(135deg,#FF006E,#8B00FF);
+  }
+  body[data-variant="C"] .c-chip .meta { line-height:1.1; }
+  body[data-variant="C"] .c-chip .meta .nm { font-weight:900; font-size:14px; }
+  body[data-variant="C"] .c-chip .meta .cd { font-size:12px; color:#00F5FF; font-weight:800; }
+  /* compact chips hide the card fan by default; FLAG reveals a small face fan */
+  body[data-variant="C"] .c-chip .fan {
+    position:absolute; top: 58px; left: 50%; transform: translateX(-50%);
+    width:0; height:0; display:none; z-index: 30;
+  }
+  body[data-variant="C"] .c-chip .fan .card { --card-w: 42px; --card-h: 60px; }
+  body[data-variant="C"] .c-chip.revealed .fan { display:block; }
+  /* centerpiece timer ring around the pile */
+  body[data-variant="C"] #centerpiece {
+    position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
+    width: 320px; height: 320px;
+  }
+  body[data-variant="C"] #timer-ring {
+    position:absolute; inset:0; border-radius:50%;
+    transform: rotate(-90deg);
+  }
+  body[data-variant="C"] #play-pile {
+    position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
+    width: 200px; height: 220px; z-index: 5;
+  }
+  body[data-variant="C"] #play-pile .pileglow {
+    position:absolute; inset:-30px; border-radius:50%;
+    background: radial-gradient(circle, rgba(255,0,110,.35), transparent 70%);
+  }
+  body[data-variant="C"] #play-pile .pilelabel {
+    position:absolute; top:-118px; left:50%; transform:translateX(-50%);
+    font-weight:900; font-size:13px; letter-spacing:3px; color:#00F5FF;
+    text-shadow:0 0 10px #00F5FF;
+  }
+  /* bottom hand - fewer, bigger cards, glowing */
+  body[data-variant="C"] #hand {
+    position:absolute; bottom: -30px; left:50%; transform:translateX(-50%);
+    width: 620px; height: 220px;
+  }
+  body[data-variant="C"] #hand .card {
+    box-shadow: 0 6px 0 rgba(0,0,0,.5), 0 0 20px rgba(0,245,255,.4);
+    border: 2px solid rgba(0,245,255,.6);
+  }
+  body[data-variant="C"] .you-badge {
+    position:absolute; bottom: 22px; left: 30px; z-index:40;
+    background: rgba(255,0,110,.15); border:2px solid #FF006E; color:#fff;
+    font-weight:900; letter-spacing:2px; padding:8px 16px; border-radius:10px;
+    text-shadow:0 0 8px #FF006E; box-shadow:0 0 16px rgba(255,0,110,.5);
+  }
+  body[data-variant="C"] #hud-score {
+    position:absolute; bottom: 26px; right: 30px; z-index:40;
+    background: rgba(0,245,255,.08); border:2px solid #00F5FF; border-radius:12px;
+    padding:10px 18px; font-weight:900; color:#eaf6ff; text-align:right;
+    box-shadow:0 0 16px rgba(0,245,255,.4);
+  }
+  body[data-variant="C"] #hud-score .fire { color:#FF006E; text-shadow:0 0 8px #FF006E; }
+  body[data-variant="C"] #timer-generic { display:none; } /* C uses the ring */
+
+  /* generic on-screen timer bar (A & B) */
+  #timer-generic {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    top: 8px; width: 260px; z-index: 60; text-align:center;
+  }
+  body[data-variant="A"] #timer-generic { top: auto; bottom: 150px; }
+  body[data-variant="B"] #timer-generic { bottom: 150px; top:auto; }
+  #timer-generic .lbl { font-weight:900; font-size:12px; margin-bottom:4px; letter-spacing:1px; }
+  #timer-generic .timerbar-wrap { height: 16px; background: rgba(0,0,0,.25); border:3px solid #14100c; }
+  #timer-generic .timerbar-fill { background: linear-gradient(90deg,#37e07a,#ffd700,#E4002B); }
+  body[data-variant="A"] #timer-generic .lbl { color:#5a2a0a; }
+  body[data-variant="B"] #timer-generic .lbl { color:#14100c; font-family:"Impact",sans-serif; letter-spacing:2px; }
+</style>
+
+<div id="proto-tag">PROTOTYPE - TICKET 06 - THROWAWAY</div>
+
+<div id="controls">
+  <div class="lbl">Motion Beats</div>
+  <button data-beat="deal">DEAL (D)</button>
+  <button data-beat="play">PLAY (P)</button>
+  <button data-beat="win">ROUND WIN (W)</button>
+  <button data-beat="fire">FIRE STREAK (F)</button>
+  <button data-beat="flag">FLAG (G)</button>
+  <button class="auto" data-beat="auto">AUTO LOOP</button>
+  <div class="hint">Cards in hand are clickable = PLAY. Arrow keys switch variant.</div>
+</div>
+
+<div id="stage"></div>
+
+<div id="banner"><div class="msg"></div></div>
+
+<div id="switcher">
+  <button id="sw-prev" title="Previous variant (Left arrow)">&#8592;</button>
+  <div class="curlabel"></div>
+  <button id="sw-next" title="Next variant (Right arrow)">&#8594;</button>
+</div>
+
+<script>
+/* ============================================================================
+   THROWAWAY PROTOTYPE SCRIPT - no framework, no build, mock data only.
+   ============================================================================ */
+
+const VARIANTS = {
+  A: "A - Classic EK (central pile)",
+  B: "B - Comic Panel (side rails)",
+  C: "C - Neon Arcade (avatar chips)",
+};
+const ORDER = ["A", "B", "C"];
+
+/* ---- mock game state (Spar deck: 6-A H/C/D, 6-K S, no ace of spades) ---- */
+const SUITS = { H: {sym:"♥", red:true}, D:{sym:"♦", red:true}, C:{sym:"♣", red:false}, S:{sym:"♠", red:false} };
+// Player hand: 5 chunky cards
+let HAND = [
+  {r:"A", s:"H"}, {r:"K", s:"S"}, {r:"9", s:"D"}, {r:"7", s:"C"}, {r:"J", s:"H"},
+];
+const OPPONENTS = [
+  { name:"KOJO", count:5, av:"\u{1F3B2}" },
+  { name:"AMA",  count:5, av:"\u{1F451}" },
+  { name:"YAW",  count:4, av:"\u{1F525}" },
+];
+let scoreYou = 2, scoreThem = 1, streak = 2;
+let activeOpp = 0;
+
+let currentVariant = new URLSearchParams(location.search).get("variant");
+if (!ORDER.includes(currentVariant)) currentVariant = "A";
+
+const stage = document.getElementById("stage");
+const bannerEl = document.getElementById("banner");
+const bannerMsg = bannerEl.querySelector(".msg");
+
+/* ---------- card factory ---------- */
+function cardEl(card, {back=false} = {}) {
+  const el = document.createElement("div");
+  el.className = "card " + (back ? "back" : (SUITS[card.s].red ? "red" : "blk"));
+  if (back) {
+    el.innerHTML = `<div class="backart">♠</div>`;
+  } else {
+    const sym = SUITS[card.s].sym;
+    el.innerHTML = `
+      <div class="rank tl">${card.r}<div style="font-size:14px">${sym}</div></div>
+      <div class="pip-lg">${sym}</div>
+      <div class="rank br">${card.r}<div style="font-size:14px">${sym}</div></div>
+      <div class="flames">\u{1F525}\u{1F525}\u{1F525}</div>`;
+  }
+  return el;
+}
+
+/* fan geometry: returns {x, rot} for card i of n around an arc */
+function fanPos(i, n, spread, radius) {
+  const t = n === 1 ? 0 : (i / (n - 1)) - 0.5;      // -0.5..0.5
+  const angle = t * spread;                          // degrees
+  const x = t * radius;
+  const y = Math.abs(t) * (radius * 0.18);           // arc dip
+  return { x, y, rot: angle };
+}
+
+/* ---------- render current variant layout ---------- */
+function render() {
+  document.body.dataset.variant = currentVariant;
+  stage.innerHTML = "";
+  document.querySelector("#switcher .curlabel").innerHTML =
+    `<b>${currentVariant}</b> ${VARIANTS[currentVariant].slice(4)}`;
+
+  if (currentVariant === "A") renderA();
+  else if (currentVariant === "B") renderB();
+  else renderC();
+
+  layoutHand();
+  updateScore();
+  startTimer();
+}
+
+function scoreHTML() {
+  return `YOU <span style="color:#37c">${scoreYou}</span> &nbsp;|&nbsp; THEM <span>${scoreThem}</span>
+    <div class="fire" style="font-size:12px;margin-top:2px">\u{1F525} STREAK ${streak}/4</div>`;
+}
+function updateScore(){ const s=document.getElementById("hud-score"); if(s) s.innerHTML=scoreHTML(); }
+
+/* opponent fan of card-backs */
+function oppFan(count, container) {
+  const n = Math.min(count, 5);
+  for (let i=0;i<n;i++){
+    const c = cardEl({}, {back:true});
+    const p = fanPos(i, n, 40, 60);
+    c.style.left = "50%"; c.style.top = "0";
+    c.style.transform = `translateX(-50%) translateX(${p.x}px) translateY(${p.y}px) rotate(${p.rot}deg)`;
+    c.dataset.oppcard = "1";
+    container.appendChild(c);
+  }
+}
+
+function renderA() {
+  const row = document.createElement("div"); row.className = "a-opp-row";
+  OPPONENTS.forEach((o,idx)=>{
+    const d = document.createElement("div");
+    d.className = "a-opp" + (idx===activeOpp ? " active":"");
+    d.dataset.opp = idx;
+    d.innerHTML = `<div class="name">${o.name}</div>
+      <div class="opp-count-badge cnt">\u{1F0A0} ${o.count}</div>
+      <div class="fan"></div>`;
+    oppFan(o.count, d.querySelector(".fan"));
+    row.appendChild(d);
+  });
+  stage.appendChild(row);
+  stage.insertAdjacentHTML("beforeend", `
+    <div id="play-pile"><div class="pileglow"></div><div class="pilelabel">PLAY PILE</div></div>
+    <div id="hand"></div>
+    <div class="you-badge">\u{1F464} YOU</div>
+    <div id="hud-score"></div>
+    <div id="timer-generic"><div class="lbl">⏱ KOJO'S TURN</div>
+      <div class="timerbar-wrap"><div class="timerbar-fill" style="width:100%"></div></div></div>`);
+}
+
+function renderB() {
+  const left = document.createElement("div"); left.className = "b-rail left";
+  const right = document.createElement("div"); right.className = "b-rail right";
+  OPPONENTS.forEach((o,idx)=>{
+    const d = document.createElement("div");
+    d.className = "b-opp" + (idx===activeOpp?" active":"");
+    d.dataset.opp = idx;
+    d.innerHTML = `<div class="name">${o.name}</div>
+      <div class="fan"></div>
+      <div class="opp-count-badge cnt">\u{1F0A0} ${o.count} CARDS</div>`;
+    oppFan(o.count, d.querySelector(".fan"));
+    (idx===1 ? right : left).appendChild(d);
+  });
+  // put first two on left, third on right for asymmetry
+  stage.appendChild(left); stage.appendChild(right);
+  stage.insertAdjacentHTML("beforeend", `
+    <div id="play-pile"><div class="pileglow"></div><div class="pilelabel">THE PILE!</div></div>
+    <div id="hand"></div>
+    <div class="you-badge">YOU</div>
+    <div id="hud-score"></div>
+    <div id="timer-generic"><div class="lbl">⏱ TICK TICK...</div>
+      <div class="timerbar-wrap"><div class="timerbar-fill" style="width:100%"></div></div></div>`);
+}
+
+function renderC() {
+  const row = document.createElement("div"); row.className = "c-chip-row";
+  OPPONENTS.forEach((o,idx)=>{
+    const d = document.createElement("div");
+    d.className = "c-chip" + (idx===activeOpp?" active":"");
+    d.dataset.opp = idx;
+    d.innerHTML = `<div class="av">${o.av}</div>
+      <div class="meta"><div class="nm">${o.name}</div><div class="cd">\u{1F0A0} ${o.count} cards</div></div>
+      <div class="fan"></div>`;
+    // hidden fan holder for FLAG reveal
+    oppFan(o.count, d.querySelector(".fan"));
+    row.appendChild(d);
+  });
+  stage.appendChild(row);
+  stage.insertAdjacentHTML("beforeend", `
+    <div id="centerpiece">
+      <svg id="timer-ring" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>
+        <circle id="ring-fill" cx="60" cy="60" r="54" fill="none" stroke="#00F5FF"
+          stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="339.29" stroke-dashoffset="0"
+          style="filter:drop-shadow(0 0 6px #00F5FF)"/>
+      </svg>
+    </div>
+    <div id="play-pile"><div class="pileglow"></div><div class="pilelabel">DROP ZONE</div></div>
+    <div id="hand"></div>
+    <div class="you-badge">◆ YOU</div>
+    <div id="hud-score"></div>
+    <div id="timer-generic"></div>`);
+}
+
+/* ---------- hand layout (per variant geometry) ---------- */
+function layoutHand() {
+  const hand = document.getElementById("hand");
+  if (!hand) return;
+  hand.innerHTML = "";
+  const n = HAND.length;
+  const cfg = {
+    A: { spread: 34, radius: 420, hover:-26 },
+    B: { spread: 28, radius: 360, hover:-22 },
+    C: { spread: 22, radius: 480, hover:-34 },
+  }[currentVariant];
+  HAND.forEach((card, i) => {
+    const el = cardEl(card);
+    el.classList.add("playable");
+    el.dataset.hand = i;
+    const p = fanPos(i, n, cfg.spread, cfg.radius);
+    const rest = `translateX(-50%) translateX(${p.x}px) translateY(${-p.y}px) rotate(${p.rot}deg)`;
+    el.style.left = "50%"; el.style.bottom = "20px";
+    el.style.setProperty("--rest-tf", rest);
+    el.style.setProperty("--hover-tf", `translateX(-50%) translateX(${p.x}px) translateY(${cfg.hover}px) rotate(0deg)`);
+    el.style.transform = rest;
+    el.dataset.rest = rest;
+    el.addEventListener("click", () => beatPlay(el));
+    hand.appendChild(el);
+  });
+}
+
+/* ==========================================================================
+   MOTION BEATS
+   ========================================================================== */
+
+/* (1) DEAL - cards start on the deck (top center) and fan into the hand w/ stagger */
+function beatDeal() {
+  HAND = [{r:"A",s:"H"},{r:"K",s:"S"},{r:"9",s:"D"},{r:"7",s:"C"},{r:"J",s:"H"}];
+  layoutHand();
+  const cards = [...document.querySelectorAll('#hand .card')];
+  cards.forEach((el) => {
+    const rest = el.dataset.rest;
+    // pre-position at deck (top-center, small, spun)
+    el.style.transition = "none";
+    el.style.transform = `translate(-50%,-70vh) rotate(320deg) scale(.5)`;
+    el.style.opacity = "0";
+  });
+  // force reflow
+  void document.getElementById("hand").offsetWidth;
+  cards.forEach((el, i) => {
+    setTimeout(() => {
+      el.style.transition = "transform .6s var(--bounce), opacity .3s ease";
+      el.style.opacity = "1";
+      el.style.transform = el.dataset.rest;
+    }, 90 * i);
+  });
+  toast(currentVariant==="B" ? "DEAL!" : "");
+}
+
+/* (2) PLAY - a card flies to the central pile with bouncy overshoot */
+let pileDepth = 0;
+function beatPlay(chosenEl) {
+  const hand = document.getElementById("hand");
+  const pile = document.getElementById("play-pile");
+  if (!hand || !pile) return;
+  const el = chosenEl || hand.querySelector(".card");
+  if (!el) { beatDeal(); return; }
+
+  const from = el.getBoundingClientRect();
+  const pr = pile.getBoundingClientRect();
+  const toX = pr.left + pr.width/2;
+  const toY = pr.top + pr.height/2;
+
+  // clone to fly (so hand reflows independently)
+  const fly = el.cloneNode(true);
+  fly.classList.remove("playable");
+  fly.style.transition = "none";
+  fly.style.left = from.left + "px";
+  fly.style.top = from.top + "px";
+  fly.style.bottom = "auto";
+  fly.style.transform = "none";
+  fly.style.margin = "0";
+  fly.style.zIndex = 200;
+  document.body.appendChild(fly);
+  el.remove();
+  HAND = HAND.filter((_,i)=> String(i) !== el.dataset.hand);
+  // re-key remaining hand
+  reindexHand();
+
+  void fly.offsetWidth;
+  const spin = (Math.random()*30 - 15).toFixed(0);
+  fly.style.transition = "left .5s var(--bounce-hard), top .5s var(--bounce-hard), transform .5s var(--bounce-hard)";
+  fly.style.left = (toX - from.width/2) + "px";
+  fly.style.top = (toY - from.height/2) + "px";
+  fly.style.transform = `rotate(${spin}deg) scale(1.06)`;
+
+  setTimeout(() => {
+    // settle into pile
+    pileDepth++;
+    fly.style.transition = "transform .18s var(--bounce)";
+    fly.style.transform = `rotate(${spin}deg) scale(1)`;
+    const settled = fly.cloneNode(true);
+    settled.style.position="absolute"; settled.style.left="50%"; settled.style.top="50%";
+    settled.style.transform = `translate(-50%,-50%) rotate(${spin}deg)`;
+    settled.dataset.pilecard = "1";
+    pile.appendChild(settled);
+    fly.remove();
+    if (currentVariant === "B") powBurst(toX, toY, ["POW!","BAM!","WHAP!"][pileDepth%3]);
+  }, 500);
+
+  if (HAND.length === 0) setTimeout(beatDeal, 700);
+}
+function reindexHand(){
+  [...document.querySelectorAll('#hand .card')].forEach((c,i)=>c.dataset.hand=i);
+}
+
+/* (3) ROUND WIN - bold comic banner pops */
+function beatWin() {
+  scoreYou++;
+  updateScore();
+  const msg = { A:"ROUND WIN!", B:"YOU TAKE IT!", C:"VICTORY" }[currentVariant];
+  showBanner(msg);
+  confetti();
+}
+
+/* (4) FIRE STREAK - the last played (or a hand) card bursts into flames */
+function beatFire() {
+  streak = 4;
+  updateScore();
+  // pick target: top pile card, else last hand card
+  let target = document.querySelector('#play-pile .card:last-child')
+            || document.querySelector('#hand .card:last-child');
+  if (!target) { beatDeal(); target = document.querySelector('#hand .card:last-child'); }
+  if (target) {
+    const base = target.style.transform || "";
+    target.style.setProperty("--rest-tf", base);
+    target.classList.add("on-fire");
+    setTimeout(()=> target.classList.remove("on-fire"), 4000);
+  }
+  showBanner({ A:"\u{1F525} FIRE STREAK!", B:"ON FIRE!!!", C:"\u{1F525} STREAK x4" }[currentVariant]);
+  fireSparks();
+}
+
+/* (5) FLAG - an opponent's hand is revealed (backs flip to faces) */
+function beatFlag() {
+  activeOpp = (activeOpp+1) % OPPONENTS.length;
+  const chip = document.querySelector(`[data-opp="${activeOpp}"]`);
+  if (chip) chip.classList.add("revealed");   // C: un-hides the small face fan
+  const opp = (chip && chip.querySelector('.fan')) || document.querySelector('.fan');
+  showBanner({ A:"FLAGGED!", B:"CAUGHT YOU!", C:"REVEAL!" }[currentVariant]);
+  if (!opp) return;
+  const backs = [...opp.querySelectorAll('.card')];
+  const reveal = [{r:"6",s:"D"},{r:"7",s:"S"},{r:"6",s:"C"},{r:"8",s:"H"},{r:"K",s:"D"}];
+  backs.forEach((b,i)=>{
+    setTimeout(()=>{
+      b.style.transition="transform .18s ease";
+      b.style.transform += " scaleX(0.02)";
+      setTimeout(()=>{
+        const face = cardEl(reveal[i%reveal.length]);
+        // copy positioning
+        face.style.cssText = b.style.cssText;
+        face.style.transform = b.style.transform.replace(" scaleX(0.02)","");
+        b.replaceWith(face);
+      },170);
+    }, i*90);
+  });
+  // restore after a beat
+  setTimeout(()=>{ if(document.body.dataset.variant===currentVariant) { /* re-render to reset */ } }, 2600);
+}
+
+/* ---------- fx helpers ---------- */
+function showBanner(text){
+  bannerMsg.textContent = text;
+  bannerEl.classList.remove("hide"); bannerEl.classList.remove("show");
+  void bannerEl.offsetWidth;
+  bannerEl.classList.add("show");
+  clearTimeout(showBanner._t);
+  showBanner._t = setTimeout(()=>{
+    bannerEl.classList.remove("show");
+    bannerEl.classList.add("hide");
+  }, 1400);
+}
+function toast(t){ if(t) showBanner(t); }
+
+function powBurst(x,y,txt){
+  const p=document.createElement("div"); p.className="pow"; p.textContent=txt;
+  p.style.left=(x-40)+"px"; p.style.top=(y-90)+"px";
+  document.body.appendChild(p); setTimeout(()=>p.remove(),650);
+}
+function confetti(){
+  const colors = currentVariant==="C" ? ["#FF006E","#00F5FF","#8B00FF","#fff"]
+              : ["#E4002B","#FFD700","#37e07a","#00BFFF","#8B00FF"];
+  for(let i=0;i<40;i++){
+    const s=document.createElement("div"); s.className="spark";
+    s.style.left=(50+ (Math.random()*30-15))+"vw";
+    s.style.top="40vh";
+    s.style.background=colors[i%colors.length];
+    if(currentVariant==="C") s.style.boxShadow="0 0 8px "+colors[i%colors.length];
+    document.body.appendChild(s);
+    const ang=Math.random()*Math.PI*2, dist=120+Math.random()*260;
+    const dx=Math.cos(ang)*dist, dy=Math.sin(ang)*dist - 120;
+    s.animate([
+      {transform:"translate(0,0) rotate(0)",opacity:1},
+      {transform:`translate(${dx}px,${dy+300}px) rotate(${Math.random()*720}deg)`,opacity:0}
+    ],{duration:1100+Math.random()*500,easing:"cubic-bezier(.2,.6,.3,1)"}).onfinish=()=>s.remove();
+  }
+}
+function fireSparks(){
+  const pile = document.getElementById("play-pile") || document.body;
+  const r = pile.getBoundingClientRect();
+  for(let i=0;i<30;i++){
+    const s=document.createElement("div"); s.className="spark";
+    s.style.left=(r.left+r.width/2)+"px"; s.style.top=(r.top+r.height/2)+"px";
+    s.style.background=["#ff3d00","#ff8a00","#ffd700"][i%3];
+    s.style.borderRadius="50%"; s.style.boxShadow="0 0 8px #ff6a00";
+    document.body.appendChild(s);
+    const dx=(Math.random()*2-1)*120, dy=-100-Math.random()*180;
+    s.animate([{transform:"translate(0,0)",opacity:1},{transform:`translate(${dx}px,${dy}px)`,opacity:0}],
+      {duration:800+Math.random()*400,easing:"ease-out"}).onfinish=()=>s.remove();
+  }
+}
+
+/* ---------- turn timer ---------- */
+let timerRAF, timerStart;
+function startTimer(){
+  cancelAnimationFrame(timerRAF);
+  timerStart = performance.now();
+  const DURATION = 9000;
+  const fillBar = document.querySelector("#timer-generic .timerbar-fill");
+  const ring = document.getElementById("ring-fill");
+  const CIRC = 339.29;
+  function tick(now){
+    let p = ((now - timerStart) % DURATION) / DURATION;   // 0..1 loops
+    const remain = 1 - p;
+    if (fillBar) {
+      fillBar.style.width = (remain*100).toFixed(1)+"%";
+    }
+    if (ring) {
+      ring.style.strokeDashoffset = (CIRC * (1-remain)).toFixed(1);
+      ring.style.stroke = remain < 0.3 ? "#FF006E" : "#00F5FF";
+      ring.style.filter = `drop-shadow(0 0 8px ${remain<0.3?"#FF006E":"#00F5FF"})`;
+    }
+    timerRAF = requestAnimationFrame(tick);
+  }
+  timerRAF = requestAnimationFrame(tick);
+}
+
+/* ==========================================================================
+   switcher + controls wiring
+   ========================================================================== */
+function setVariant(v){
+  currentVariant = v;
+  try { const u = new URL(location); u.searchParams.set("variant", v);
+    history.replaceState({}, "", u); } catch(e) { /* file:// origin blocks this - harmless */ }
+  pileDepth = 0;
+  render();
+}
+document.getElementById("sw-prev").onclick = () =>
+  setVariant(ORDER[(ORDER.indexOf(currentVariant)+ORDER.length-1)%ORDER.length]);
+document.getElementById("sw-next").onclick = () =>
+  setVariant(ORDER[(ORDER.indexOf(currentVariant)+1)%ORDER.length]);
+
+const BEATS = { deal:beatDeal, play:()=>beatPlay(), win:beatWin, fire:beatFire, flag:beatFlag };
+document.querySelectorAll('#controls button[data-beat]').forEach(b=>{
+  b.onclick = () => {
+    const beat = b.dataset.beat;
+    if (beat === "auto") return toggleAuto(b);
+    BEATS[beat] && BEATS[beat]();
+  };
+});
+
+/* auto loop cycles the beats so the owner can just watch the motion language */
+let autoTimer=null, autoStep=0;
+const AUTO_SEQ = ["deal","play","play","win","play","fire","play","flag"];
+function toggleAuto(btn){
+  if (autoTimer){ clearInterval(autoTimer); autoTimer=null; btn.classList.remove("on"); btn.textContent="AUTO LOOP"; return; }
+  btn.classList.add("on"); btn.textContent="AUTO: ON";
+  autoStep=0;
+  const run=()=>{ BEATS[AUTO_SEQ[autoStep%AUTO_SEQ.length]](); autoStep++; };
+  run(); autoTimer=setInterval(run, 1900);
+}
+
+/* keyboard: arrows switch variant, letters trigger beats */
+addEventListener("keydown", e=>{
+  const tag=(e.target.tagName||"").toLowerCase();
+  if (tag==="input"||tag==="textarea"||e.target.isContentEditable) return;
+  if (e.key==="ArrowLeft"){ e.preventDefault(); document.getElementById("sw-prev").click(); }
+  else if (e.key==="ArrowRight"){ e.preventDefault(); document.getElementById("sw-next").click(); }
+  else if (e.key.toLowerCase()==="d") beatDeal();
+  else if (e.key.toLowerCase()==="p") beatPlay();
+  else if (e.key.toLowerCase()==="w") beatWin();
+  else if (e.key.toLowerCase()==="f") beatFire();
+  else if (e.key.toLowerCase()==="g") beatFlag();
+});
+
+/* go */
+render();
+setTimeout(beatDeal, 300);
+</script>

@@ -5,8 +5,17 @@ import { usePlayerStore, useUIStore, useLobbyStore } from '../store'
 import { socketService } from '../services/socketService'
 import { Button, Modal } from '../components/ui'
 import { PlayerProfile, PulseButton } from '../components/home'
+import { SettingsModal } from '../components/settings'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { pageVariants, staggerContainer, staggerItem, getVariants } from '../utils/animations'
+
+// Helper function to extract avatar ID from avatar string
+function getAvatarIdFromString(avatar: string | undefined): number {
+  if (!avatar) return 1
+  // Extract number from avatar_01, avatar_02, etc.
+  const match = avatar.match(/avatar_0(\d)/)
+  return match ? parseInt(match[1], 10) : 1
+}
 
 function HomePage() {
   const navigate = useNavigate()
@@ -17,6 +26,7 @@ function HomePage() {
 
   const playerId = usePlayerStore((state) => state.playerId)
   const playerName = usePlayerStore((state) => state.playerName)
+  const avatar = usePlayerStore((state) => state.avatar)
   const token = usePlayerStore((state) => state.token)
   const totalWins = usePlayerStore((state) => state.totalWins)
   const totalGames = usePlayerStore((state) => state.totalGames)
@@ -257,6 +267,7 @@ function HomePage() {
             {/* Player Profile */}
             <PlayerProfile
               playerName={playerName}
+              avatarId={getAvatarIdFromString(avatar)}
               totalGames={totalGames}
               totalWins={totalWins}
               onEditProfile={openSettings}
@@ -370,6 +381,9 @@ function HomePage() {
           </div>
         </div>
       </Modal>
+
+      {/* Settings Modal */}
+      <SettingsModal />
     </motion.div>
   )
 }

@@ -1,0 +1,40 @@
+.avatar {
+  border-radius: 50%;
+  border: 3px solid var(--avatar-border-color, #FFD700);
+  background: linear-gradient(135deg, #4B0082, #8B00FF);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 215, 0, 0.4);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(255, 215, 0, 0.6);
+}
+
+.avatar--selected {
+  border-color: #FFD700;
+  animation: pulse 2s ease-in-out infinite;
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 0 40px rgba(255, 215, 0, 0.8);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 8px 16px rgba(0, 0, 0, 0.4),
+      0 0 40px rgba(255, 215, 0, 0.8);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow:
+      0 10px 20px rgba(0, 0, 0, 0.5),
+      0 0 50px rgba(255, 215, 0, 1);
+  }
+}

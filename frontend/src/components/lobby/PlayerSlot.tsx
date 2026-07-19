@@ -1,11 +1,20 @@
 import { motion } from 'framer-motion'
 import type { LobbyPlayer } from '../../store/types'
+import { Avatar } from '../avatar'
 import { playerJoinVariants, pulseVariants, getVariants } from '../../utils/animations'
 
 interface PlayerSlotProps {
   player: LobbyPlayer | null
   slotNumber: number
   isCurrentPlayer?: boolean
+}
+
+// Helper function to extract avatar ID from avatar string
+function getAvatarIdFromString(avatar: string | undefined): number {
+  if (!avatar) return 1
+  // Extract number from avatar_01, avatar_02, etc.
+  const match = avatar.match(/avatar_0(\d)/)
+  return match ? parseInt(match[1], 10) : 1
 }
 
 export function PlayerSlot({ player, slotNumber, isCurrentPlayer = false }: PlayerSlotProps) {
@@ -45,20 +54,21 @@ export function PlayerSlot({ player, slotNumber, isCurrentPlayer = false }: Play
       {/* Avatar */}
       <div className="relative">
         <motion.div
-          className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl ${
-            player.isReady ? 'bg-green-600' : 'bg-fireRed'
-          }`}
           animate={player.isReady ? 'pulse' : 'initial'}
           variants={pulse}
         >
           {player.avatar ? (
-            <img
-              src={player.avatar}
-              alt={player.username}
-              className="w-full h-full rounded-full object-cover"
+            <Avatar
+              avatarId={getAvatarIdFromString(player.avatar)}
+              size="small"
+              className={`ring-2 ${player.isReady ? 'ring-green-500' : 'ring-transparent'}`}
             />
           ) : (
-            <span>{player.username.charAt(0).toUpperCase()}</span>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl ${
+              player.isReady ? 'bg-green-600' : 'bg-fireRed'
+            }`}>
+              <span>{player.username.charAt(0).toUpperCase()}</span>
+            </div>
           )}
         </motion.div>
         {player.isHost && (

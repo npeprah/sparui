@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion'
 import { Card, Button } from '../ui'
+import { Avatar } from '../avatar'
 import { staggerItem, getVariants } from '../../utils/animations'
 
 interface PlayerProfileProps {
   playerName: string
+  avatarId?: number
   totalGames: number
   totalWins: number
   onEditProfile: () => void
@@ -19,12 +21,9 @@ interface PlayerProfileProps {
  * - Stats: Total games, wins, win rate
  * - Edit Profile button
  */
-export function PlayerProfile({ playerName, totalGames, totalWins, onEditProfile, className = '' }: PlayerProfileProps) {
+export function PlayerProfile({ playerName, avatarId = 1, totalGames, totalWins, onEditProfile, className = '' }: PlayerProfileProps) {
   // Calculate win rate
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0
-
-  // Get first letter for avatar (uppercase), or '?' if empty
-  const avatarLetter = playerName ? playerName[0].toUpperCase() : '?'
 
   const itemVariants = getVariants(staggerItem)
 
@@ -32,15 +31,13 @@ export function PlayerProfile({ playerName, totalGames, totalWins, onEditProfile
     <motion.div variants={itemVariants} className={className}>
       <Card padding="md" variant="elevated" className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gold/20">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
-          {/* Avatar Placeholder */}
-          <div
-            className="w-32 h-32 md:w-40 md:h-40 rounded-full flex items-center justify-center
-                       bg-gradient-to-br from-fireRed via-gold to-fireRed
-                       shadow-lg shadow-fireRed/50
-                       flex-shrink-0"
-            aria-label="Player avatar"
-          >
-            <span className="text-5xl md:text-6xl font-black text-white drop-shadow-lg">{avatarLetter}</span>
+          {/* Avatar */}
+          <div className="flex-shrink-0">
+            <Avatar
+              avatarId={avatarId}
+              size="large"
+              className="w-32 h-32 md:w-40 md:h-40 shadow-lg shadow-gold/50"
+            />
           </div>
 
           {/* Player Info */}

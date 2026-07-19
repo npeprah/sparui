@@ -15,12 +15,14 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
     "framer-motion": "^12.23.26",
     "phaser": "^3.90.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.10.1",
     "socket.io-client": "^4.8.1",
+    "tailwind-merge": "^3.4.0",
     "zustand": "^4.5.7"
   },
   "devDependencies": {

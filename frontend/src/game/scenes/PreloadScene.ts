@@ -23,6 +23,8 @@ export class PreloadScene extends Phaser.Scene {
     this.setupLoadingEvents()
     this.loadCardAssets()
     this.loadSoundAssets()
+    this.loadParticleAssets()
+    this.loadSurfaceAssets()
   }
 
   create() {
@@ -135,6 +137,81 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
+   * Load all particle texture assets
+   */
+  private loadParticleAssets(): void {
+    console.log('[PreloadScene] ===== LOADING PARTICLE ASSETS =====')
+
+    // Fire effects (8 textures)
+    const fireTextures = [
+      'flame_large', 'flame_small', 'fire_burst', 'fire_trail',
+      'firebolt', 'firestorm', 'fire_ring', 'embers'
+    ]
+    fireTextures.forEach(key => {
+      const path = `assets/particles/fire/${key}.png`
+      this.load.image(key, path)
+      console.log(`[PreloadScene] Loading fire particle: ${key}`)
+    })
+
+    // Ice effects (8 textures)
+    const iceTextures = [
+      'snowflake_large', 'snowflake_small', 'ice_shard', 'frost',
+      'ice_burst', 'ice_ring', 'freeze_wave', 'blizzard'
+    ]
+    iceTextures.forEach(key => {
+      const path = `assets/particles/ice/${key}.png`
+      this.load.image(key, path)
+      console.log(`[PreloadScene] Loading ice particle: ${key}`)
+    })
+
+    // Explosion effects (10 textures)
+    const explosionTextures = [
+      'burst_large', 'burst_small', 'spark_shower', 'flash_gold',
+      'flash_white', 'energy_wave', 'shockwave', 'impact_hit',
+      'smoke_puff', 'smoke_trail'
+    ]
+    explosionTextures.forEach(key => {
+      const path = `assets/particles/explosion/${key}.png`
+      this.load.image(key, path)
+      console.log(`[PreloadScene] Loading explosion particle: ${key}`)
+    })
+
+    // Confetti effects (8 textures)
+    const confettiTextures = [
+      'confetti_multi', 'streamers', 'star_gold', 'star_multi',
+      'sparkle_large', 'sparkle_small', 'coin_gold', 'celebrations'
+    ]
+    confettiTextures.forEach(key => {
+      const path = `assets/particles/confetti/${key}.png`
+      this.load.image(key, path)
+      console.log(`[PreloadScene] Loading confetti particle: ${key}`)
+    })
+
+    console.log('[PreloadScene] Queued 34 particle textures for loading')
+  }
+
+  /**
+   * Load all surface theme assets
+   */
+  private loadSurfaceAssets(): void {
+    console.log('[PreloadScene] ===== LOADING SURFACE ASSETS =====')
+
+    const surfaces = [
+      { key: 'surface_afro_heritage', path: 'assets/surfaces/surface_afro_heritage.png' },
+      { key: 'surface_neon_arcade', path: 'assets/surfaces/surface_neon_arcade.png' },
+      { key: 'surface_royal_gold', path: 'assets/surfaces/surface_royal_gold.png' },
+      { key: 'surface_ocean_breeze', path: 'assets/surfaces/surface_ocean_breeze.png' },
+    ]
+
+    surfaces.forEach(surface => {
+      console.log(`[PreloadScene] Loading surface: ${surface.key}`)
+      this.load.image(surface.key, surface.path)
+    })
+
+    console.log(`[PreloadScene] Queued ${surfaces.length} surfaces for loading`)
+  }
+
+  /**
    * Load all sound assets using AudioManager
    */
   private loadSoundAssets(): void {
@@ -242,7 +319,7 @@ export class PreloadScene extends Phaser.Scene {
   private onLoadComplete(): void {
     console.log('[PreloadScene] ===== ALL ASSETS LOADED =====')
     console.log('[PreloadScene] Total files loaded:', this.load.totalComplete)
-    console.log('[PreloadScene] Expected: 34 cards + 16 sounds = 50 total (card_back created in create())')
+    console.log('[PreloadScene] Expected: 34 cards + 16 sounds + 34 particles = 84 total (card_back created in create())')
   }
 
   /**
