@@ -107,6 +107,26 @@ export interface GameRedirectResponse {
   message?: string
 }
 
+// game:player_declared_dry payload (broadcast to the room). A HIDDEN dry reveals
+// only THAT a declaration was made (type + player); the card identity stays
+// secret until a flag reveals it. A SHOW dry reveals the card face-up, so `card`
+// is present. `type` is the backend enum ("hidden" | "shown").
+export interface PlayerDeclaredDryResponse {
+  playerId: string
+  type: string
+  isShown: boolean
+  card?: Card
+}
+
+// game:dry_declared payload (private confirmation to the declarer, who always
+// sees their own card).
+export interface DryDeclaredResponse {
+  playerId: string
+  card: Card
+  type: string
+  isShown: boolean
+}
+
 // game:flag_resolved payload (ticket 07). A flag ALWAYS voids the current game;
 // a reshuffled fresh game follows in a separate game:started (voidedByFlag=true).
 //   - correct: true when the accused truly broke suit while holding the led suit.
@@ -157,6 +177,12 @@ export interface ServerToClientEvents {
   // cumulative match score in matchScores persists across the void.
   'game:flag_resolved': (data: FlagResolvedResponse) => void
   'game:flag_error': (data: { error: string; code?: string }) => void
+
+  // Dry / show-dry declarations (declared in round 1). The declarer gets a
+  // private game:dry_declared echo; the room gets game:player_declared_dry.
+  'game:player_declared_dry': (data: PlayerDeclaredDryResponse) => void
+  'game:dry_declared': (data: DryDeclaredResponse) => void
+  'game:dry_error': (data: { error: string; code?: string }) => void
 
   // In-game (legacy bare names)
   cardPlayed: (data: {

@@ -6,6 +6,7 @@ import { useThemeStore } from '../../store/themeStore'
 import { CardSprite } from '../sprites/CardSprite'
 import { ParticleEffects } from '../systems/ParticleEffects'
 import { getPlayableCards } from '../utils/sparRules'
+import { TableGameController } from '../orchestration/TableGameController'
 import { CARD_BACK_KEY, CARD_SCALES } from '../constants/cards'
 import {
   resolveEKTreatment,
@@ -83,11 +84,19 @@ export class TableScene extends Phaser.Scene {
   private treatment: EKBorderTreatment = 'gold'
 
   // --- countdown ring bookkeeping -----------------------------------------
-  /** Largest timeRemaining seen this turn - the denominator for the ring. */
+  /** The denominator for the ring. Seeded from the server turn total when known. */
   private ringTotalSeconds = 15
+  /**
+   * Once the server has told us this turn's total (via {@link setTurnTotal}) we
+   * stop the max-observed heuristic and trust the authoritative value.
+   */
+  private ringTotalAuthoritative = false
 
   // --- store subscriptions ------------------------------------------------
   private unsubscribers: Array<() => void> = []
+
+  // --- ticket 14: turn/round/play-again orchestration ---------------------
+  private controller?: TableGameController
 
   // --- SEAM (ticket 14): orchestration wires this to request a real play ---
   /** Called when the local player asks to play a card (click or drag-up). */
@@ -119,6 +128,12 @@ export class TableScene extends Phaser.Scene {
     this.renderFromState()
     this.subscribeToStores()
 
+    // Ticket 14: the orchestration controller owns all turn/round/timer/dry/flag
+    // and play-again logic. It attaches its socket handlers deterministically
+    // (fixing the old listener-attach race) and wires onPlayCardRequested. The
+    // scene stays a pure renderer - it provides hooks and re-renders from state.
+    this.controller = new TableGameController(this)
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.teardown, this)
     this.events.once(Phaser.Scenes.Events.DESTROY, this.teardown, this)
   }
@@ -128,8 +143,12 @@ export class TableScene extends Phaser.Scene {
   }
 
   private teardown(): void {
+    this.controller?.destroy()
+    this.controller = undefined
     for (const unsub of this.unsubscribers) unsub()
     this.unsubscribers = []
+    // Stop the local turn countdown so its interval does not leak past the scene.
+    useGameStore.getState().stopTurnCountdown()
     this.particleEffects?.cleanup()
   }
 
@@ -201,12 +220,28 @@ export class TableScene extends Phaser.Scene {
     this.updateTimerRing()
   }
 
+  /**
+   * SEAM (ticket 14): the orchestration layer sets the authoritative turn total
+   * from the server timer (turnChanged / timerUpdate.turnDurationSeconds), so
+   * the ring fills against the real per-seat budget (leader 15s / follower 8s /
+   * subsequent 5s) instead of the largest value observed.
+   */
+  public setTurnTotal(seconds: number): void {
+    if (seconds > 0) {
+      this.ringTotalSeconds = seconds
+      this.ringTotalAuthoritative = true
+    }
+  }
+
   private updateTimerRing(): void {
     const g = this.ringGraphics
     if (!g) return
 
     const remaining = useGameStore.getState().timeRemaining
-    if (remaining > this.ringTotalSeconds) this.ringTotalSeconds = remaining
+    // Fall back to the max-observed heuristic only until the server total lands.
+    if (!this.ringTotalAuthoritative && remaining > this.ringTotalSeconds) {
+      this.ringTotalSeconds = remaining
+    }
     const progress = timerProgress(remaining, this.ringTotalSeconds)
 
     const pile = this.pileConfig()
@@ -352,12 +387,15 @@ export class TableScene extends Phaser.Scene {
     const palette = this.chromePalette()
     const seats = opponentSeatPositions(opponents.length, this.seatConfig())
     const fanCfg = this.opponentFanConfig()
+    const onDeckId = useGameStore.getState().onDeckPlayerId
 
     opponents.forEach((opp, i) => {
       const seat = seats[i]
       const group = this.add.container(seat.x, seat.y)
+      const isOnDeck = opp.id === onDeckId
 
-      // Card-back mini fan.
+      // Card-back mini fan - shrinks naturally as the opponent plays, since the
+      // count comes straight from their authoritative remaining hand length.
       const cardCount = opp.hand?.length ?? 0
       const offsets = opponentFanOffsets(cardCount, fanCfg)
       for (const off of offsets) {
@@ -367,23 +405,23 @@ export class TableScene extends Phaser.Scene {
         group.add(back)
       }
 
-      // Name badge.
+      // Name badge - lit up (accent fill) when this seat's timer is running.
       const name = this.add
         .text(0, 0, opp.name.toUpperCase(), {
           fontFamily: 'Impact, "Arial Black", sans-serif',
           fontSize: '16px',
-          color: this.hex(palette.pop),
-          backgroundColor: this.hex(palette.ink),
+          color: this.hex(isOnDeck ? palette.ink : palette.pop),
+          backgroundColor: this.hex(isOnDeck ? palette.accent : palette.ink),
           padding: { x: 12, y: 3 },
         })
         .setOrigin(0.5)
 
-      // Count badge.
+      // Count badge (prefixed with a timer marker while on deck).
       const count = this.add
-        .text(0, 92, `${cardCount} CARDS`, {
+        .text(0, 92, `${isOnDeck ? '⏱ ' : ''}${cardCount} CARDS`, {
           fontFamily: 'Impact, "Arial Black", sans-serif',
           fontSize: '13px',
-          color: this.hex(palette.accent),
+          color: this.hex(isOnDeck ? palette.danger : palette.accent),
         })
         .setOrigin(0.5)
 
@@ -401,8 +439,7 @@ export class TableScene extends Phaser.Scene {
     this.handSprites = []
 
     const hand = usePlayerStore.getState().hand
-    const currentSuit = useGameStore.getState().currentSuit as Suit | null
-    const playableCards = new Set(getPlayableCards(hand, currentSuit).map(c => c.id))
+    const hintIds = this.handHintIds()
 
     const placements = handFanPositions(hand.length, this.handConfig())
     hand.forEach((card, i) => {
@@ -419,7 +456,7 @@ export class TableScene extends Phaser.Scene {
       sprite.setAngle(p.rotationDeg)
       sprite.setDepth(300 + i)
       sprite.updateOriginalY(p.y)
-      sprite.setPlayable(playableCards.has(card.id))
+      sprite.setPlayable(hintIds.has(card.id))
 
       // SEAM (ticket 14): click / drag-up reports intent; state change is owned
       // by the orchestration layer, which then re-renders us from the store.
@@ -428,6 +465,33 @@ export class TableScene extends Phaser.Scene {
 
       this.handSprites.push(sprite)
       layer.add(sprite)
+    })
+  }
+
+  /**
+   * The follow-suit HINT set to highlight - a HINT only. Off-suit cards stay
+   * playable (the backend is the sole authority on legality); we never disable a
+   * card for being off-suit. When the local player may not play right now
+   * (not their moment per the corrected rules), nothing is highlighted.
+   */
+  private handHintIds(): Set<string> {
+    if (!usePlayerStore.getState().canPlay) return new Set()
+    const hand = usePlayerStore.getState().hand
+    const currentSuit = useGameStore.getState().currentSuit as Suit | null
+    return new Set(getPlayableCards(hand, currentSuit).map(c => c.id))
+  }
+
+  /**
+   * Re-apply the follow-suit hint to the existing hand sprites without a full
+   * rebuild - used when only the affordance (canPlay) changes, so we do not
+   * thrash hover/drag or restart deal animations.
+   */
+  private applyHandAffordance(): void {
+    const hand = usePlayerStore.getState().hand
+    const hintIds = this.handHintIds()
+    this.handSprites.forEach((sprite, i) => {
+      const card = hand[i]
+      if (card) sprite.setPlayable(hintIds.has(card.id))
     })
   }
 
@@ -496,7 +560,8 @@ export class TableScene extends Phaser.Scene {
     // drag and reset animations). So we diff by reference and skip otherwise.
     this.unsubscribers.push(
       useGameStore.subscribe((state, prev) => {
-        if (state.players !== prev.players) {
+        // The on-deck seat changing re-lights the opponent timer highlight.
+        if (state.players !== prev.players || state.onDeckPlayerId !== prev.onDeckPlayerId) {
           this.renderOpponents()
           this.updateHud()
         }
@@ -512,6 +577,10 @@ export class TableScene extends Phaser.Scene {
       usePlayerStore.subscribe((state, prev) => {
         if (state.hand !== prev.hand) {
           this.renderHand()
+        } else if (state.canPlay !== prev.canPlay) {
+          // Affordance-only change: re-hint the existing sprites without a
+          // rebuild so hover/drag and deal animations are not thrashed.
+          this.applyHandAffordance()
         }
       })
     )
