@@ -213,6 +213,161 @@ func TestHandleFlagPlayer(t *testing.T) {
 	}
 }
 
+// snapshotFlagState builds the state a round leaves behind AFTER the
+// round-completing play has already been resolved and reset: LedSuit and
+// PlayedCards are wiped and every player's HasPlayedCard is false, but the
+// last-completed round is preserved in LastRound. This is the exact state a flag
+// against the player whose card COMPLETED the round (in a 2-player game, the
+// follower every round) sees, because handleRoundCompletion runs synchronously
+// and resets before the async flag message is processed.
+//
+// hearts was led and the accused (player2) completed the round with an off-suit
+// club. accusedHoldsLed decides whether that break was illegal: if true the
+// accused still holds a heart (should have followed suit); if false they are out
+// of hearts (a legal break, so a flag against them is wrong).
+func snapshotFlagState(roomCode string, accusedHoldsLed bool) *entity.GameState {
+	accusedHand := []entity.Card{{Suit: entity.Spades, Value: entity.King}}
+	if accusedHoldsLed {
+		accusedHand = append(accusedHand, entity.Card{Suit: entity.Hearts, Value: entity.Nine})
+	}
+
+	ledSnapshot := entity.Hearts
+
+	return &entity.GameState{
+		GameID:      "game-flag-snapshot",
+		RoomCode:    roomCode,
+		TotalRounds: 5,
+		PointsToWin: 10,
+		Phase:       entity.PhasePlaying,
+		Players: []entity.GamePlayer{
+			{
+				ID:            "player1",
+				Username:      "Alice",
+				Hand:          []entity.Card{{Suit: entity.Diamonds, Value: entity.Ten}},
+				HasPlayedCard: false,
+			},
+			{
+				ID:            "player2",
+				Username:      "Bob",
+				Hand:          accusedHand,
+				HasPlayedCard: false,
+			},
+		},
+		LeaderID:     "player2",
+		CurrentTurn:  "player2",
+		CurrentRound: 2,
+		// Round already reset: no active led suit / played cards.
+		LedSuit:     nil,
+		PlayedCards: []entity.PlayedCard{},
+		// The just-completed round is preserved for post-reset flag judging.
+		LastRound: &entity.LastRoundSnapshot{
+			LedSuit: &ledSnapshot,
+			PlayedCards: []entity.PlayedCard{
+				{PlayerID: "player1", Card: entity.Card{Suit: entity.Hearts, Value: entity.Ace}, PlayedAt: time.Now()},
+				{PlayerID: "player2", Card: entity.Card{Suit: entity.Clubs, Value: entity.Queen}, PlayedAt: time.Now()},
+			},
+		},
+		TurnStartTime: time.Now(),
+		TurnTimeLimit: 30,
+		StartedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+}
+
+// TestHandleFlagPlayer_RoundCompletingSnapshot verifies that a flag against the
+// player whose card COMPLETED a round is judged correctly in BOTH directions,
+// using the last-completed-round snapshot after the in-round witness state has
+// been reset.
+func TestHandleFlagPlayer_RoundCompletingSnapshot(t *testing.T) {
+	tests := []struct {
+		name                  string
+		accusedHoldsLed       bool
+		challengerSeed        int
+		accusedSeed           int
+		expectCorrect         bool
+		expectPenalizedID     string
+		expectChallengerFinal int
+		expectAccusedFinal    int
+	}{
+		{
+			name:                  "correct flag of the round-completing off-suit play penalizes the offender",
+			accusedHoldsLed:       true,
+			challengerSeed:        5,
+			accusedSeed:           5,
+			expectCorrect:         true,
+			expectPenalizedID:     "player2",
+			expectChallengerFinal: 5,
+			expectAccusedFinal:    5 - 3,
+		},
+		{
+			name:                  "wrong flag of a legal round-completing break penalizes the challenger",
+			accusedHoldsLed:       false,
+			challengerSeed:        5,
+			accusedSeed:           5,
+			expectCorrect:         false,
+			expectPenalizedID:     "player1",
+			expectChallengerFinal: 5 - 3,
+			expectAccusedFinal:    5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			roomID := "FLAGSNAP"
+			gs := snapshotFlagState(roomID, tt.accusedHoldsLed)
+
+			// player1 is the challenger.
+			client, cleanup := registerTestClient(t, roomID, "player1", gs)
+			defer cleanup()
+
+			addMatchScore(roomID, "player1", tt.challengerSeed)
+			addMatchScore(roomID, "player2", tt.accusedSeed)
+
+			originalGameID := gs.GameID
+
+			payload, _ := json.Marshal(map[string]interface{}{
+				"targetPlayerId": "player2",
+				"roundIndex":     1,
+				"cardIndex":      1,
+			})
+			client.handleFlagPlayer(payload)
+
+			resolved := drainForEvent(client, "game:flag_resolved")
+			if resolved == nil {
+				t.Fatal("expected game:flag_resolved event, got none")
+			}
+			if got := resolved["correct"].(bool); got != tt.expectCorrect {
+				t.Errorf("correct = %v, want %v", got, tt.expectCorrect)
+			}
+			if got := resolved["penalizedId"].(string); got != tt.expectPenalizedID {
+				t.Errorf("penalizedId = %q, want %q", got, tt.expectPenalizedID)
+			}
+			// The snapshot must still surface the led suit and the accused's card.
+			if got := resolved["ledSuit"].(string); got != string(entity.Hearts) {
+				t.Errorf("ledSuit = %q, want %q", got, entity.Hearts)
+			}
+			if resolved["accusedCard"] == nil {
+				t.Error("accusedCard should be resolved from the snapshot, got nil")
+			}
+
+			if got := getMatchScore(roomID, "player1"); got != tt.expectChallengerFinal {
+				t.Errorf("challenger match score = %d, want %d", got, tt.expectChallengerFinal)
+			}
+			if got := getMatchScore(roomID, "player2"); got != tt.expectAccusedFinal {
+				t.Errorf("accused match score = %d, want %d", got, tt.expectAccusedFinal)
+			}
+
+			// The whole game is still voided into a fresh reshuffle.
+			gamesMu.RLock()
+			fresh := games[roomID]
+			gamesMu.RUnlock()
+			if fresh == nil || fresh.GameID == originalGameID {
+				t.Error("game was not voided/reshuffled after a snapshot-based flag")
+			}
+		})
+	}
+}
+
 // TestHandleFlagPlayer_Rejections covers the guard rails that stop a flag from
 // being resolved at all (no state mutation, an error to the caller).
 func TestHandleFlagPlayer_Rejections(t *testing.T) {

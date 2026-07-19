@@ -664,6 +664,19 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 	// Set round winner
 	gameState.RoundWinner = winnerID
 
+	// Capture the just-completed round (led suit + played cards) before any
+	// per-round reset below wipes it. A flag WS message can arrive after the
+	// round-completing play - by then LedSuit / PlayedCards are gone, so
+	// handleFlagPlayer falls back to this snapshot to judge legality.
+	roundSnapshot := &entity.LastRoundSnapshot{
+		PlayedCards: append([]entity.PlayedCard(nil), gameState.PlayedCards...),
+	}
+	if gameState.LedSuit != nil {
+		led := *gameState.LedSuit
+		roundSnapshot.LedSuit = &led
+	}
+	gameState.LastRound = roundSnapshot
+
 	// Track round wins (NOT accumulating points - just counting tricks won).
 	// Points are only scored on the final round, by card value (see below).
 	winner := gameState.GetPlayer(winnerID)
@@ -1268,14 +1281,28 @@ func (c *Client) handleFlagPlayer(data json.RawMessage) {
 	// held the led suit. Because a player plays at most once per round and an
 	// off-suit play never removes a led-suit card, the accused's current hand is
 	// an exact witness of whether they held the led suit when they played.
-	accusedPlayed := gs.GetPlayedCard(targetID)
+	//
+	// Judge against the live round while one is active (LedSuit set). Once the
+	// round-completing play resets LedSuit / PlayedCards, fall back to the
+	// last-completed-round snapshot so the player whose card completed the round
+	// (in a 2-player game, the follower every round) is still flaggable.
+	var effectiveLedSuit *entity.Suit
+	var accusedPlayed *entity.PlayedCard
+	if gs.LedSuit != nil {
+		effectiveLedSuit = gs.LedSuit
+		accusedPlayed = gs.GetPlayedCard(targetID)
+	} else if gs.LastRound != nil {
+		effectiveLedSuit = gs.LastRound.LedSuit
+		accusedPlayed = gs.LastRound.GetPlayedCard(targetID)
+	}
+
 	illegal := false
 	ledSuit := ""
-	if gs.LedSuit != nil {
-		ledSuit = string(*gs.LedSuit)
+	if effectiveLedSuit != nil {
+		ledSuit = string(*effectiveLedSuit)
 		if accusedPlayed != nil &&
-			accusedPlayed.Card.Suit != *gs.LedSuit &&
-			accused.HasSuit(*gs.LedSuit) {
+			accusedPlayed.Card.Suit != *effectiveLedSuit &&
+			accused.HasSuit(*effectiveLedSuit) {
 			illegal = true
 		}
 	}
