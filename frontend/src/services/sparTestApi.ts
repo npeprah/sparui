@@ -264,7 +264,11 @@ class SparTestHarness implements SparTestApi {
     this.playedCards = []
     this.lastRoundWon = null
     this.gameEnded = null
-    this.flagResolved = null
+    // NOTE: do not clear flagResolved here. A flag void broadcasts
+    // game:flag_resolved immediately followed by game:started (the fresh game);
+    // clearing it here would wipe the resolution before a client (or the e2e
+    // harness) can observe it. It is cleared on connect()/reset() and overwritten
+    // by the next flag.
     this.fireStreakPlayer =
       (gameState as unknown as { fireStreakPlayer?: string }).fireStreakPlayer || null
     this.freezeTriggered = false

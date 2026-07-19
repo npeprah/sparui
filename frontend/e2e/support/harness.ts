@@ -72,7 +72,7 @@ export class Player {
     return playerId
   }
 
-  async createRoom(settings?: { maxPlayers?: number }): Promise<string> {
+  async createRoom(settings?: { maxPlayers?: 2 | 3 | 4 }): Promise<string> {
     const { roomCode } = await this.page.evaluate(
       s => window.__sparTest.createRoom(s ?? undefined),
       settings

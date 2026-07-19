@@ -1,12 +1,6 @@
 import { test, expect, type Browser } from '@playwright/test'
-import type { CardInput } from '../src/services/sparTestApi'
-import {
-  Player,
-  injectHands,
-  resetTestMode,
-  type RoundWonEvent,
-  type SparTestSnapshot,
-} from './support/harness'
+import type { CardInput, SparTestSnapshot } from '../src/services/sparTestApi'
+import { Player, injectHands, resetTestMode, type RoundWonEvent } from './support/harness'
 
 // ---------------------------------------------------------------------------
 // A-H ACCEPTANCE RUNS (ticket 17) - the real proof the rebuilt EK TableScene
@@ -29,7 +23,7 @@ import {
 // ---------------------------------------------------------------------------
 
 // A card the harness/backend both accept. Ranks are frontend form (6..10, JQKA).
-const C = (suit: string, rank: string): CardInput => ({ suit, rank })
+const C = (suit: string, rank: string): CardInput => ({ suit, rank }) as CardInput
 
 /** Is card (suit, rank) currently on the pile, played by player `id`? */
 function cardIn(s: SparTestSnapshot, id: string, suit: string, rank: string): boolean {
@@ -74,7 +68,7 @@ async function startGame(
     ids.push(await guests[i].connect(`e2e-${scenario}-g${i}`))
   }
 
-  const roomCode = await host.createRoom({ maxPlayers: players.length })
+  const roomCode = await host.createRoom({ maxPlayers: players.length as 2 | 3 | 4 })
   await injectHands(request, {
     roomCode,
     leaderIndex,
