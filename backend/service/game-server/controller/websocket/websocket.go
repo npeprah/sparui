@@ -845,6 +845,11 @@ func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string, ga
 	matchScores := matchScoreSnapshot(c.RoomID)
 	winnerMatchScore := matchScores[winnerID]
 
+	var winningCardPayload interface{}
+	if winningCard != nil {
+		winningCardPayload = convertCardToFrontendFormat(winningCard)
+	}
+
 	slog.Info("Game over",
 		"roomCode", c.RoomID,
 		"winnerId", winnerID,
@@ -860,8 +865,8 @@ func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string, ga
 		"data": map[string]interface{}{
 			"winnerId":         winnerID,
 			"winnerName":       winnerName,
-			"winnerScore":      gameWinPoints, // Value points scored this game (6->3, 7->2, 8+->1)
-			"winningCard":      winningCard,   // The card that won the final round
+			"winnerScore":      gameWinPoints,      // Value points scored this game (6->3, 7->2, 8+->1)
+			"winningCard":      winningCardPayload, // The card that won the final round
 			"gameWinPoints":    gameWinPoints,
 			"winnerMatchScore": winnerMatchScore, // Winner's cumulative match score
 			"matchScores":      matchScores,      // playerID -> cumulative match score

@@ -74,15 +74,16 @@ func convertGameStateToFrontendFormat(gs *entity.GameState) map[string]interface
 	players := make([]interface{}, 0, len(gs.Players))
 	for _, player := range gs.Players {
 		playerData := map[string]interface{}{
-			"id":        player.ID,
-			"username":  player.Username,
-			"avatar":    player.Avatar,
-			"hand":      convertCardsToFrontendFormat(player.Hand),
-			"score":     player.Score,
-			"roundsWon": player.RoundsWon,
-			"winStreak": player.WinStreak,
-			"isLeader":  player.IsLeader,
-			"isOnFire":  player.IsOnFire,
+			"id":         player.ID,
+			"username":   player.Username,
+			"avatar":     player.Avatar,
+			"hand":       convertCardsToFrontendFormat(player.Hand),
+			"score":      player.Score,
+			"roundsWon":  player.RoundsWon,
+			"matchScore": player.MatchScore,
+			"winStreak":  player.WinStreak,
+			"isLeader":   player.IsLeader,
+			"isOnFire":   player.IsOnFire,
 		}
 
 		// Add dry card if present
