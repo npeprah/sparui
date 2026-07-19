@@ -18,7 +18,7 @@ import {
   type EKBorderTreatment,
 } from '../constants/cardTheme'
 import { DEFAULT_CALLOUT_STYLE, type CalloutStyle, type CalloutSize } from '../config/callouts'
-import { getBackdropSpec } from './tableBackdrop'
+import { getBackdropSpec, type BackdropSpec } from './tableBackdrop'
 import {
   TABLE,
   handFanPositions,
@@ -207,6 +207,7 @@ export class TableScene extends Phaser.Scene {
     // the backdrop colours + comic texture reskin, so there are no per-theme
     // surface image assets to load.
     const spec = getBackdropSpec(this.treatment)
+    const palette = this.chromePalette()
     const key = `table_backdrop_${this.treatment}`
 
     // Rasterise the gradient into a canvas texture (Phaser Graphics cannot do a
@@ -229,6 +230,7 @@ export class TableScene extends Phaser.Scene {
         for (const stop of spec.stops) grad.addColorStop(stop.offset, stop.color)
         ctx.fillStyle = grad
         ctx.fillRect(0, 0, TABLE.width, TABLE.height)
+        this.bakeBackdropTexture(ctx, spec, palette)
         canvasTex.refresh()
       }
     }
@@ -237,39 +239,66 @@ export class TableScene extends Phaser.Scene {
       this.add.image(TABLE.centerX, TABLE.centerY, key).setDepth(-1000)
     } else {
       // Headless / unit fallback: flat gradient wash from the palette.
-      const palette = this.chromePalette()
       const g = this.add.graphics().setDepth(-1000)
       g.fillGradientStyle(palette.bgTop, palette.bgTop, palette.bgBottom, palette.bgBottom, 1)
       g.fillRect(0, 0, TABLE.width, TABLE.height)
     }
   }
 
-  private buildChrome(): void {
-    const palette = this.chromePalette()
-    const spec = getBackdropSpec(this.treatment)
-    this.chromeLayer = this.add.container(0, 0).setDepth(40)
-
-    // Comic texture over the backdrop: Ben-Day halftone dots (warm/comic) or a
-    // neon scanline grid, matching how the prototype's palette variants differ.
-    const texture = this.add.graphics().setDepth(-900)
+  /**
+   * Bake the comic overlay texture (Ben-Day halftone dots or neon scanline grid)
+   * straight onto the cached backdrop canvas, over the gradient. Same dot-grid
+   * spacing / alpha and per-palette treatment as the prototype - drawn once into
+   * the static backdrop image instead of a retained per-frame Graphics.
+   */
+  private bakeBackdropTexture(
+    ctx: CanvasRenderingContext2D,
+    spec: BackdropSpec,
+    palette: { ink: number }
+  ): void {
+    const ink = this.hex(palette.ink)
     if (spec.texture === 'scanlines') {
-      texture.lineStyle(2, palette.ink, 0.06)
+      ctx.save()
+      ctx.strokeStyle = ink
+      ctx.globalAlpha = 0.06
+      ctx.lineWidth = 2
       for (let y = 0; y < TABLE.height; y += 40) {
-        texture.lineBetween(0, y, TABLE.width, y)
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(TABLE.width, y)
+        ctx.stroke()
       }
       for (let x = 0; x < TABLE.width; x += 40) {
-        texture.lineBetween(x, 0, x, TABLE.height)
+        ctx.beginPath()
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, TABLE.height)
+        ctx.stroke()
       }
+      ctx.restore()
     } else {
       // Dense Ben-Day dots (prototype B: 2px dots on a 14px grid).
-      texture.fillStyle(palette.ink, 0.1)
+      ctx.save()
+      ctx.fillStyle = ink
+      ctx.globalAlpha = 0.1
       const step = 14
       for (let y = step; y < TABLE.height; y += step) {
         for (let x = step; x < TABLE.width; x += step) {
-          texture.fillCircle(x, y, 2)
+          ctx.beginPath()
+          ctx.arc(x, y, 2, 0, Math.PI * 2)
+          ctx.fill()
         }
       }
+      ctx.restore()
     }
+  }
+
+  private buildChrome(): void {
+    const palette = this.chromePalette()
+    this.chromeLayer = this.add.container(0, 0).setDepth(40)
+
+    // The Ben-Day halftone / neon scanline comic texture is baked once into the
+    // cached backdrop canvas (see bakeBackdropTexture) rather than drawn as a
+    // retained per-frame Graphics, so the whole backdrop is a single static image.
 
     // Comic-panel frame: chunky ink border, a white pop line, then an inner ink
     // line (the prototype's `border:6px ink; inset 4px #fff, inset 10px ink`).
