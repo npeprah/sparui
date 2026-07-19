@@ -601,7 +601,15 @@ export class TableScene extends Phaser.Scene {
 
       this.handSprites.push(sprite)
       layer.add(sprite)
+      // Keep each card's EK chrome (drop-shadow/keyline + gold ring) in the SAME
+      // container as the card so the fan depth-sorts as one unit - a card's
+      // shadow/ring must never render in front of a neighbour's face.
+      sprite.updateChromeDepth()
+      layer.add(sprite.getChromeObjects())
     })
+    // Order the container by depth: shadow/keyline (depth-1) behind each face,
+    // gold ring (depth+0.5) just above it, all beneath the next fanned card.
+    layer.sort('depth')
   }
 
   /**
@@ -649,6 +657,10 @@ export class TableScene extends Phaser.Scene {
       sprite.setPlayable(false)
       sprite.setDepth(100 + index)
       layer.add(sprite)
+      // Chrome shares the card's container so its shadow/keyline depth-sorts with
+      // the settled stack rather than rendering in front of it.
+      sprite.updateChromeDepth()
+      layer.add(sprite.getChromeObjects())
       this.pileSprites.set(playerId, sprite)
       this.landCardInPile(sprite, placement)
       index++
@@ -661,6 +673,9 @@ export class TableScene extends Phaser.Scene {
         this.pileSprites.delete(playerId)
       }
     }
+
+    // Keep the pile container ordered by depth (shadow behind each face).
+    layer.sort('depth')
 
     // Re-attach fire / freeze overlays to the (possibly new) pile sprites.
     this.syncPileOverlays()

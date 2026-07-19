@@ -26,27 +26,38 @@ export type EKBorderTreatment = 'gold' | 'comic' | 'neon'
  */
 export interface EKBorderStyle {
   treatment: EKBorderTreatment
-  /** Chunky outer outline colour (the "ink" sticker edge). */
+  /**
+   * Chrome ink colour (frame/halftone/text on the table). Also the comic card
+   * keyline colour. Consumed by `TableScene` for the surrounding chrome - it is
+   * NOT a card-face fill (the cream face is drawn in-engine and never covered).
+   */
   inkColor: number
-  /** Outline weight in screen px (also the border margin around the card). */
+  /** Thin card keyline stroke weight in screen px. */
   inkWidth: number
-  /** Accent colour used for the playable/highlight tint and neon glow. */
+  /** Chrome accent colour (banners / highlights on the table + neon glow). */
   accentColor: number
-  /** Corner radius of the frame in px. */
+  /** Corner radius of the card + keyline in px. */
   cornerRadius: number
-  /** Drop-shadow colour drawn behind the card for the chunky "sticker" feel. */
+  /** Drop-shadow colour drawn behind the card for the chunky "lift" feel. */
   shadowColor: number
   /** Drop-shadow opacity (0 disables the shadow). */
   shadowAlpha: number
   /** Vertical offset of the drop shadow in px. */
   shadowOffsetY: number
-  /** When true, draw an additive outer glow ring in the accent colour (neon). */
+  /** When true, draw an additive outer glow ring around the card (neon). */
   glow: boolean
   /**
-   * Optional thin inner frame colour drawn between the ink edge and the card
-   * face (e.g. the white pop-art line in the comic treatment). `null` = none.
+   * Thin dark/accent KEYLINE hugging the card edge (comic ink / neon cyan).
+   * `null` = no keyline: the warm "gold" card is just cream + drop shadow, per
+   * prototype variant A. Never a face-covering fill.
    */
-  innerFrameColor: number | null
+  keylineColor: number | null
+  /**
+   * The gold playable-affordance ring colour - the ONLY gold on the card,
+   * drawn as an inset ring above the face when the card is playable (mirrors the
+   * prototype `.card.playable::after { inset 0 0 0 4px #FFD700 }`).
+   */
+  ringColor: number
 }
 
 /** Ink black shared by the heritage/comic treatments. */
@@ -57,44 +68,48 @@ const INK = 0x14100c
  * ticket 16 (overlays) can align their chrome with the card frame.
  */
 export const EK_BORDER_STYLES: Record<EKBorderTreatment, EKBorderStyle> = {
-  // Warm Heritage: ink outline, gold accent, soft warm drop shadow.
+  // Warm Heritage: cream card + chunky drop shadow, NO keyline (prototype A).
+  // Gold is reserved for the playable ring only.
   gold: {
     treatment: 'gold',
     inkColor: INK,
-    inkWidth: 4,
+    inkWidth: 3,
     accentColor: 0xffd700,
     cornerRadius: 12,
     shadowColor: 0x000000,
     shadowAlpha: 0.35,
-    shadowOffsetY: 8,
+    shadowOffsetY: 6,
     glow: false,
-    innerFrameColor: 0xffd700,
+    keylineColor: null,
+    ringColor: 0xffd700,
   },
-  // Comic Panel: heavy ink outline, solid offset ink shadow, white pop line.
+  // Comic Panel: cream card + thin ink keyline + solid offset ink shadow.
   comic: {
     treatment: 'comic',
     inkColor: INK,
-    inkWidth: 5,
+    inkWidth: 3,
     accentColor: 0xffd400,
     cornerRadius: 8,
     shadowColor: INK,
     shadowAlpha: 1,
-    shadowOffsetY: 6,
+    shadowOffsetY: 5,
     glow: false,
-    innerFrameColor: 0xffffff,
+    keylineColor: INK,
+    ringColor: 0xffd700,
   },
-  // Neon Arcade: cyan edge, magenta accent, additive glow, no hard shadow.
+  // Neon Arcade: cream card + thin cyan keyline + additive cyan glow, soft shadow.
   neon: {
     treatment: 'neon',
     inkColor: 0x00f5ff,
-    inkWidth: 3,
+    inkWidth: 2,
     accentColor: 0xff006e,
     cornerRadius: 14,
-    shadowColor: 0x00f5ff,
+    shadowColor: 0x000000,
     shadowAlpha: 0.5,
-    shadowOffsetY: 0,
+    shadowOffsetY: 6,
     glow: true,
-    innerFrameColor: null,
+    keylineColor: 0x00f5ff,
+    ringColor: 0xffd700,
   },
 }
 

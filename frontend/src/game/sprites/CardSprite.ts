@@ -53,6 +53,7 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private _playable: boolean = false
   private _selected: boolean = false
   private _faceDown: boolean = false
+  private _hovered: boolean = false
   private _visualState: CardState = 'default'
 
   // Visual effect properties
@@ -83,8 +84,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   // ---------------------------------------------------------------------------
   // EK look: chunky ink-outline border + per-theme comic framing (ticket 12)
   // ---------------------------------------------------------------------------
-  /** Graphics that renders the chunky ink border / comic frame behind the card. */
+  /** Graphics that renders the drop shadow + thin keyline BEHIND the card face. */
   private ekBorder?: Phaser.GameObjects.Graphics
+  /** Graphics that renders the gold playable-affordance ring ABOVE the card face. */
+  private ekRing?: Phaser.GameObjects.Graphics
   /** Active EK border treatment (gold / comic / neon), resolved from themeStore. */
   private ekTreatment: EKBorderTreatment
   /** Set when the border geometry must be redrawn on the next frame. */
@@ -334,6 +337,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     // Don't hover if in disabled state
     if (this._visualState === 'disabled') return
 
+    // Reveal the gold playable-affordance ring while hovered (prototype
+    // `.card.playable:hover::after`). syncEKVisuals reads this flag each frame.
+    this._hovered = true
+
     // Stop any existing hover tween
     if (this.hoverTween) {
       this.hoverTween.stop()
@@ -351,6 +358,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
    * Hover exit effect - return to original position
    */
   private onHoverExit(): void {
+    // Hide the gold playable ring again once the pointer leaves.
+    this._hovered = false
+
     // Stop any existing hover tween
     if (this.hoverTween) {
       this.hoverTween.stop()
@@ -754,6 +764,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.ekBorder.destroy()
       this.ekBorder = undefined
     }
+    if (this.ekRing) {
+      this.ekRing.destroy()
+      this.ekRing = undefined
+    }
     for (const kind of Object.keys(this.overlayObjects) as OverlayKind[]) {
       this.detachOverlay(kind)
     }
@@ -785,60 +799,106 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private renderEKBorder(): void {
     if (!this.scene?.add?.graphics) return
 
+    const style = getEKBorderStyle(this.ekTreatment)
+
+    // Shadow + thin keyline, drawn BEHIND the face so they never cover it (nor a
+    // neighbour's face in the overlapping hand fan).
     if (!this.ekBorder) {
       const g = this.scene.add.graphics()
       if (!g) return
       this.ekBorder = g
     }
-
-    this.drawEKBorder(this.ekBorder, getEKBorderStyle(this.ekTreatment))
+    this.drawEKBorder(this.ekBorder, style)
     this.ekBorder.setPosition(this.x, this.y)
     this.ekBorder.setDepth(this.depth - 1)
     this.ekBorder.setVisible(this.visible)
+
+    // Gold playable-affordance ring, drawn ABOVE the face (just below the next
+    // fanned card + the state overlays) and shown only while playable & face-up.
+    if (!this.ekRing) {
+      const ring = this.scene.add.graphics()
+      if (ring) this.ekRing = ring
+    }
+    if (this.ekRing) {
+      this.drawEKRing(this.ekRing, style)
+      this.ekRing.setPosition(this.x, this.y)
+      this.ekRing.setDepth(this.depth + 0.5)
+      this.ekRing.setVisible(this.visible && this._playable && this._hovered && !this._faceDown)
+    }
+
     this.ekBorderDirty = false
     this.ekLastDrawnWidth = this.displayWidth
     this.ekLastDrawnHeight = this.displayHeight
   }
 
   /**
-   * Draw the border geometry for a treatment, centred on the graphics object's
-   * own origin (0,0) and sized to the card's current display bounds. The border
-   * is drawn in screen-space pixel widths (not the card's render scale) so the
-   * outline stays chunky, then positioned onto the card via `setPosition` in
+   * Draw the card's chunky drop shadow + thin edge keyline, centred on the
+   * graphics object's own origin (0,0) and sized to the card's current display
+   * bounds. Screen-space pixel widths (not the card's render scale) keep the
+   * shadow/keyline crisp; positioned onto the card via `setPosition` in
    * {@link syncEKVisuals} so it follows the card cheaply as it moves.
+   *
+   * Crucially there is NO opaque fill: the cream face (drawn in-engine) is never
+   * covered, so every card in the overlapping hand fan shows its face and corner
+   * ranks - only shadow + a thin keyline sit behind it.
    */
   private drawEKBorder(g: Phaser.GameObjects.Graphics, style: EKBorderStyle): void {
     const dw = this.displayWidth
     const dh = this.displayHeight
-    const m = style.inkWidth
     const r = style.cornerRadius
     const left = -dw / 2
     const top = -dh / 2
 
     g.clear()
 
-    // Chunky drop shadow behind everything.
+    // Chunky drop shadow (prototype: a softer lower shadow + a tighter offset
+    // one). Gives the cream card its lift with no face-covering fill.
     if (style.shadowAlpha > 0) {
+      g.fillStyle(style.shadowColor, style.shadowAlpha * 0.55)
+      g.fillRoundedRect(left - 2, top + style.shadowOffsetY + 6, dw + 4, dh + 6, r + 3)
       g.fillStyle(style.shadowColor, style.shadowAlpha)
-      g.fillRoundedRect(left - m, top - m + style.shadowOffsetY, dw + m * 2, dh + m * 2, r + m)
+      g.fillRoundedRect(left, top + style.shadowOffsetY, dw, dh, r)
     }
 
-    // Ink "sticker" frame - peeks out around the card face as the chunky border.
-    g.fillStyle(style.inkColor, 1)
-    g.fillRoundedRect(left - m, top - m, dw + m * 2, dh + m * 2, r + m)
-
-    // Optional thin inner accent frame (e.g. comic white pop line / gold line).
-    if (style.innerFrameColor !== null) {
-      const im = Math.max(1, m * 0.5)
-      g.fillStyle(style.innerFrameColor, 1)
-      g.fillRoundedRect(left - im, top - im, dw + im * 2, dh + im * 2, r + im)
-    }
-
-    // Neon additive outer glow ring.
+    // Neon additive outer glow ring (cyan), behind the face.
     if (style.glow) {
-      g.lineStyle(m + 4, style.accentColor, 0.35)
-      g.strokeRoundedRect(left - m - 3, top - m - 3, dw + m * 2 + 6, dh + m * 2 + 6, r + m + 3)
+      const glowColor = style.keylineColor ?? style.accentColor
+      g.lineStyle(style.inkWidth + 6, glowColor, 0.35)
+      g.strokeRoundedRect(left - 3, top - 3, dw + 6, dh + 6, r + 3)
     }
+
+    // Thin edge keyline hugging the card edge (comic ink / neon cyan). The warm
+    // "gold" treatment has NO keyline - cream + shadow only, per prototype A.
+    if (style.keylineColor !== null) {
+      const kw = style.inkWidth
+      g.lineStyle(kw, style.keylineColor, 1)
+      g.strokeRoundedRect(left - kw / 2, top - kw / 2, dw + kw, dh + kw, r + kw / 2)
+    }
+  }
+
+  /**
+   * Draw the gold playable-affordance ring - the ONLY gold on the card. Mirrors
+   * the prototype `.card.playable::after { box-shadow: inset 0 0 0 4px #FFD700 }`:
+   * a 4px gold ring hugging the inner edge of the cream face. Rendered on its own
+   * graphics ABOVE the face so it reads as an inset highlight, never a fill, and
+   * is only made visible while the card is playable (see {@link renderEKBorder}).
+   */
+  private drawEKRing(g: Phaser.GameObjects.Graphics, style: EKBorderStyle): void {
+    const dw = this.displayWidth
+    const dh = this.displayHeight
+    const r = style.cornerRadius
+    const ringWidth = 4
+    const inset = ringWidth / 2
+
+    g.clear()
+    g.lineStyle(ringWidth, style.ringColor, 1)
+    g.strokeRoundedRect(
+      -dw / 2 + inset,
+      -dh / 2 + inset,
+      dw - ringWidth,
+      dh - ringWidth,
+      Math.max(1, r - inset)
+    )
   }
 
   /**
@@ -859,6 +919,34 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   /** Current EK border treatment (gold / comic / neon). */
   public getEKTreatment(): EKBorderTreatment {
     return this.ekTreatment
+  }
+
+  /**
+   * The EK chrome graphics: the drop-shadow/keyline (behind the face) and the
+   * gold playable ring (above it). TableScene adds these into the SAME container
+   * as the card and depth-sorts, so in the overlapping hand fan a card's shadow
+   * or ring never renders in front of a neighbouring card's face.
+   */
+  public getChromeObjects(): Phaser.GameObjects.Graphics[] {
+    const out: Phaser.GameObjects.Graphics[] = []
+    if (this.ekBorder) out.push(this.ekBorder)
+    if (this.ekRing) out.push(this.ekRing)
+    return out
+  }
+
+  /**
+   * Force the EK chrome onto the card's current depth band - shadow/keyline just
+   * behind the face (depth-1), gold ring just above it (depth+0.5) - and refresh
+   * the ring's visibility. TableScene calls this right before depth-sorting a
+   * card's container, because the per-frame sync in {@link preUpdate} has not run
+   * yet at build time (so the chrome would otherwise sort using a stale depth).
+   */
+  public updateChromeDepth(): void {
+    if (this.ekBorder) this.ekBorder.setDepth(this.depth - 1)
+    if (this.ekRing) {
+      this.ekRing.setDepth(this.depth + 0.5)
+      this.ekRing.setVisible(this.visible && this._playable && this._hovered && !this._faceDown)
+    }
   }
 
   /**
@@ -886,6 +974,14 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.ekBorder.setPosition(this.x, this.y)
       this.ekBorder.setDepth(this.depth - 1)
       this.ekBorder.setVisible(this.visible)
+    }
+
+    // Keep the gold playable ring locked to the card; its visibility tracks the
+    // playable/face-up state (which can flip without a size change).
+    if (this.ekRing) {
+      this.ekRing.setPosition(this.x, this.y)
+      this.ekRing.setDepth(this.depth + 0.5)
+      this.ekRing.setVisible(this.visible && this._playable && this._hovered && !this._faceDown)
     }
 
     // Keep attached overlay display objects anchored to the card.
