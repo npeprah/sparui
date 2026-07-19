@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -450,12 +451,16 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 		return
 	}
 
-	// Validate it's the player's turn
-	if gameState.CurrentTurn != c.PlayerID {
-		slog.Warn("Player attempted to play out of turn",
+	// Round-opening rule: only the leader may open a round (play the first card).
+	// A follower who tries to play before the leader has opened is rejected
+	// harmlessly - no state is mutated. Once the round is open, ANY player may
+	// play at any time; strict turn order governs only whose timer is running
+	// (handled in a later ticket), not who is permitted to play.
+	if len(gameState.PlayedCards) == 0 && !gameState.IsLeader(c.PlayerID) {
+		slog.Warn("Non-leader attempted to open the round",
 			"playerId", c.PlayerID,
-			"currentTurn", gameState.CurrentTurn)
-		c.sendError("game:play_error", "Not your turn")
+			"leaderId", gameState.LeaderID)
+		c.sendError("game:play_error", "Only the leader can open the round")
 		return
 	}
 
@@ -487,19 +492,12 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 		return
 	}
 
-	// Validate suit following rules (if not leading)
-	if gameState.LedSuit != nil {
-		// A suit has been led - must follow if player has that suit
-		if player.HasSuit(*gameState.LedSuit) && card.Suit != *gameState.LedSuit {
-			slog.Warn("Player must follow suit",
-				"playerId", c.PlayerID,
-				"ledSuit", *gameState.LedSuit,
-				"playedSuit", card.Suit)
-			c.sendError("game:play_error", "Must follow suit")
-			return
-		}
-	} else {
-		// Leading the round - set the led suit
+	// Off-suit freedom: a player MAY break suit even while holding the led suit.
+	// Follow-suit is a strategic expectation, not a hard rule - an illegal
+	// off-suit play is policed by the flag/challenge mechanic (a later ticket),
+	// never rejected inline here. The only suit bookkeeping we do is recording
+	// the led suit when the round is opened.
+	if gameState.LedSuit == nil {
 		gameState.LedSuit = &card.Suit
 		slog.Info("Led suit set", "suit", card.Suit, "playerId", c.PlayerID)
 	}
@@ -1421,6 +1419,16 @@ func (c *Client) handleRestartGame(data json.RawMessage) {
 	})
 }
 
+// pickRandomLeaderIndex returns a uniformly random player index in [0, numPlayers)
+// to seat the leader of the very first round. Subsequent rounds are led by the
+// prior round's winner (see handleRoundCompletion), not by this function.
+func pickRandomLeaderIndex(numPlayers int) int {
+	if numPlayers <= 1 {
+		return 0
+	}
+	return rand.Intn(numPlayers)
+}
+
 // initializeGameState creates a new game state with shuffled deck and dealt cards
 func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 	// Create and shuffle deck
@@ -1432,6 +1440,10 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to deal cards: %w", err)
 	}
+
+	// Pick a random leader for the first round. The winner of each round leads
+	// the next one, so this randomness only applies to the opening round.
+	leaderIndex := pickRandomLeaderIndex(len(room.Players))
 
 	// Convert room players to game players with dealt hands
 	gamePlayers := make([]entity.GamePlayer, len(room.Players))
@@ -1445,7 +1457,7 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 			Score:          0,
 			RoundsWon:      0,
 			WinStreak:      0,
-			IsLeader:       i == 0, // First player is initial leader
+			IsLeader:       i == leaderIndex, // Randomly seated initial leader
 			IsOnFire:       false,
 			HasPlayedCard:  false,
 			LastPlayedCard: nil,
@@ -1464,8 +1476,8 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 		PointsToWin:      room.Settings.PointsToWin,
 		Phase:            entity.PhasePlaying,
 		Players:          gamePlayers,
-		LeaderID:         gamePlayers[0].ID,
-		CurrentTurn:      gamePlayers[0].ID,
+		LeaderID:         gamePlayers[leaderIndex].ID,
+		CurrentTurn:      gamePlayers[leaderIndex].ID,
 		CurrentRound:     1,
 		LedSuit:          nil,
 		PlayedCards:      []entity.PlayedCard{},

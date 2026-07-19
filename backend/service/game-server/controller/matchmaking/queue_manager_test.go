@@ -12,10 +12,10 @@ import (
 
 // mockClient simulates a WebSocket client for testing
 type mockClient struct {
-	id       string
-	playerID string
+	id           string
+	playerID     string
 	sentMessages []interface{}
-	mu       sync.Mutex
+	mu           sync.Mutex
 }
 
 func (m *mockClient) SendJSON(data interface{}) error {
@@ -33,8 +33,8 @@ func (m *mockClient) GetSentMessages() []interface{} {
 
 func newMockClient(playerID string) *mockClient {
 	return &mockClient{
-		id:       "client-" + playerID,
-		playerID: playerID,
+		id:           "client-" + playerID,
+		playerID:     playerID,
 		sentMessages: []interface{}{},
 	}
 }
@@ -42,43 +42,43 @@ func newMockClient(playerID string) *mockClient {
 // TestQueueJoin tests joining the matchmaking queue
 func TestQueueJoin(t *testing.T) {
 	tests := []struct {
-		name           string
-		playerID       string
-		username       string
+		name            string
+		playerID        string
+		username        string
 		existingPlayers []string // Players already in queue
-		expectError    bool
-		errorContains  string
+		expectError     bool
+		errorContains   string
 	}{
 		{
-			name:           "successful join",
-			playerID:       "player1",
-			username:       "Alice",
+			name:            "successful join",
+			playerID:        "player1",
+			username:        "Alice",
 			existingPlayers: []string{},
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "duplicate prevention - same player cannot join twice",
-			playerID:       "player1",
-			username:       "Alice",
+			name:            "duplicate prevention - same player cannot join twice",
+			playerID:        "player1",
+			username:        "Alice",
 			existingPlayers: []string{"player1"},
-			expectError:    true,
-			errorContains:  "already in queue",
+			expectError:     true,
+			errorContains:   "already in queue",
 		},
 		{
-			name:           "empty player ID",
-			playerID:       "",
-			username:       "Alice",
+			name:            "empty player ID",
+			playerID:        "",
+			username:        "Alice",
 			existingPlayers: []string{},
-			expectError:    true,
-			errorContains:  "playerID is required",
+			expectError:     true,
+			errorContains:   "playerID is required",
 		},
 		{
-			name:           "empty username",
-			playerID:       "player1",
-			username:       "",
+			name:            "empty username",
+			playerID:        "player1",
+			username:        "",
 			existingPlayers: []string{},
-			expectError:    true,
-			errorContains:  "username is required",
+			expectError:     true,
+			errorContains:   "username is required",
 		},
 	}
 
@@ -127,31 +127,31 @@ func TestQueueJoin(t *testing.T) {
 // TestQueueLeave tests leaving the matchmaking queue
 func TestQueueLeave(t *testing.T) {
 	tests := []struct {
-		name           string
-		playerID       string
+		name            string
+		playerID        string
 		existingPlayers []string
-		expectError    bool
-		errorContains  string
+		expectError     bool
+		errorContains   string
 	}{
 		{
-			name:           "successful leave",
-			playerID:       "player1",
+			name:            "successful leave",
+			playerID:        "player1",
 			existingPlayers: []string{"player1", "player2"},
-			expectError:    false,
+			expectError:     false,
 		},
 		{
-			name:           "leave when not in queue",
-			playerID:       "player3",
+			name:            "leave when not in queue",
+			playerID:        "player3",
 			existingPlayers: []string{"player1", "player2"},
-			expectError:    true,
-			errorContains:  "not in queue",
+			expectError:     true,
+			errorContains:   "not in queue",
 		},
 		{
-			name:           "empty queue",
-			playerID:       "player1",
+			name:            "empty queue",
+			playerID:        "player1",
 			existingPlayers: []string{},
-			expectError:    true,
-			errorContains:  "not in queue",
+			expectError:     true,
+			errorContains:   "not in queue",
 		},
 	}
 
@@ -194,52 +194,52 @@ func TestQueueLeave(t *testing.T) {
 // TestMatchCreation tests automatic match creation
 func TestMatchCreation(t *testing.T) {
 	tests := []struct {
-		name                string
-		numPlayers          int
-		waitTime            time.Duration
-		expectedMatchCount  int
+		name                     string
+		numPlayers               int
+		waitTime                 time.Duration
+		expectedMatchCount       int
 		expectedRemainingInQueue int
 	}{
 		{
-			name:                "4 players available - immediate match",
-			numPlayers:          4,
-			waitTime:            0,
-			expectedMatchCount:  1,
+			name:                     "4 players available - immediate match",
+			numPlayers:               4,
+			waitTime:                 0,
+			expectedMatchCount:       1,
 			expectedRemainingInQueue: 0,
 		},
 		{
-			name:                "5 players - match 4, leave 1",
-			numPlayers:          5,
-			waitTime:            0,
-			expectedMatchCount:  1,
+			name:                     "5 players - match 4, leave 1",
+			numPlayers:               5,
+			waitTime:                 0,
+			expectedMatchCount:       1,
 			expectedRemainingInQueue: 1,
 		},
 		{
-			name:                "8 players - match 4 twice, leaving 0",
-			numPlayers:          8,
-			waitTime:            0,
-			expectedMatchCount:  2,
+			name:                     "8 players - match 4 twice, leaving 0",
+			numPlayers:               8,
+			waitTime:                 0,
+			expectedMatchCount:       2,
 			expectedRemainingInQueue: 0,
 		},
 		{
-			name:                "2 players, no wait - no match",
-			numPlayers:          2,
-			waitTime:            0,
-			expectedMatchCount:  0,
+			name:                     "2 players, no wait - no match",
+			numPlayers:               2,
+			waitTime:                 0,
+			expectedMatchCount:       0,
 			expectedRemainingInQueue: 2,
 		},
 		{
-			name:                "2 players, 30s wait - relaxed match",
-			numPlayers:          2,
-			waitTime:            31 * time.Second,
-			expectedMatchCount:  1,
+			name:                     "2 players, 30s wait - relaxed match",
+			numPlayers:               2,
+			waitTime:                 31 * time.Second,
+			expectedMatchCount:       1,
 			expectedRemainingInQueue: 0,
 		},
 		{
-			name:                "3 players, 30s wait - relaxed match",
-			numPlayers:          3,
-			waitTime:            31 * time.Second,
-			expectedMatchCount:  1,
+			name:                     "3 players, 30s wait - relaxed match",
+			numPlayers:               3,
+			waitTime:                 31 * time.Second,
+			expectedMatchCount:       1,
 			expectedRemainingInQueue: 0,
 		},
 	}

@@ -201,10 +201,10 @@ func TestHandlePlayCard(t *testing.T) {
 							HasPlayedCard: false,
 						},
 					},
-					LeaderID:    "player1",
-					CurrentTurn: "player2",
+					LeaderID:     "player1",
+					CurrentTurn:  "player2",
 					CurrentRound: 1,
-					LedSuit:     &ledSuit,
+					LedSuit:      &ledSuit,
 					PlayedCards: []entity.PlayedCard{
 						{
 							PlayerID: "player1",
@@ -228,18 +228,26 @@ func TestHandlePlayCard(t *testing.T) {
 			},
 			expectError: false,
 			validateResult: func(t *testing.T, gs *entity.GameState) {
-				// Player2 should have card removed
+				// Player2 should have the played card removed from hand.
 				player := gs.GetPlayer("player2")
 				if len(player.Hand) != 1 {
 					t.Errorf("expected 1 card in hand, got %d", len(player.Hand))
 				}
-				// Should have 2 played cards now
-				if len(gs.PlayedCards) != 2 {
-					t.Errorf("expected 2 played cards, got %d", len(gs.PlayedCards))
+				// This was the final play of the round, so the round auto-completes:
+				// the highest led-suit card (player1's Ace of hearts beats player2's
+				// 10) wins the trick and the round state resets for the next round.
+				if gs.CurrentRound != 2 {
+					t.Errorf("expected round to advance to 2, got %d", gs.CurrentRound)
 				}
-				// Both players have played - round should be complete
-				if !gs.AllPlayersPlayed() {
-					t.Error("all players should have played")
+				if len(gs.PlayedCards) != 0 {
+					t.Errorf("expected played cards to reset to 0 after round completion, got %d", len(gs.PlayedCards))
+				}
+				if winner := gs.GetPlayer("player1"); winner.RoundsWon != 1 {
+					t.Errorf("expected player1 to have won 1 round, got %d", winner.RoundsWon)
+				}
+				// Round winner leads the next round.
+				if gs.LeaderID != "player1" {
+					t.Errorf("expected round winner player1 to lead next round, got %s", gs.LeaderID)
 				}
 			},
 		},
@@ -276,10 +284,10 @@ func TestHandlePlayCard(t *testing.T) {
 							HasPlayedCard: false,
 						},
 					},
-					LeaderID:    "player1",
-					CurrentTurn: "player3",
+					LeaderID:     "player1",
+					CurrentTurn:  "player3",
 					CurrentRound: 1,
-					LedSuit:     &ledSuit,
+					LedSuit:      &ledSuit,
 					PlayedCards: []entity.PlayedCard{
 						{PlayerID: "player1", Card: entity.Card{Suit: entity.Clubs, Value: entity.Ace}, PlayedAt: time.Now()},
 						{PlayerID: "player2", Card: entity.Card{Suit: entity.Clubs, Value: entity.King}, PlayedAt: time.Now()},
@@ -300,12 +308,20 @@ func TestHandlePlayCard(t *testing.T) {
 			},
 			expectError: false,
 			validateResult: func(t *testing.T, gs *entity.GameState) {
-				// All 3 players should have played
-				if len(gs.PlayedCards) != 3 {
-					t.Errorf("expected 3 played cards, got %d", len(gs.PlayedCards))
+				// The third play completes the round, which auto-resolves and
+				// resets. player1's Ace of clubs is the highest led-suit card and
+				// wins the trick.
+				if gs.CurrentRound != 2 {
+					t.Errorf("expected round to advance to 2, got %d", gs.CurrentRound)
 				}
-				if !gs.AllPlayersPlayed() {
-					t.Error("all players should have played")
+				if len(gs.PlayedCards) != 0 {
+					t.Errorf("expected played cards to reset to 0 after round completion, got %d", len(gs.PlayedCards))
+				}
+				if winner := gs.GetPlayer("player1"); winner.RoundsWon != 1 {
+					t.Errorf("expected player1 to have won 1 round, got %d", winner.RoundsWon)
+				}
+				if gs.LeaderID != "player1" {
+					t.Errorf("expected round winner player1 to lead next round, got %s", gs.LeaderID)
 				}
 			},
 		},
@@ -332,12 +348,12 @@ func TestHandlePlayCard(t *testing.T) {
 			expectedErrorType: "game:play_error",
 		},
 		{
-			name:           "error - invalid JSON payload",
-			setupGameState: func() *entity.GameState { return nil },
-			playerID:       "player1",
-			roomID:         "ROOM1",
-			cardPayload:    map[string]interface{}{}, // Missing card data
-			expectError:    true,
+			name:              "error - invalid JSON payload",
+			setupGameState:    func() *entity.GameState { return nil },
+			playerID:          "player1",
+			roomID:            "ROOM1",
+			cardPayload:       map[string]interface{}{}, // Missing card data
+			expectError:       true,
 			expectedErrorType: "game:play_error",
 		},
 		{
@@ -554,9 +570,11 @@ func TestHandlePlayCard(t *testing.T) {
 						t.Errorf("expected error event %s, got %s", tt.expectedErrorType, response.Event)
 					}
 				} else {
-					// Should receive success event (game:card_played)
-					if response.Event != "game:card_played" {
-						t.Errorf("expected event game:card_played, got %s", response.Event)
+					// Should receive the broadcast success event. The authoritative
+					// runtime broadcasts "cardPlayed" (matching the frontend
+					// contract) to every client in the room, including the sender.
+					if response.Event != "cardPlayed" {
+						t.Errorf("expected event cardPlayed, got %s", response.Event)
 					}
 
 					// Validate game state changes
@@ -581,8 +599,16 @@ func TestHandlePlayCard(t *testing.T) {
 	}
 }
 
-// TestHandlePlayCard_FollowSuitValidation tests suit following validation
-func TestHandlePlayCard_FollowSuitValidation(t *testing.T) {
+// TestHandlePlayCard_OffSuitFreedom verifies the pinned owner rule that forced
+// follow-suit is REMOVED: a player may break suit even while holding the led
+// suit, and the engine ACCEPTS it (illegal off-suit plays are policed later by
+// the flag/challenge mechanic, not rejected inline).
+//
+// This replaces the former TestHandlePlayCard_FollowSuitValidation, whose
+// "error - player doesn't follow suit when they have it" case asserted the now
+// overruled forced-follow-suit behavior (rejecting off-suit with "Must follow
+// suit"). That case has been rewritten to assert acceptance.
+func TestHandlePlayCard_OffSuitFreedom(t *testing.T) {
 	tests := []struct {
 		name        string
 		playerHand  []entity.Card
@@ -592,7 +618,7 @@ func TestHandlePlayCard_FollowSuitValidation(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name: "valid - player follows suit when they have it",
+			name: "accepted - player follows suit when they have it",
 			playerHand: []entity.Card{
 				{Suit: entity.Hearts, Value: entity.Ten},
 				{Suit: entity.Clubs, Value: entity.King},
@@ -602,7 +628,7 @@ func TestHandlePlayCard_FollowSuitValidation(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "valid - player plays different suit when they don't have led suit",
+			name: "accepted - player plays different suit when they don't have led suit",
 			playerHand: []entity.Card{
 				{Suit: entity.Clubs, Value: entity.King},
 				{Suit: entity.Spades, Value: entity.Queen},
@@ -612,15 +638,16 @@ func TestHandlePlayCard_FollowSuitValidation(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "error - player doesn't follow suit when they have it",
+			// Pinned-rule change: off-suit is ACCEPTED even while holding the
+			// led suit. Previously this asserted a "Must follow suit" rejection.
+			name: "accepted - player breaks suit while holding the led suit (off-suit freedom)",
 			playerHand: []entity.Card{
 				{Suit: entity.Hearts, Value: entity.Ten},
 				{Suit: entity.Clubs, Value: entity.King},
 			},
 			ledSuit:     entity.Hearts,
 			cardToPlay:  entity.Card{Suit: entity.Clubs, Value: entity.King},
-			expectError: true,
-			errorMsg:    "Must follow suit",
+			expectError: false,
 		},
 	}
 
@@ -698,8 +725,8 @@ func TestHandlePlayCard_FollowSuitValidation(t *testing.T) {
 						}
 					}
 				} else {
-					if response.Event != "game:card_played" {
-						t.Errorf("expected success event, got %s", response.Event)
+					if response.Event != "cardPlayed" {
+						t.Errorf("expected success event cardPlayed, got %s", response.Event)
 					}
 				}
 			case <-time.After(100 * time.Millisecond):

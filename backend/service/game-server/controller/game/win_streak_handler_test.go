@@ -470,11 +470,11 @@ func TestUpdateWinStreaks_LongGameScenario(t *testing.T) {
 		expectFreeze  bool
 		freezeBreaker string // Player who triggered freeze
 	}{
-		{"player-1", "", false, ""},            // Round 1: P1 streak = 1
-		{"player-1", "player-1", false, ""},    // Round 2: P1 streak = 2, fire!
-		{"player-1", "player-1", false, ""},    // Round 3: P1 streak = 3, fire continues
-		{"player-2", "", true, "player-2"},     // Round 4: P2 wins, breaks P1's 3-streak, freeze!
-		{"player-2", "player-2", false, ""},    // Round 5: P2 streak = 2, fire!
+		{"player-1", "", false, ""},         // Round 1: P1 streak = 1
+		{"player-1", "player-1", false, ""}, // Round 2: P1 streak = 2, fire!
+		{"player-1", "player-1", false, ""}, // Round 3: P1 streak = 3, fire continues
+		{"player-2", "", true, "player-2"},  // Round 4: P2 wins, breaks P1's 3-streak, freeze!
+		{"player-2", "player-2", false, ""}, // Round 5: P2 streak = 2, fire!
 	}
 
 	for i, round := range rounds {

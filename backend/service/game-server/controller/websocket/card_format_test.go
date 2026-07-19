@@ -8,9 +8,9 @@ import (
 
 func TestMapBackendRankToFrontend(t *testing.T) {
 	tests := []struct {
-		name          string
-		backendValue  entity.Value
-		expectedRank  string
+		name         string
+		backendValue entity.Value
+		expectedRank string
 	}{
 		{
 			name:         "ace converts to A",

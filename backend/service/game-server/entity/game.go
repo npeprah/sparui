@@ -423,7 +423,13 @@ func (gs *GameState) GetWinningPlayer() *GamePlayer {
 	if len(gs.Players) == 0 {
 		return nil
 	}
-	return gs.GetLeader()
+	winner := &gs.Players[0]
+	for i := range gs.Players[1:] {
+		if gs.Players[i+1].Score > winner.Score {
+			winner = &gs.Players[i+1]
+		}
+	}
+	return winner
 }
 
 // ResetRound resets the round state for the next round

@@ -143,23 +143,36 @@ func TestGameStateInitialization(t *testing.T) {
 				t.Error("TurnStartTime should be set")
 			}
 
-			// Validate leader and current turn
+			// Validate leader and current turn.
+			// Pinned owner rule: the first-round leader is chosen at RANDOM
+			// (not always the first player). We therefore assert only that a
+			// leader is seated, that exactly one player is flagged as leader,
+			// and that LeaderID/CurrentTurn point at that same player.
 			if gameState.LeaderID == "" {
 				t.Error("LeaderID should be set")
 			}
 			if gameState.CurrentTurn == "" {
 				t.Error("CurrentTurn should be set")
 			}
-			if gameState.LeaderID != gameState.Players[0].ID {
-				t.Errorf("LeaderID should be first player, got %s", gameState.LeaderID)
-			}
-			if gameState.CurrentTurn != gameState.Players[0].ID {
-				t.Errorf("CurrentTurn should be first player, got %s", gameState.CurrentTurn)
+			if gameState.CurrentTurn != gameState.LeaderID {
+				t.Errorf("CurrentTurn (%s) should equal LeaderID (%s) at round start",
+					gameState.CurrentTurn, gameState.LeaderID)
 			}
 
-			// Validate first player is marked as leader
-			if !gameState.Players[0].IsLeader {
-				t.Error("first player should be marked as leader")
+			leaderCount := 0
+			var flaggedLeaderID string
+			for _, p := range gameState.Players {
+				if p.IsLeader {
+					leaderCount++
+					flaggedLeaderID = p.ID
+				}
+			}
+			if leaderCount != 1 {
+				t.Errorf("exactly one player should be marked as leader, got %d", leaderCount)
+			}
+			if flaggedLeaderID != gameState.LeaderID {
+				t.Errorf("the IsLeader-flagged player (%s) should match LeaderID (%s)",
+					flaggedLeaderID, gameState.LeaderID)
 			}
 
 			// Run custom validation
@@ -304,17 +317,24 @@ func TestGameStatePlayerConversion(t *testing.T) {
 		if gamePlayer.IsOnFire {
 			t.Errorf("player %d: IsOnFire should be false", i)
 		}
+	}
 
-		// Only first player should be leader
-		if i == 0 {
-			if !gamePlayer.IsLeader {
-				t.Error("first player should be marked as leader")
-			}
-		} else {
-			if gamePlayer.IsLeader {
-				t.Errorf("player %d should not be marked as leader", i)
-			}
+	// Pinned owner rule: the first-round leader is chosen at RANDOM, so we can
+	// no longer assert the first player is leader. Instead assert exactly one
+	// player is flagged as leader and that flag agrees with LeaderID.
+	leaderCount := 0
+	var flaggedLeaderID string
+	for _, gamePlayer := range gameState.Players {
+		if gamePlayer.IsLeader {
+			leaderCount++
+			flaggedLeaderID = gamePlayer.ID
 		}
+	}
+	if leaderCount != 1 {
+		t.Errorf("exactly one player should be marked as leader, got %d", leaderCount)
+	}
+	if flaggedLeaderID != gameState.LeaderID {
+		t.Errorf("IsLeader-flagged player (%s) should match LeaderID (%s)", flaggedLeaderID, gameState.LeaderID)
 	}
 }
 

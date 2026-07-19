@@ -43,11 +43,11 @@ func ExampleDeck_validation() {
 	}
 
 	fmt.Println("Deck is valid")
-	fmt.Printf("Hearts: 9 cards, Clubs: 9 cards, Diamonds: 9 cards, Spades: 8 cards (no 6)\n")
+	fmt.Printf("Hearts: 9 cards, Clubs: 9 cards, Diamonds: 9 cards, Spades: 8 cards (no Ace)\n")
 
 	// Output:
 	// Deck is valid
-	// Hearts: 9 cards, Clubs: 9 cards, Diamonds: 9 cards, Spades: 8 cards (no 6)
+	// Hearts: 9 cards, Clubs: 9 cards, Diamonds: 9 cards, Spades: 8 cards (no Ace)
 }
 
 // ExampleDeck_multipleDeals demonstrates dealing multiple times

@@ -28,7 +28,7 @@ func TestDeckComposition(t *testing.T) {
 	// Hearts: 6, 7, 8, 9, 10, J, Q, K, A (9 cards)
 	// Clubs: 6, 7, 8, 9, 10, J, Q, K, A (9 cards)
 	// Diamonds: 6, 7, 8, 9, 10, J, Q, K, A (9 cards)
-	// Spades: 7, 8, 9, 10, J, Q, K, A (8 cards - no 6 of spades)
+	// Spades: 6, 7, 8, 9, 10, J, Q, K (8 cards - no Ace of spades)
 
 	suitCounts := make(map[Suit]int)
 	cardMap := make(map[string]bool)
@@ -58,10 +58,16 @@ func TestDeckComposition(t *testing.T) {
 		}
 	}
 
-	// Verify no 6 of spades exists
+	// Verify no Ace of spades exists (spades top out at King)
+	aceOfSpades := string(Spades) + "-" + string(Ace)
+	if cardMap[aceOfSpades] {
+		t.Error("Deck should not contain Ace of spades")
+	}
+
+	// Verify the 6 of spades IS present (spades run 6-K)
 	sixOfSpades := string(Spades) + "-" + string(Six)
-	if cardMap[sixOfSpades] {
-		t.Error("Deck should not contain 6 of spades")
+	if !cardMap[sixOfSpades] {
+		t.Error("Deck should contain 6 of spades")
 	}
 
 	// Verify all other expected cards exist
@@ -78,9 +84,9 @@ func TestDeckComposition(t *testing.T) {
 		// Diamonds (all including 6)
 		{Diamonds, Six}, {Diamonds, Seven}, {Diamonds, Eight}, {Diamonds, Nine}, {Diamonds, Ten},
 		{Diamonds, Jack}, {Diamonds, Queen}, {Diamonds, King}, {Diamonds, Ace},
-		// Spades (no 6)
-		{Spades, Seven}, {Spades, Eight}, {Spades, Nine}, {Spades, Ten},
-		{Spades, Jack}, {Spades, Queen}, {Spades, King}, {Spades, Ace},
+		// Spades (no Ace)
+		{Spades, Six}, {Spades, Seven}, {Spades, Eight}, {Spades, Nine}, {Spades, Ten},
+		{Spades, Jack}, {Spades, Queen}, {Spades, King},
 	}
 
 	for _, expected := range expectedCards {
@@ -361,14 +367,14 @@ func TestValidate(t *testing.T) {
 		}
 	})
 
-	t.Run("Invalid: 6 of spades present", func(t *testing.T) {
+	t.Run("Invalid: Ace of spades present", func(t *testing.T) {
 		deck := NewDeck()
-		// Add 6 of spades (should not exist in Spar deck)
-		deck.Cards = append(deck.Cards, Card{Suit: Spades, Value: Six})
+		// Add Ace of spades (should not exist in Spar deck)
+		deck.Cards = append(deck.Cards, Card{Suit: Spades, Value: Ace})
 
 		err := deck.Validate()
 		if err == nil {
-			t.Error("Expected error for deck with 6 of spades")
+			t.Error("Expected error for deck with Ace of spades")
 		}
 	})
 
