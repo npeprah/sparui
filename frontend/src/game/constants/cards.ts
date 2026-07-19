@@ -2,26 +2,16 @@ import type { Suit, Rank } from '../../store/types'
 
 /**
  * Spar Deck Constants
- * 34 cards total: Hearts (9), Clubs (9), Diamonds (9), Spades (7)
- * Spades has no 6 or A per traditional Spar rules
+ * 35 cards total: Hearts (9), Clubs (9), Diamonds (9), Spades (8)
+ * Spades runs 6-K (no Ace of spades) per the corrected Spar deck
  */
 
 export const ALL_SUITS: readonly Suit[] = ['hearts', 'clubs', 'diamonds', 'spades'] as const
 
-export const ALL_RANKS: readonly Rank[] = [
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  'J',
-  'Q',
-  'K',
-  'A',
-] as const
+export const ALL_RANKS: readonly Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'] as const
 
-// Spades only has 7 cards (no 6 or A)
-export const SPADES_RANKS: readonly Rank[] = ['7', '8', '9', '10', 'J', 'Q', 'K'] as const
+// Spades has 8 cards: 6-K (no Ace of spades)
+export const SPADES_RANKS: readonly Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const
 
 // Card asset path structure (no leading slash - relative to public directory)
 export const CARD_ASSET_BASE_PATH = 'assets/cards'
@@ -53,8 +43,8 @@ export function getCardAssetPath(suit: Suit, rank: Rank): string {
  * @returns true if the card exists in Spar deck
  */
 export function isValidSparCard(suit: Suit, rank: Rank): boolean {
-  // Spades cannot have 6 or A
-  if (suit === 'spades' && (rank === '6' || rank === 'A')) {
+  // Spades runs 6-K: there is no Ace of spades
+  if (suit === 'spades' && rank === 'A') {
     return false
   }
   return true
@@ -73,7 +63,7 @@ export function getValidRanksForSuit(suit: Suit): readonly Rank[] {
 }
 
 /**
- * Generate complete Spar deck (34 cards)
+ * Generate complete Spar deck (35 cards)
  * @returns Array of all valid card combinations
  */
 export function generateSparDeck(): Array<{ suit: Suit; rank: Rank }> {
@@ -92,7 +82,7 @@ export function generateSparDeck(): Array<{ suit: Suit; rank: Rank }> {
 /**
  * Get the total number of cards in the Spar deck
  */
-export const SPAR_DECK_SIZE = 34
+export const SPAR_DECK_SIZE = 35
 
 /**
  * Card dimensions (original asset size)
@@ -107,6 +97,11 @@ export const CARD_DIMENSIONS = {
  * Card back asset key
  */
 export const CARD_BACK_KEY = 'card_back'
+
+/**
+ * Card back asset file path (designed illustration, no leading slash)
+ */
+export const CARD_BACK_ASSET_PATH = `${CARD_ASSET_BASE_PATH}/card_back.png`
 
 /**
  * Card display scales for different contexts
