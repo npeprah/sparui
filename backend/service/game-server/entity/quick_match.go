@@ -54,13 +54,13 @@ type QuickMatchRequest struct {
 
 // QuickMatchResult represents the result of a Quick Match setup
 type QuickMatchResult struct {
-	MatchID       string            `json:"matchId"`
-	RoomCode      string            `json:"roomCode"`
-	PlayerIDs     []string          `json:"playerIds"`
-	State         QuickMatchState   `json:"state"`
-	CreatedAt     time.Time         `json:"createdAt"`
-	CountdownTime int               `json:"countdownTime"` // seconds
-	Error         string            `json:"error,omitempty"`
+	MatchID       string          `json:"matchId"`
+	RoomCode      string          `json:"roomCode"`
+	PlayerIDs     []string        `json:"playerIds"`
+	State         QuickMatchState `json:"state"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	CountdownTime int             `json:"countdownTime"` // seconds
+	Error         string          `json:"error,omitempty"`
 }
 
 // QuickMatchSettings returns the default settings for Quick Match games

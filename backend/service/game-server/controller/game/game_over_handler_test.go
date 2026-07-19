@@ -26,9 +26,9 @@ func createGameOverTestState(players int, currentRound int, pointsToWin int) *en
 	for i := 0; i < players; i++ {
 		playerID := uuid.New().String()
 		gameState.Players[i] = entity.GamePlayer{
-			ID:       playerID,
-			Username: "Player" + string(rune('A'+i)),
-			Score:    0,
+			ID:        playerID,
+			Username:  "Player" + string(rune('A'+i)),
+			Score:     0,
 			WinStreak: 0,
 			RoundsWon: 0,
 		}
@@ -40,60 +40,60 @@ func createGameOverTestState(players int, currentRound int, pointsToWin int) *en
 // TestCheckGameOver tests game over detection
 func TestCheckGameOver(t *testing.T) {
 	tests := []struct {
-		name           string
-		currentRound   int
-		playerScores   []int
-		pointsToWin    int
-		wantGameOver   bool
-		wantReason     entity.GameCompletionType
+		name         string
+		currentRound int
+		playerScores []int
+		pointsToWin  int
+		wantGameOver bool
+		wantReason   entity.GameCompletionType
 	}{
 		{
-			name:           "Game not over - Round 3 of 5",
-			currentRound:   3,
-			playerScores:   []int{5, 4, 3, 2},
-			pointsToWin:    10,
-			wantGameOver:   false,
-			wantReason:     "",
+			name:         "Game not over - Round 3 of 5",
+			currentRound: 3,
+			playerScores: []int{5, 4, 3, 2},
+			pointsToWin:  10,
+			wantGameOver: false,
+			wantReason:   "",
 		},
 		{
-			name:           "Game over - 5 rounds complete",
-			currentRound:   5,
-			playerScores:   []int{8, 7, 6, 5},
-			pointsToWin:    10,
-			wantGameOver:   true,
-			wantReason:     entity.CompletionRounds,
+			name:         "Game over - 5 rounds complete",
+			currentRound: 5,
+			playerScores: []int{8, 7, 6, 5},
+			pointsToWin:  10,
+			wantGameOver: true,
+			wantReason:   entity.CompletionRounds,
 		},
 		{
-			name:           "Game over - Points target reached (10)",
-			currentRound:   4,
-			playerScores:   []int{10, 5, 3, 2},
-			pointsToWin:    10,
-			wantGameOver:   true,
-			wantReason:     entity.CompletionPointsTarget,
+			name:         "Game over - Points target reached (10)",
+			currentRound: 4,
+			playerScores: []int{10, 5, 3, 2},
+			pointsToWin:  10,
+			wantGameOver: true,
+			wantReason:   entity.CompletionPointsTarget,
 		},
 		{
-			name:           "Game over - Points target reached (15)",
-			currentRound:   5,
-			playerScores:   []int{16, 12, 8, 7},
-			pointsToWin:    15,
-			wantGameOver:   true,
-			wantReason:     entity.CompletionPointsTarget,
+			name:         "Game over - Points target reached (15)",
+			currentRound: 5,
+			playerScores: []int{16, 12, 8, 7},
+			pointsToWin:  15,
+			wantGameOver: true,
+			wantReason:   entity.CompletionPointsTarget,
 		},
 		{
-			name:           "Game over - Points target reached (21)",
-			currentRound:   5,
-			playerScores:   []int{25, 18, 15, 12},
-			pointsToWin:    21,
-			wantGameOver:   true,
-			wantReason:     entity.CompletionPointsTarget,
+			name:         "Game over - Points target reached (21)",
+			currentRound: 5,
+			playerScores: []int{25, 18, 15, 12},
+			pointsToWin:  21,
+			wantGameOver: true,
+			wantReason:   entity.CompletionPointsTarget,
 		},
 		{
-			name:           "Game not over - Under points target",
-			currentRound:   3,
-			playerScores:   []int{9, 8, 7, 6},
-			pointsToWin:    10,
-			wantGameOver:   false,
-			wantReason:     "",
+			name:         "Game not over - Under points target",
+			currentRound: 3,
+			playerScores: []int{9, 8, 7, 6},
+			pointsToWin:  10,
+			wantGameOver: false,
+			wantReason:   "",
 		},
 	}
 
@@ -123,13 +123,13 @@ func TestCheckGameOver(t *testing.T) {
 // TestCalculateFinalScores tests final score calculation with all bonuses
 func TestCalculateFinalScores(t *testing.T) {
 	tests := []struct {
-		name               string
-		setupGame          func() *entity.GameState
-		wantTotalScores    map[string]int
-		wantBaseScores     map[string]int
-		wantDryBonuses     map[string]int
-		wantStreakBonuses  map[string]int
-		wantFreezeBonuses  map[string]int
+		name              string
+		setupGame         func() *entity.GameState
+		wantTotalScores   map[string]int
+		wantBaseScores    map[string]int
+		wantDryBonuses    map[string]int
+		wantStreakBonuses map[string]int
+		wantFreezeBonuses map[string]int
 	}{
 		{
 			name: "Base scores only - no bonuses",

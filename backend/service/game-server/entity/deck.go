@@ -10,7 +10,7 @@ import (
 // - Hearts: 6, 7, 8, 9, 10, J, Q, K, A (9 cards)
 // - Clubs: 6, 7, 8, 9, 10, J, Q, K, A (9 cards)
 // - Diamonds: 6, 7, 8, 9, 10, J, Q, K, A (9 cards)
-// - Spades: 7, 8, 9, 10, J, Q, K, A (8 cards - no 6 of spades)
+// - Spades: 6, 7, 8, 9, 10, J, Q, K (8 cards - no Ace of spades)
 type Deck struct {
 	Cards []Card
 }
@@ -40,8 +40,8 @@ func NewDeck() *Deck {
 		deck.Cards = append(deck.Cards, Card{Suit: Diamonds, Value: value})
 	}
 
-	// Spades: no 6 of spades (7-Ace only)
-	spadesValues := []Value{Seven, Eight, Nine, Ten, Jack, Queen, King, Ace}
+	// Spades: no Ace of spades (6-King only)
+	spadesValues := []Value{Six, Seven, Eight, Nine, Ten, Jack, Queen, King}
 	for _, value := range spadesValues {
 		deck.Cards = append(deck.Cards, Card{Suit: Spades, Value: value})
 	}
@@ -103,7 +103,7 @@ func (d *Deck) Deal(numPlayers int) ([][]Card, error) {
 // - Total card count is not 35
 // - Duplicate cards exist
 // - Required cards are missing
-// - Invalid cards are present (including 6 of spades)
+// - Invalid cards are present (including Ace of spades)
 func (d *Deck) Validate() error {
 	// Check total card count
 	totalCards := len(d.Cards)
@@ -122,9 +122,9 @@ func (d *Deck) Validate() error {
 			continue
 		}
 
-		// Check for 6 of spades (should not exist in Spar)
-		if card.Suit == Spades && card.Value == Six {
-			return fmt.Errorf("deck must not contain 6 of spades")
+		// Check for Ace of spades (should not exist in Spar)
+		if card.Suit == Spades && card.Value == Ace {
+			return fmt.Errorf("deck must not contain Ace of spades")
 		}
 
 		// Check for duplicates
@@ -150,9 +150,9 @@ func (d *Deck) Validate() error {
 		// Diamonds (9 cards including 6)
 		{Diamonds, Six}, {Diamonds, Seven}, {Diamonds, Eight}, {Diamonds, Nine}, {Diamonds, Ten},
 		{Diamonds, Jack}, {Diamonds, Queen}, {Diamonds, King}, {Diamonds, Ace},
-		// Spades (8 cards, no 6)
-		{Spades, Seven}, {Spades, Eight}, {Spades, Nine}, {Spades, Ten},
-		{Spades, Jack}, {Spades, Queen}, {Spades, King}, {Spades, Ace},
+		// Spades (8 cards, no Ace)
+		{Spades, Six}, {Spades, Seven}, {Spades, Eight}, {Spades, Nine}, {Spades, Ten},
+		{Spades, Jack}, {Spades, Queen}, {Spades, King},
 	}
 
 	missingCards := []string{}

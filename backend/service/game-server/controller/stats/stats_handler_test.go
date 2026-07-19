@@ -14,11 +14,11 @@ import (
 // TestHandlerGetLeaderboard tests the leaderboard HTTP endpoint
 func TestHandlerGetLeaderboard(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMock      func(*mockUserRepository)
-		queryParams    string
-		wantStatus     int
-		validateBody   func(*testing.T, []byte)
+		name         string
+		setupMock    func(*mockUserRepository)
+		queryParams  string
+		wantStatus   int
+		validateBody func(*testing.T, []byte)
 	}{
 		{
 			name: "Success - Default parameters",
@@ -91,8 +91,8 @@ func TestHandlerGetLeaderboard(t *testing.T) {
 			},
 		},
 		{
-			name: "Error - Invalid limit",
-			setupMock: func(m *mockUserRepository) {},
+			name:        "Error - Invalid limit",
+			setupMock:   func(m *mockUserRepository) {},
 			queryParams: "?limit=invalid",
 			wantStatus:  http.StatusBadRequest,
 			validateBody: func(t *testing.T, body []byte) {
@@ -106,8 +106,8 @@ func TestHandlerGetLeaderboard(t *testing.T) {
 			},
 		},
 		{
-			name: "Error - Invalid offset",
-			setupMock: func(m *mockUserRepository) {},
+			name:        "Error - Invalid offset",
+			setupMock:   func(m *mockUserRepository) {},
 			queryParams: "?offset=invalid",
 			wantStatus:  http.StatusBadRequest,
 			validateBody: func(t *testing.T, body []byte) {
@@ -325,6 +325,13 @@ func TestHandlerGetPlayerRank(t *testing.T) {
 // TestRoutes verifies that all routes are registered correctly
 func TestRoutes(t *testing.T) {
 	mockRepo := newMockUserRepository()
+	// Seed the user the route tests reference so /player/test-id resolves to a
+	// real record (200) instead of a not-found (404). Without this the handler's
+	// legitimate not-found 404 is indistinguishable from a router 404, which
+	// would make this route-existence test fail for the wrong reason.
+	user, stats := createTestUser("test-id", "Tester", 5, 5, 100)
+	mockRepo.users["test-id"] = user
+	mockRepo.stats["test-id"] = stats
 	service := NewService(mockRepo)
 	handler := NewHandler(service)
 

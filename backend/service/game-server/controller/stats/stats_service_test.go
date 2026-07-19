@@ -312,7 +312,7 @@ func TestGetLeaderboard(t *testing.T) {
 	}{
 		{
 			name:   "Default parameters",
-			limit:  0,  // Should default to 10
+			limit:  0, // Should default to 10
 			offset: 0,
 			sortBy: "",
 			setupMock: func(m *mockUserRepository) {

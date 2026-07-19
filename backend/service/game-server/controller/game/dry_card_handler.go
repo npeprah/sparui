@@ -111,9 +111,6 @@ func (h *DryCardHandler) DeclareDry(ctx context.Context, playerID string, card *
 		PlayerID: playerID,
 	}
 
-	// Update game state timestamp
-	h.gameState.UpdatedAt = h.gameState.UpdatedAt // Preserve existing time or set new
-
 	slog.Info("Dry card declared",
 		"playerId", playerID,
 		"username", player.Username,
