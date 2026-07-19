@@ -40,23 +40,23 @@ describe('Card Constants', () => {
   })
 
   describe('SPADES_RANKS', () => {
-    it('should contain exactly 7 ranks', () => {
-      expect(SPADES_RANKS).toHaveLength(7)
+    it('should contain exactly 8 ranks', () => {
+      expect(SPADES_RANKS).toHaveLength(8)
     })
 
-    it('should contain ranks 7-10, J, Q, K', () => {
-      expect(SPADES_RANKS).toEqual(['7', '8', '9', '10', 'J', 'Q', 'K'])
+    it('should contain ranks 6-10, J, Q, K', () => {
+      expect(SPADES_RANKS).toEqual(['6', '7', '8', '9', '10', 'J', 'Q', 'K'])
     })
 
-    it('should not contain 6 or A', () => {
-      expect(SPADES_RANKS).not.toContain('6')
+    it('should contain 6 but not A', () => {
+      expect(SPADES_RANKS).toContain('6')
       expect(SPADES_RANKS).not.toContain('A')
     })
   })
 
   describe('SPAR_DECK_SIZE', () => {
-    it('should be 34 cards total', () => {
-      expect(SPAR_DECK_SIZE).toBe(34)
+    it('should be 35 cards total', () => {
+      expect(SPAR_DECK_SIZE).toBe(35)
     })
   })
 })
@@ -92,6 +92,16 @@ describe('Card Asset Functions', () => {
       expect(getCardAssetPath('clubs', '10')).toBe('assets/cards/clubs/clubs_10.png')
     })
 
+    it('should generate the correct lowercase path for the 6 of spades', () => {
+      expect(getCardAssetPath('spades', '6')).toBe('assets/cards/spades/spades_6.png')
+    })
+
+    it('should use lowercase for face-card rank in path (casing)', () => {
+      expect(getCardAssetPath('spades', 'K')).toBe('assets/cards/spades/spades_k.png')
+      expect(getCardAssetPath('hearts', '10')).toBe('assets/cards/hearts/hearts_10.png')
+      expect(getCardAssetPath('spades', 'K')).not.toContain('_K.')
+    })
+
     it('should generate correct path for face cards', () => {
       expect(getCardAssetPath('diamonds', 'J')).toBe('assets/cards/diamonds/diamonds_j.png')
       expect(getCardAssetPath('spades', 'Q')).toBe('assets/cards/spades/spades_q.png')
@@ -115,34 +125,34 @@ describe('Card Validation Functions', () => {
   describe('isValidSparCard', () => {
     it('should return true for all hearts cards (6-A)', () => {
       const ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'] as const
-      ranks.forEach((rank) => {
+      ranks.forEach(rank => {
         expect(isValidSparCard('hearts', rank)).toBe(true)
       })
     })
 
     it('should return true for all clubs cards (6-A)', () => {
       const ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'] as const
-      ranks.forEach((rank) => {
+      ranks.forEach(rank => {
         expect(isValidSparCard('clubs', rank)).toBe(true)
       })
     })
 
     it('should return true for all diamonds cards (6-A)', () => {
       const ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'] as const
-      ranks.forEach((rank) => {
+      ranks.forEach(rank => {
         expect(isValidSparCard('diamonds', rank)).toBe(true)
       })
     })
 
-    it('should return true for valid spades cards (7-K)', () => {
-      const validRanks = ['7', '8', '9', '10', 'J', 'Q', 'K'] as const
-      validRanks.forEach((rank) => {
+    it('should return true for valid spades cards (6-K)', () => {
+      const validRanks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const
+      validRanks.forEach(rank => {
         expect(isValidSparCard('spades', rank)).toBe(true)
       })
     })
 
-    it('should return false for 6 of spades', () => {
-      expect(isValidSparCard('spades', '6')).toBe(false)
+    it('should return true for 6 of spades', () => {
+      expect(isValidSparCard('spades', '6')).toBe(true)
     })
 
     it('should return false for A of spades', () => {
@@ -169,78 +179,80 @@ describe('Card Validation Functions', () => {
       expect(ranks).toEqual(['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'])
     })
 
-    it('should return 7 ranks for spades (no 6 or A)', () => {
+    it('should return 8 ranks for spades (6-K, no A)', () => {
       const ranks = getValidRanksForSuit('spades')
-      expect(ranks).toHaveLength(7)
-      expect(ranks).toEqual(['7', '8', '9', '10', 'J', 'Q', 'K'])
-      expect(ranks).not.toContain('6')
+      expect(ranks).toHaveLength(8)
+      expect(ranks).toEqual(['6', '7', '8', '9', '10', 'J', 'Q', 'K'])
+      expect(ranks).toContain('6')
       expect(ranks).not.toContain('A')
     })
   })
 
   describe('generateSparDeck', () => {
-    it('should generate exactly 34 cards', () => {
+    it('should generate exactly 35 cards', () => {
       const deck = generateSparDeck()
-      expect(deck).toHaveLength(34)
+      expect(deck).toHaveLength(35)
     })
 
     it('should include 9 hearts cards', () => {
       const deck = generateSparDeck()
-      const hearts = deck.filter((card) => card.suit === 'hearts')
+      const hearts = deck.filter(card => card.suit === 'hearts')
       expect(hearts).toHaveLength(9)
     })
 
     it('should include 9 clubs cards', () => {
       const deck = generateSparDeck()
-      const clubs = deck.filter((card) => card.suit === 'clubs')
+      const clubs = deck.filter(card => card.suit === 'clubs')
       expect(clubs).toHaveLength(9)
     })
 
     it('should include 9 diamonds cards', () => {
       const deck = generateSparDeck()
-      const diamonds = deck.filter((card) => card.suit === 'diamonds')
+      const diamonds = deck.filter(card => card.suit === 'diamonds')
       expect(diamonds).toHaveLength(9)
     })
 
-    it('should include 7 spades cards', () => {
+    it('should include 8 spades cards', () => {
       const deck = generateSparDeck()
-      const spades = deck.filter((card) => card.suit === 'spades')
-      expect(spades).toHaveLength(7)
+      const spades = deck.filter(card => card.suit === 'spades')
+      expect(spades).toHaveLength(8)
     })
 
-    it('should not include 6 of spades', () => {
+    it('should include the 6 of spades', () => {
       const deck = generateSparDeck()
-      const sixOfSpades = deck.find((card) => card.suit === 'spades' && card.rank === '6')
-      expect(sixOfSpades).toBeUndefined()
+      const sixOfSpades = deck.find(card => card.suit === 'spades' && card.rank === '6')
+      expect(sixOfSpades).toBeDefined()
     })
 
     it('should not include A of spades', () => {
       const deck = generateSparDeck()
-      const aceOfSpades = deck.find((card) => card.suit === 'spades' && card.rank === 'A')
+      const aceOfSpades = deck.find(card => card.suit === 'spades' && card.rank === 'A')
       expect(aceOfSpades).toBeUndefined()
     })
 
     it('should include all valid cards and only valid cards', () => {
       const deck = generateSparDeck()
-      deck.forEach((card) => {
+      deck.forEach(card => {
         expect(isValidSparCard(card.suit, card.rank)).toBe(true)
       })
     })
 
-    it('should have correct distribution: 9+9+9+7=34', () => {
+    it('should have correct distribution: 9+9+9+8=35', () => {
       const deck = generateSparDeck()
       const distribution = {
-        hearts: deck.filter((c) => c.suit === 'hearts').length,
-        clubs: deck.filter((c) => c.suit === 'clubs').length,
-        diamonds: deck.filter((c) => c.suit === 'diamonds').length,
-        spades: deck.filter((c) => c.suit === 'spades').length,
+        hearts: deck.filter(c => c.suit === 'hearts').length,
+        clubs: deck.filter(c => c.suit === 'clubs').length,
+        diamonds: deck.filter(c => c.suit === 'diamonds').length,
+        spades: deck.filter(c => c.suit === 'spades').length,
       }
 
       expect(distribution.hearts).toBe(9)
       expect(distribution.clubs).toBe(9)
       expect(distribution.diamonds).toBe(9)
-      expect(distribution.spades).toBe(7)
-      expect(distribution.hearts + distribution.clubs + distribution.diamonds + distribution.spades).toBe(34)
+      expect(distribution.spades).toBe(8)
+      expect(
+        distribution.hearts + distribution.clubs + distribution.diamonds + distribution.spades
+      ).toBe(35)
     })
   })
 })

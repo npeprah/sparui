@@ -5,6 +5,8 @@ import {
   getCardAssetKey,
   getCardAssetPath,
   CARD_BACK_KEY,
+  CARD_BACK_ASSET_PATH,
+  SPAR_DECK_SIZE,
 } from '../constants/cards'
 import { createParticleTextures } from '../utils/particles'
 import { AudioManager } from '../../services/audioManager'
@@ -30,8 +32,8 @@ export class PreloadScene extends Phaser.Scene {
   create() {
     console.log('[PreloadScene] create() called - creating programmatic textures')
 
-    // Create programmatic textures after loading completes
-    this.createCardBackTexture()
+    // The card back is now a loaded PNG (see loadCardAssets). Only the
+    // particle textures are still generated programmatically.
     this.createParticleTextures()
 
     console.log('[PreloadScene] Programmatic textures created')
@@ -108,12 +110,12 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * Load all 34 card assets
+   * Load all 35 card faces plus the designed card back
    */
   private loadCardAssets(): void {
     console.log('[PreloadScene] ===== LOADING CARD ASSETS =====')
     let loadedCount = 0
-    const totalCards = 34
+    const totalCards = SPAR_DECK_SIZE
 
     // Load all valid cards from the Spar deck
     for (const suit of ALL_SUITS) {
@@ -130,10 +132,17 @@ export class PreloadScene extends Phaser.Scene {
 
     console.log(`[PreloadScene] Queued ${loadedCount} cards for loading`)
 
-    // Verify we're loading exactly 34 cards
+    // Verify we're loading exactly SPAR_DECK_SIZE cards
     if (loadedCount !== totalCards) {
-      console.warn(`[PreloadScene] Expected to load ${totalCards} cards, but loading ${loadedCount}`)
+      console.warn(
+        `[PreloadScene] Expected to load ${totalCards} cards, but loading ${loadedCount}`
+      )
     }
+
+    // Load the designed card back illustration (replaces the old
+    // procedural graphics-drawn back).
+    console.log(`[PreloadScene] Loading card back: ${CARD_BACK_KEY} from ${CARD_BACK_ASSET_PATH}`)
+    this.load.image(CARD_BACK_KEY, CARD_BACK_ASSET_PATH)
   }
 
   /**
@@ -144,8 +153,14 @@ export class PreloadScene extends Phaser.Scene {
 
     // Fire effects (8 textures)
     const fireTextures = [
-      'flame_large', 'flame_small', 'fire_burst', 'fire_trail',
-      'firebolt', 'firestorm', 'fire_ring', 'embers'
+      'flame_large',
+      'flame_small',
+      'fire_burst',
+      'fire_trail',
+      'firebolt',
+      'firestorm',
+      'fire_ring',
+      'embers',
     ]
     fireTextures.forEach(key => {
       const path = `assets/particles/fire/${key}.png`
@@ -155,8 +170,14 @@ export class PreloadScene extends Phaser.Scene {
 
     // Ice effects (8 textures)
     const iceTextures = [
-      'snowflake_large', 'snowflake_small', 'ice_shard', 'frost',
-      'ice_burst', 'ice_ring', 'freeze_wave', 'blizzard'
+      'snowflake_large',
+      'snowflake_small',
+      'ice_shard',
+      'frost',
+      'ice_burst',
+      'ice_ring',
+      'freeze_wave',
+      'blizzard',
     ]
     iceTextures.forEach(key => {
       const path = `assets/particles/ice/${key}.png`
@@ -166,9 +187,16 @@ export class PreloadScene extends Phaser.Scene {
 
     // Explosion effects (10 textures)
     const explosionTextures = [
-      'burst_large', 'burst_small', 'spark_shower', 'flash_gold',
-      'flash_white', 'energy_wave', 'shockwave', 'impact_hit',
-      'smoke_puff', 'smoke_trail'
+      'burst_large',
+      'burst_small',
+      'spark_shower',
+      'flash_gold',
+      'flash_white',
+      'energy_wave',
+      'shockwave',
+      'impact_hit',
+      'smoke_puff',
+      'smoke_trail',
     ]
     explosionTextures.forEach(key => {
       const path = `assets/particles/explosion/${key}.png`
@@ -178,8 +206,14 @@ export class PreloadScene extends Phaser.Scene {
 
     // Confetti effects (8 textures)
     const confettiTextures = [
-      'confetti_multi', 'streamers', 'star_gold', 'star_multi',
-      'sparkle_large', 'sparkle_small', 'coin_gold', 'celebrations'
+      'confetti_multi',
+      'streamers',
+      'star_gold',
+      'star_multi',
+      'sparkle_large',
+      'sparkle_small',
+      'coin_gold',
+      'celebrations',
     ]
     confettiTextures.forEach(key => {
       const path = `assets/particles/confetti/${key}.png`
@@ -242,59 +276,6 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * Create card back texture using Phaser graphics
-   * Simple placeholder with Kente-inspired pattern
-   */
-  private createCardBackTexture(): void {
-    console.log('[PreloadScene] Creating card_back texture...')
-    const width = 512
-    const height = 768
-
-    const graphics = this.add.graphics()
-
-    // Background - Deep Purple
-    graphics.fillStyle(0x4b0082, 1)
-    graphics.fillRoundedRect(0, 0, width, height, 24)
-
-    // Gold border
-    graphics.lineStyle(8, 0xffd700, 1)
-    graphics.strokeRoundedRect(4, 4, width - 8, height - 8, 20)
-
-    // Kente pattern - vertical stripes
-    graphics.lineStyle(4, 0xffd700, 0.3)
-    for (let x = 60; x < width - 60; x += 40) {
-      graphics.lineBetween(x, 60, x, height - 60)
-    }
-
-    // Kente pattern - horizontal stripes
-    graphics.lineStyle(4, 0x00bfff, 0.3)
-    for (let y = 100; y < height - 100; y += 40) {
-      graphics.lineBetween(60, y, width - 60, y)
-    }
-
-    // Kente pattern - diagonal stripes
-    graphics.lineStyle(3, 0xff4500, 0.2)
-    for (let offset = -height; offset < width; offset += 60) {
-      graphics.lineBetween(offset, 0, offset + height, height)
-    }
-
-    // Center logo placeholder - "SPAR" text
-    const centerX = width / 2
-    const centerY = height / 2
-
-    graphics.fillStyle(0xffd700, 1)
-    graphics.fillCircle(centerX, centerY, 80)
-
-    // Generate texture
-    graphics.generateTexture(CARD_BACK_KEY, width, height)
-    graphics.destroy()
-
-    // Verify texture was created
-    const textureExists = this.textures.exists(CARD_BACK_KEY)
-    console.log(`[PreloadScene] card_back texture created: ${textureExists}`)
-  }
-
-  /**
    * Progress callback - update progress bar
    */
   private onLoadProgress(value: number): void {
@@ -319,7 +300,9 @@ export class PreloadScene extends Phaser.Scene {
   private onLoadComplete(): void {
     console.log('[PreloadScene] ===== ALL ASSETS LOADED =====')
     console.log('[PreloadScene] Total files loaded:', this.load.totalComplete)
-    console.log('[PreloadScene] Expected: 34 cards + 16 sounds + 34 particles = 84 total (card_back created in create())')
+    console.log(
+      '[PreloadScene] Expected: 35 cards + 1 card back + 16 sounds + 34 particles = 86 total'
+    )
   }
 
   /**
@@ -350,7 +333,7 @@ export class PreloadScene extends Phaser.Scene {
     let foundCount = 0
     let missingCount = 0
 
-    expectedSounds.forEach((key) => {
+    expectedSounds.forEach(key => {
       const exists = this.cache.audio.exists(key)
       if (exists) {
         foundCount++
@@ -361,7 +344,9 @@ export class PreloadScene extends Phaser.Scene {
       }
     })
 
-    console.log(`[PreloadScene] Audio cache verification: ${foundCount}/${expectedSounds.length} found`)
+    console.log(
+      `[PreloadScene] Audio cache verification: ${foundCount}/${expectedSounds.length} found`
+    )
     if (missingCount > 0) {
       console.error(`[PreloadScene] ERROR: ${missingCount} audio files missing from cache!`)
     }
@@ -377,7 +362,7 @@ export class PreloadScene extends Phaser.Scene {
     let missingCount = 0
     const missingCards: string[] = []
 
-    // Check all 34 cards
+    // Check all 35 card faces
     for (const suit of ALL_SUITS) {
       const validRanks = getValidRanksForSuit(suit)
       for (const rank of validRanks) {
@@ -406,7 +391,7 @@ export class PreloadScene extends Phaser.Scene {
       console.error(`[PreloadScene] ✗ ${CARD_BACK_KEY} - NOT IN TEXTURE CACHE`)
     }
 
-    console.log(`[PreloadScene] Card cache verification: ${foundCount}/35 found`)
+    console.log(`[PreloadScene] Card cache verification: ${foundCount}/${SPAR_DECK_SIZE + 1} found`)
     if (missingCount > 0) {
       console.error(`[PreloadScene] ERROR: ${missingCount} card textures missing from cache!`)
       console.error('[PreloadScene] Missing cards:', missingCards)
