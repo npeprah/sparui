@@ -100,11 +100,14 @@ function HomePage() {
 
     socketService.on('room:created', handleRoomCreated)
 
-    // Match backend API spec - only send settings
+    // Contract: settings are nested under `settings` (see wireContract.ts /
+    // contract.go) so the whole RoomSettings object reaches the backend.
     socketService.emit('lobby:create', {
-      maxPlayers: 4,
-      pointsToWin: 10,
-      surfaceTheme: 'afro-heritage',
+      settings: {
+        maxPlayers: 4,
+        pointsToWin: 10,
+        surfaceTheme: 'afro-heritage',
+      },
     })
 
     addNotification({

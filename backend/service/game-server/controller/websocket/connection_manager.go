@@ -217,10 +217,13 @@ func (cm *ConnectionManager) HandlePlayerDisconnection(ctx context.Context, clie
 	go cm.handleReconnectionTimeout(ctx, client.PlayerID, roomCode)
 }
 
-// broadcastPlayerDisconnected broadcasts that a player has disconnected
+// broadcastPlayerDisconnected broadcasts that a player has disconnected.
+// Contract: room:player_disconnected is a transient notice (the reconnection
+// window is open); the player is still listed. Permanent removal is signalled
+// later via room:player_left. See contract.go / wireContract.ts.
 func (cm *ConnectionManager) broadcastPlayerDisconnected(roomCode, playerID string) {
 	message := map[string]interface{}{
-		"event": "lobby:player_disconnected",
+		"event": "room:player_disconnected",
 		"data": map[string]interface{}{
 			"playerId": playerID,
 			"message":  "Player disconnected, reconnection window active",
@@ -288,12 +291,16 @@ func (cm *ConnectionManager) broadcastPlayerRemoved(roomCode, playerID string) {
 		return
 	}
 
+	// Contract: a disconnect-timeout removal is a real departure, so it uses
+	// the same room:player_left shape as an explicit leave (updated player list
+	// + current host) so the lobby UI resyncs identically. See contract.go.
 	message := map[string]interface{}{
-		"event": "lobby:player_removed",
+		"event": "room:player_left",
 		"data": map[string]interface{}{
-			"playerId": playerID,
-			"reason":   "Reconnection timeout expired",
-			"room":     room,
+			"playerId":  playerID,
+			"players":   room.Players,
+			"newHostId": room.HostID,
+			"reason":    "Reconnection timeout expired",
 		},
 	}
 

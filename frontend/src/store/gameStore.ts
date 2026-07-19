@@ -57,6 +57,11 @@ interface GameState {
   resetGame: () => void
   updateSettings: (settings: Partial<GameSettings>) => void
   setTimeRemaining: (time: number) => void
+  // Turn timer: seed the countdown from a server-provided value and tick it
+  // down locally (1s) between server emissions. See timerUpdate / turnChanged
+  // in wireContract.ts - the backend engine (ticket 04) provides the value.
+  startTurnCountdown: (seconds: number) => void
+  stopTurnCountdown: () => void
   initializeFromBackend: (backendState: BackendGameState) => void
   setGameWinner: (winner: GameWinner | null) => void
 }
@@ -121,7 +126,11 @@ function convertBackendCard(backendCard: BackendCard): Card {
   }
 }
 
-export const useGameStore = create<GameState>(set => ({
+// Local turn-countdown handle. Kept at module scope (not in store state) since
+// it is an imperative side-effect, not rendered data.
+let turnCountdownHandle: ReturnType<typeof setInterval> | null = null
+
+export const useGameStore = create<GameState>((set, get) => ({
   // Initial state
   roomCode: '',
   hostId: null,
@@ -220,6 +229,29 @@ export const useGameStore = create<GameState>(set => ({
     })),
 
   setTimeRemaining: time => set({ timeRemaining: time }),
+
+  startTurnCountdown: seconds => {
+    // Reset any in-flight countdown, seed with the authoritative server value,
+    // then decrement locally once per second until the next server update.
+    get().stopTurnCountdown()
+    const seed = Math.max(0, Math.floor(seconds))
+    set({ timeRemaining: seed })
+    turnCountdownHandle = setInterval(() => {
+      const current = get().timeRemaining
+      if (current <= 0) {
+        get().stopTurnCountdown()
+        return
+      }
+      set({ timeRemaining: current - 1 })
+    }, 1000)
+  },
+
+  stopTurnCountdown: () => {
+    if (turnCountdownHandle !== null) {
+      clearInterval(turnCountdownHandle)
+      turnCountdownHandle = null
+    }
+  },
 
   initializeFromBackend: backendState =>
     set(state => {

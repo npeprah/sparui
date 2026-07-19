@@ -29,10 +29,16 @@ type Room struct {
 	CompletedAt *time.Time   `json:"completedAt,omitempty"`
 }
 
-// RoomSettings represents configurable room settings
+// RoomSettings represents configurable room settings.
+//
+// Wire contract: this maps to the `settings` object carried by the
+// `lobby:create` and `lobby:update_settings` client events and echoed back on
+// `room:created` / `room:settings_updated`. See contract.go (SettingsPayload)
+// and the TS mirror in frontend/src/services/wireContract.ts (LobbySettings).
 type RoomSettings struct {
 	PointsToWin  int    `json:"pointsToWin"`
 	SurfaceTheme string `json:"surfaceTheme"`
+	MaxPlayers   int    `json:"maxPlayers,omitempty"`
 	AIDifficulty string `json:"aiDifficulty,omitempty"`
 }
 

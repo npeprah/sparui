@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -345,6 +346,8 @@ func (c *Client) handleMessage(msg Message) {
 		c.handlePlayerReady(msg.Data)
 	case "lobby:start_game":
 		c.handleStartGame(msg.Data)
+	case "lobby:update_settings":
+		c.handleUpdateSettings(msg.Data)
 	case "game:restart":
 		c.handleRestartGame(msg.Data)
 	case "matchmaking:join":
@@ -381,9 +384,13 @@ func (c *Client) handleAuth(data json.RawMessage) {
 		return
 	}
 
-	// TEMPORARY: Extract playerID from token (simplified for MVP)
-	// In production, use: common/auth.ValidateToken(req.Token)
-	playerID := "player-" + req.Token[:min(8, len(req.Token))]
+	// TEMPORARY: derive a player id from the token (simplified for MVP).
+	// In production, use: common/auth.ValidateToken(req.Token).
+	// We hash the FULL token rather than slicing its first 8 chars: hashing is
+	// stable per token (so a reconnect with the same token maps to the same
+	// player) while remaining collision-safe across distinct tokens, so an
+	// unauthenticated 2-player test always yields unique player ids.
+	playerID := derivePlayerID(req.Token)
 
 	// Assign player ID to client
 	oldPlayerID := c.PlayerID
@@ -406,12 +413,13 @@ func (c *Client) handleAuth(data json.RawMessage) {
 	slog.Info("Client authenticated", "clientId", c.ID, "playerId", playerID)
 }
 
-// Helper function for min
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+// derivePlayerID maps an auth token to a stable, collision-safe player id.
+// Stable: the same token always yields the same id (reconnection). Unique:
+// distinct tokens yield distinct ids (no first-8-chars collisions).
+func derivePlayerID(token string) string {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(token))
+	return fmt.Sprintf("player-%016x", h.Sum64())
 }
 
 // mapFrontendRankToBackend converts frontend rank format to backend value format
@@ -1061,10 +1069,8 @@ func (c *Client) handleFlagPlayer(data json.RawMessage) {
 func (c *Client) handleCreateLobby(data json.RawMessage) {
 	slog.Info("Create lobby event", "clientId", c.ID, "playerId", c.PlayerID)
 
-	// Parse request
-	var req struct {
-		Settings entity.RoomSettings `json:"settings"`
-	}
+	// Parse request (see contract.go / wireContract.ts - CreateLobbyPayload)
+	var req CreateLobbyPayload
 	if err := json.Unmarshal(data, &req); err != nil {
 		slog.Error("Failed to parse create lobby request", "error", err)
 		c.sendError("lobby:error", "Invalid request format")
@@ -1237,12 +1243,15 @@ func (c *Client) handleLeaveLobby(data json.RawMessage) {
 	// Check if room still exists (might have been deleted if empty)
 	room, err := roomManager.GetRoom(roomCode)
 	if err == nil && room != nil {
-		// Room still exists, broadcast player left to remaining members
+		// Room still exists, broadcast player left to remaining members.
+		// Contract: room:player_left carries the updated player list and the
+		// (possibly migrated) host id so the lobby UI can resync directly.
 		c.broadcastToRoom(roomCode, map[string]interface{}{
-			"event": "lobby:player_left",
+			"event": "room:player_left",
 			"data": map[string]interface{}{
-				"playerId": c.PlayerID,
-				"room":     room,
+				"playerId":  c.PlayerID,
+				"players":   room.Players,
+				"newHostId": room.HostID,
 			},
 		})
 	}
@@ -1418,6 +1427,77 @@ func (c *Client) handleStartGame(data json.RawMessage) {
 		"gameId", gameState.GameID,
 		"playerCount", len(room.Players),
 	)
+}
+
+// handleUpdateSettings applies a host-initiated room settings change and
+// broadcasts the new settings to the room. The payload may be partial: only
+// the provided fields are merged over the room's existing settings.
+func (c *Client) handleUpdateSettings(data json.RawMessage) {
+	slog.Info("Update settings event", "clientId", c.ID, "playerId", c.PlayerID)
+
+	// Parse request (see contract.go / wireContract.ts - UpdateSettingsPayload)
+	var req UpdateSettingsPayload
+	if err := json.Unmarshal(data, &req); err != nil {
+		slog.Error("Failed to parse update settings request", "error", err)
+		c.sendError("lobby:error", "Invalid request format")
+		return
+	}
+
+	// Validate player is authenticated
+	if c.PlayerID == "" {
+		slog.Warn("Unauthenticated player attempted to update settings", "clientId", c.ID)
+		c.sendError("lobby:error", "Authentication required")
+		return
+	}
+
+	// Validate player is in a room
+	if c.RoomID == "" {
+		c.sendError("lobby:error", "Not in a room")
+		return
+	}
+
+	// Get current room to merge partial settings over existing values
+	room, err := roomManager.GetRoom(c.RoomID)
+	if err != nil {
+		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
+		c.sendError("lobby:error", "Room not found")
+		return
+	}
+
+	// Merge provided fields over the existing settings
+	merged := room.Settings
+	if req.Settings.PointsToWin != nil {
+		merged.PointsToWin = *req.Settings.PointsToWin
+	}
+	if req.Settings.SurfaceTheme != nil {
+		merged.SurfaceTheme = *req.Settings.SurfaceTheme
+	}
+	if req.Settings.MaxPlayers != nil {
+		merged.MaxPlayers = *req.Settings.MaxPlayers
+	}
+
+	// Apply (room manager enforces host-only and clamps max players)
+	ctx := context.Background()
+	updatedRoom, err := roomManager.UpdateRoomSettings(ctx, entity.UpdateRoomSettingsRequest{
+		RoomCode: c.RoomID,
+		HostID:   c.PlayerID,
+		Settings: merged,
+	})
+	if err != nil {
+		slog.Error("Failed to update room settings", "error", err, "roomCode", c.RoomID, "playerId", c.PlayerID)
+		c.sendError("lobby:error", err.Error())
+		return
+	}
+
+	// Broadcast the new settings to everyone in the room (including the host)
+	c.broadcastToRoomIncludingSelf(c.RoomID, map[string]interface{}{
+		"event": "room:settings_updated",
+		"data": map[string]interface{}{
+			"settings": updatedRoom.Settings,
+		},
+	})
+
+	slog.Info("Room settings updated and broadcast", "roomCode", c.RoomID, "playerId", c.PlayerID)
 }
 
 func (c *Client) handleRestartGame(data json.RawMessage) {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 /**
  * Basic unit tests for WebSocket service
@@ -68,7 +68,10 @@ describe('SocketService API', () => {
 
     it('should not throw when emitting valid events', () => {
       expect(() => {
-        SocketService.emit('lobby:create', { settings: {} })
+        // Contract: lobby:create nests the full settings object (wireContract.ts).
+        SocketService.emit('lobby:create', {
+          settings: { pointsToWin: 10, surfaceTheme: 'afro-heritage', maxPlayers: 4 },
+        })
         SocketService.emit('lobby:join', { roomCode: 'TEST123' })
         SocketService.emit('lobby:leave', {})
       }).not.toThrow()
@@ -126,6 +129,113 @@ describe('SocketService API', () => {
     it('should return null when disconnected', () => {
       SocketService.disconnect()
       expect(SocketService.getSocket()).toBeNull()
+    })
+  })
+})
+
+/**
+ * Wire-contract (de)serialization tests
+ *
+ * Verify the exact JSON envelope emitted for the aligned events, and that an
+ * inbound frame is routed to the registered handler with the parsed payload.
+ */
+class MockWebSocket {
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
+  static last: MockWebSocket | null = null
+
+  url: string
+  readyState = MockWebSocket.OPEN
+  sent: string[] = []
+  onopen: ((e?: unknown) => void) | null = null
+  onmessage: ((e: { data: string }) => void) | null = null
+  onerror: ((e?: unknown) => void) | null = null
+  onclose: ((e?: unknown) => void) | null = null
+
+  constructor(url: string) {
+    this.url = url
+    MockWebSocket.last = this
+  }
+
+  send(data: string): void {
+    this.sent.push(data)
+  }
+
+  close(): void {
+    this.readyState = MockWebSocket.CLOSED
+  }
+}
+
+describe('SocketService wire contract (de)serialization', () => {
+  let socketService: typeof import('./socketService').socketService
+
+  beforeEach(async () => {
+    vi.resetModules()
+    MockWebSocket.last = null
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket)
+    socketService = (await import('./socketService')).socketService
+    socketService.connect()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('serializes lobby:create with nested settings', () => {
+    socketService.emit('lobby:create', {
+      settings: { pointsToWin: 15, surfaceTheme: 'neon-arcade', maxPlayers: 3 },
+    })
+
+    const frames = MockWebSocket.last!.sent.map(f => JSON.parse(f))
+    const create = frames.find(f => f.event === 'lobby:create')
+    expect(create).toBeDefined()
+    expect(create.data).toEqual({
+      settings: { pointsToWin: 15, surfaceTheme: 'neon-arcade', maxPlayers: 3 },
+    })
+  })
+
+  it('serializes lobby:update_settings with nested (partial) settings', () => {
+    socketService.emit('lobby:update_settings', { settings: { pointsToWin: 21 } })
+
+    const frames = MockWebSocket.last!.sent.map(f => JSON.parse(f))
+    const update = frames.find(f => f.event === 'lobby:update_settings')
+    expect(update).toBeDefined()
+    expect(update.data).toEqual({ settings: { pointsToWin: 21 } })
+  })
+
+  it('routes an inbound room:settings_updated frame to its handler', () => {
+    const handler = vi.fn()
+    socketService.on('room:settings_updated', handler)
+
+    MockWebSocket.last!.onmessage!({
+      data: JSON.stringify({
+        event: 'room:settings_updated',
+        data: { settings: { pointsToWin: 21, surfaceTheme: 'poker', maxPlayers: 2 } },
+      }),
+    })
+
+    expect(handler).toHaveBeenCalledWith({
+      settings: { pointsToWin: 21, surfaceTheme: 'poker', maxPlayers: 2 },
+    })
+  })
+
+  it('routes an inbound timerUpdate frame with secondsRemaining to its handler', () => {
+    const handler = vi.fn()
+    socketService.on('timerUpdate', handler)
+
+    MockWebSocket.last!.onmessage!({
+      data: JSON.stringify({
+        event: 'timerUpdate',
+        data: { playerId: 'player-abc', secondsRemaining: 12, turnDurationSeconds: 30 },
+      }),
+    })
+
+    expect(handler).toHaveBeenCalledWith({
+      playerId: 'player-abc',
+      secondsRemaining: 12,
+      turnDurationSeconds: 30,
     })
   })
 })

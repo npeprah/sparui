@@ -83,13 +83,18 @@ func (m *Manager) CreateRoom(ctx context.Context, req entity.CreateRoomRequest) 
 		settings.SurfaceTheme = req.Settings.SurfaceTheme
 	}
 
+	// Honor the host's requested max players (clamped to the supported range),
+	// so the lobby:create setting actually applies to the room capacity.
+	maxPlayers := clampMaxPlayers(req.Settings.MaxPlayers)
+	settings.MaxPlayers = maxPlayers
+
 	now := time.Now()
 	room := &entity.Room{
 		ID:         generateUUID(),
 		RoomCode:   roomCode,
 		HostID:     req.HostID,
 		Players:    []entity.Player{},
-		MaxPlayers: MaxPlayers,
+		MaxPlayers: maxPlayers,
 		Settings:   settings,
 		Status:     entity.StatusWaiting,
 		CreatedAt:  now,
@@ -302,8 +307,12 @@ func (m *Manager) UpdateRoomSettings(ctx context.Context, req entity.UpdateRoomS
 		return nil, fmt.Errorf("only host can update room settings")
 	}
 
-	// Update settings
-	room.Settings = req.Settings
+	// Update settings, keeping the room capacity in sync with the setting so a
+	// host's max-players change actually applies.
+	settings := req.Settings
+	settings.MaxPlayers = clampMaxPlayers(req.Settings.MaxPlayers)
+	room.Settings = settings
+	room.MaxPlayers = settings.MaxPlayers
 	room.UpdatedAt = time.Now()
 
 	// Update in database if repository is available
@@ -341,6 +350,21 @@ func (m *Manager) CleanupEmptyRooms(ctx context.Context) int {
 	}
 
 	return count
+}
+
+// clampMaxPlayers normalizes a requested max-players value into the supported
+// range [MinPlayers, MaxPlayers]. A zero/unset request falls back to MaxPlayers.
+func clampMaxPlayers(requested int) int {
+	if requested <= 0 {
+		return MaxPlayers
+	}
+	if requested < MinPlayers {
+		return MinPlayers
+	}
+	if requested > MaxPlayers {
+		return MaxPlayers
+	}
+	return requested
 }
 
 // generateUniqueRoomCode generates a unique 6-character room code
