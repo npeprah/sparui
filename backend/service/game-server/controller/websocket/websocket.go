@@ -664,6 +664,19 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 	// Set round winner
 	gameState.RoundWinner = winnerID
 
+	// Capture the just-completed round (led suit + played cards) before any
+	// per-round reset below wipes it. A flag WS message can arrive after the
+	// round-completing play - by then LedSuit / PlayedCards are gone, so
+	// handleFlagPlayer falls back to this snapshot to judge legality.
+	roundSnapshot := &entity.LastRoundSnapshot{
+		PlayedCards: append([]entity.PlayedCard(nil), gameState.PlayedCards...),
+	}
+	if gameState.LedSuit != nil {
+		led := *gameState.LedSuit
+		roundSnapshot.LedSuit = &led
+	}
+	gameState.LastRound = roundSnapshot
+
 	// Track round wins (NOT accumulating points - just counting tricks won).
 	// Points are only scored on the final round, by card value (see below).
 	winner := gameState.GetPlayer(winnerID)
@@ -1171,10 +1184,31 @@ func (c *Client) handleDeclareDry(data json.RawMessage) {
 	})
 }
 
+// FlagPenaltyPoints is the match-score penalty applied to the losing side of a
+// flag resolution. A correct flag charges the offender; a wrong flag charges the
+// challenger. Either way the current game is voided (see handleFlagPlayer).
+const FlagPenaltyPoints = 3
+
+// handleFlagPlayer resolves a flag: any player may accuse another of an illegal
+// move (breaking suit while still holding the led suit). The accusation is
+// judged against the accused's ACTUAL holdings:
+//
+//   - CORRECT flag  -> the offender loses FlagPenaltyPoints on the cumulative
+//     match score.
+//   - WRONG flag    -> the challenger loses FlagPenaltyPoints instead.
+//
+// Either way the whole current game is VOIDED and reshuffled into a fresh game
+// via the shared new-game path, while the cumulative MATCH score persists across
+// the void. The accused's hand is revealed on resolution.
+//
+// SEAM FOR TICKET 06 (dry-challenge): this handler resolves the ILLEGAL-MOVE
+// case only. A dry / show-dry challenge is a related-but-separate flow that
+// would branch here on a declared DryCard before the illegal-move check; the
+// void/-3/reshuffle machinery below can be reused once that resolution exists.
 func (c *Client) handleFlagPlayer(data json.RawMessage) {
 	slog.Info("Flag player event", "clientId", c.ID, "playerId", c.PlayerID)
 
-	// Parse request
+	// Parse request (see contract.go / wireContract.ts - FlagPlayerPayload)
 	var req struct {
 		TargetPlayerID string `json:"targetPlayerId"`
 		RoundIndex     int    `json:"roundIndex"`
@@ -1182,74 +1216,165 @@ func (c *Client) handleFlagPlayer(data json.RawMessage) {
 	}
 	if err := json.Unmarshal(data, &req); err != nil {
 		slog.Error("Failed to parse flag player request", "error", err)
-		c.sendError("game:challenge_error", "Invalid request format")
+		c.sendError("game:flag_error", "Invalid request format")
 		return
 	}
 
 	// Validate player is authenticated
 	if c.PlayerID == "" {
 		slog.Warn("Unauthenticated player attempted to flag", "clientId", c.ID)
-		c.sendError("game:challenge_error", "Authentication required")
+		c.sendError("game:flag_error", "Authentication required")
 		return
 	}
 
 	// Validate player is in a room
 	if c.RoomID == "" {
-		c.sendError("game:challenge_error", "Not in a room")
+		c.sendError("game:flag_error", "Not in a room")
 		return
 	}
 
-	// Get room to access game state
-	room, err := roomManager.GetRoom(c.RoomID)
-	if err != nil {
-		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
-		c.sendError("game:challenge_error", "Room not found")
+	challengerID := c.PlayerID
+	targetID := req.TargetPlayerID
+
+	// All state mutation happens under gamesMu so the read-decide-void-replace
+	// sequence is atomic against concurrent plays/flags on the same room.
+	gamesMu.Lock()
+
+	gs, exists := games[c.RoomID]
+	if !exists {
+		gamesMu.Unlock()
+		c.sendError("game:flag_error", "Game not found")
 		return
 	}
 
-	// Check if game is active
-	if room.Status != entity.StatusInProgress {
-		c.sendError("game:challenge_error", "Game is not active")
+	// Flags only make sense while a round is live or just ended.
+	if gs.Phase != entity.PhasePlaying && gs.Phase != entity.PhaseRoundEnd {
+		gamesMu.Unlock()
+		c.sendError("game:flag_error", "Game is not active")
 		return
 	}
 
-	// TODO: Get game state from room/game manager
-	// For now, this is a placeholder response
-	// In a complete implementation, we would:
-	// 1. Get the active GameState for this room
-	// 2. Create a ChallengeHandler with that game state
-	// 3. Validate and execute the challenge
-	// 4. Broadcast the challenge result to all players in the room
+	if targetID == "" {
+		gamesMu.Unlock()
+		c.sendError("game:flag_error", "No target specified")
+		return
+	}
+	if targetID == challengerID {
+		gamesMu.Unlock()
+		c.sendError("game:flag_error", "Cannot flag yourself")
+		return
+	}
+	if gs.GetPlayer(challengerID) == nil {
+		gamesMu.Unlock()
+		c.sendError("game:flag_error", "Challenger not in game")
+		return
+	}
+	accused := gs.GetPlayer(targetID)
+	if accused == nil {
+		gamesMu.Unlock()
+		c.sendError("game:flag_error", "Target not in game")
+		return
+	}
 
-	// Placeholder: Simulate challenge processing
-	// ctx := context.Background()
-	// handler := game.NewChallengeHandler(gameState)
-	// result, err := handler.HandleChallenge(ctx, c.PlayerID, req.TargetPlayerID, req.RoundIndex, req.CardIndex)
+	// Resolve correctness against the accused's ACTUAL holdings. Illegal move =
+	// the accused's most recent play broke suit (played != led) while they still
+	// held the led suit. Because a player plays at most once per round and an
+	// off-suit play never removes a led-suit card, the accused's current hand is
+	// an exact witness of whether they held the led suit when they played.
+	//
+	// Judge against the live round while one is active (LedSuit set). Once the
+	// round-completing play resets LedSuit / PlayedCards, fall back to the
+	// last-completed-round snapshot so the player whose card completed the round
+	// (in a 2-player game, the follower every round) is still flaggable.
+	var effectiveLedSuit *entity.Suit
+	var accusedPlayed *entity.PlayedCard
+	if gs.LedSuit != nil {
+		effectiveLedSuit = gs.LedSuit
+		accusedPlayed = gs.GetPlayedCard(targetID)
+	} else if gs.LastRound != nil {
+		effectiveLedSuit = gs.LastRound.LedSuit
+		accusedPlayed = gs.LastRound.GetPlayedCard(targetID)
+	}
 
-	// For now, send acknowledgment
-	c.sendJSON(map[string]interface{}{
-		"event": "game:challenge_received",
+	illegal := false
+	ledSuit := ""
+	if effectiveLedSuit != nil {
+		ledSuit = string(*effectiveLedSuit)
+		if accusedPlayed != nil &&
+			accusedPlayed.Card.Suit != *effectiveLedSuit &&
+			accused.HasSuit(*effectiveLedSuit) {
+			illegal = true
+		}
+	}
+
+	// Apply the -3 penalty to the losing side.
+	penalizedID := challengerID
+	if illegal {
+		penalizedID = targetID
+	}
+	penalizedTotal := addMatchScore(c.RoomID, penalizedID, -FlagPenaltyPoints)
+
+	// Reveal the accused's hand (their remaining cards - the evidence of whether
+	// they held the led suit) plus the card they played this round.
+	revealedHand := convertCardsToFrontendFormat(accused.Hand)
+	var accusedCard interface{}
+	if accusedPlayed != nil {
+		accusedCard = convertCardToFrontendFormat(&accusedPlayed.Card)
+	}
+
+	resolutionPayload := map[string]interface{}{
+		"event": "game:flag_resolved",
 		"data": map[string]interface{}{
-			"challengerId": c.PlayerID,
-			"targetId":     req.TargetPlayerID,
-			"roundIndex":   req.RoundIndex,
-			"cardIndex":    req.CardIndex,
-			"message":      "Challenge received and being processed",
+			"challengerId":        challengerID,
+			"accusedId":           targetID,
+			"correct":             illegal,
+			"penalizedId":         penalizedID,
+			"penalty":             FlagPenaltyPoints,
+			"ledSuit":             ledSuit,
+			"accusedCard":         accusedCard,
+			"revealedHand":        revealedHand,
+			"penalizedMatchScore": penalizedTotal,
+			"matchScores":         matchScoreSnapshot(c.RoomID),
+			"voided":              true,
 		},
-	})
+	}
 
-	// TODO: Broadcast challenge result to all players
-	// c.broadcastToRoom(c.RoomID, map[string]interface{}{
-	//   "event": "game:challenge_result",
-	//   "data": result,
-	// })
+	// Void -> reshuffle -> fresh game. reshuffleFreshGame re-seeds each player's
+	// MatchScore from the persistent store, so the -3 just applied carries over
+	// while all per-game state resets.
+	freshGame, err := reshuffleFreshGame(gs)
+	if err != nil {
+		gamesMu.Unlock()
+		slog.Error("Failed to reshuffle after flag", "error", err, "roomCode", c.RoomID)
+		c.sendError("game:flag_error", "Failed to start fresh game")
+		return
+	}
+	games[c.RoomID] = freshGame
 
-	slog.Info("Challenge processed",
-		"challengerId", c.PlayerID,
-		"targetId", req.TargetPlayerID,
+	startedPayload := map[string]interface{}{
+		"event": "game:started",
+		"data": map[string]interface{}{
+			"roomCode":     c.RoomID,
+			"gameState":    convertGameStateToFrontendFormat(freshGame),
+			"voidedByFlag": true,
+		},
+	}
+
+	gamesMu.Unlock()
+
+	// Broadcast outside the lock: first the resolution (who was penalized + the
+	// revealed hand), then the reshuffled game so every client reloads the table.
+	c.broadcastToRoomIncludingSelf(c.RoomID, resolutionPayload)
+	c.broadcastToRoomIncludingSelf(c.RoomID, startedPayload)
+
+	slog.Info("Flag resolved",
+		"challengerId", challengerID,
+		"accusedId", targetID,
+		"correct", illegal,
+		"penalizedId", penalizedID,
+		"penalizedMatchScore", penalizedTotal,
 		"roomCode", c.RoomID,
-		"roundIndex", req.RoundIndex,
-		"cardIndex", req.CardIndex,
+		"newGameId", freshGame.GameID,
 	)
 }
 
@@ -1782,29 +1907,43 @@ func pickRandomLeaderIndex(numPlayers int) int {
 	return rand.Intn(numPlayers)
 }
 
-// initializeGameState creates a new game state with shuffled deck and dealt cards
-func initializeGameState(room *entity.Room) (*entity.GameState, error) {
+// playerSeed is the minimal per-player identity buildFreshGame needs to seat a
+// player into a brand-new game. Per-game state (hand, score, streak) is always
+// rebuilt from scratch; only identity carries over.
+type playerSeed struct {
+	ID       string
+	Username string
+	Avatar   string
+}
+
+// buildFreshGame deals a shuffled deck to the given players and returns a
+// pristine PhasePlaying game for the room. Per-game state starts empty for
+// everyone, but each player's cumulative MatchScore is seeded from the
+// persistent match-score store, so any match-score changes recorded before this
+// call (win-streak bonuses, flag penalties) carry into the new game. This is the
+// single new-game path shared by game start, play-again, and flag-void reshuffle.
+func buildFreshGame(roomCode string, pointsToWin int, seeds []playerSeed) (*entity.GameState, error) {
 	// Create and shuffle deck
 	deck := entity.NewDeck()
 	deck.Shuffle()
 
 	// Deal cards to players
-	hands, err := deck.Deal(len(room.Players))
+	hands, err := deck.Deal(len(seeds))
 	if err != nil {
 		return nil, fmt.Errorf("failed to deal cards: %w", err)
 	}
 
 	// Pick a random leader for the first round. The winner of each round leads
 	// the next one, so this randomness only applies to the opening round.
-	leaderIndex := pickRandomLeaderIndex(len(room.Players))
+	leaderIndex := pickRandomLeaderIndex(len(seeds))
 
-	// Convert room players to game players with dealt hands
-	gamePlayers := make([]entity.GamePlayer, len(room.Players))
-	for i, player := range room.Players {
+	// Convert seeds to game players with dealt hands
+	gamePlayers := make([]entity.GamePlayer, len(seeds))
+	for i, seed := range seeds {
 		gamePlayers[i] = entity.GamePlayer{
-			ID:       player.ID,
-			Username: player.Username,
-			Avatar:   player.Avatar,
+			ID:       seed.ID,
+			Username: seed.Username,
+			Avatar:   seed.Avatar,
 			Hand:     hands[i],
 			DryCard:  nil,
 			// Per-game state starts fresh every game...
@@ -1812,8 +1951,8 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 			RoundsWon: 0,
 			WinStreak: 0,
 			// ...but the cumulative MATCH score persists across every game
-			// (play-again) played in this room.
-			MatchScore:     getMatchScore(room.RoomCode, player.ID),
+			// (play-again, flag-void reshuffle) played in this room.
+			MatchScore:     getMatchScore(roomCode, seed.ID),
 			IsLeader:       i == leaderIndex, // Randomly seated initial leader
 			IsOnFire:       false,
 			HasPlayedCard:  false,
@@ -1823,14 +1962,14 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 
 	// Generate unique game ID
 	now := time.Now()
-	gameID := fmt.Sprintf("game-%s-%d", room.RoomCode, now.Unix())
+	gameID := fmt.Sprintf("game-%s-%d", roomCode, now.UnixNano())
 
 	// Create game state
 	gameState := &entity.GameState{
 		GameID:           gameID,
-		RoomCode:         room.RoomCode,
+		RoomCode:         roomCode,
 		TotalRounds:      5,
-		PointsToWin:      room.Settings.PointsToWin,
+		PointsToWin:      pointsToWin,
 		Phase:            entity.PhasePlaying,
 		Players:          gamePlayers,
 		LeaderID:         gamePlayers[leaderIndex].ID,
@@ -1850,6 +1989,29 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 	}
 
 	return gameState, nil
+}
+
+// initializeGameState creates a new game state with shuffled deck and dealt cards
+func initializeGameState(room *entity.Room) (*entity.GameState, error) {
+	seeds := make([]playerSeed, len(room.Players))
+	for i, player := range room.Players {
+		seeds[i] = playerSeed{ID: player.ID, Username: player.Username, Avatar: player.Avatar}
+	}
+	return buildFreshGame(room.RoomCode, room.Settings.PointsToWin, seeds)
+}
+
+// reshuffleFreshGame voids the supplied game and returns a brand-new game for the
+// same room and the same players. It reuses the exact new-game path
+// (buildFreshGame), so per-game state resets while each player's cumulative
+// MatchScore is re-seeded from the persistent store. Callers must apply any
+// match-score penalty (via addMatchScore) BEFORE calling this so the penalty is
+// reflected in the fresh game's seeded MatchScore.
+func reshuffleFreshGame(voided *entity.GameState) (*entity.GameState, error) {
+	seeds := make([]playerSeed, len(voided.Players))
+	for i, player := range voided.Players {
+		seeds[i] = playerSeed{ID: player.ID, Username: player.Username, Avatar: player.Avatar}
+	}
+	return buildFreshGame(voided.RoomCode, voided.PointsToWin, seeds)
 }
 
 // sendJSON sends a JSON message to the client

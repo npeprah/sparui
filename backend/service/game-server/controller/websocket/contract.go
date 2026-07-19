@@ -35,7 +35,7 @@ import "github.com/npeprah/sparui/backend/service/game-server/entity"
 //	lobby:update_settings UpdateSettingsPayload  host changes room settings
 //	game:play_card        PlayCardPayload        play a card
 //	game:declare_dry      DeclareDryPayload      declare a dry / show-dry card
-//	game:flag_player      FlagPlayerPayload      challenge a suspected dry
+//	game:flag_player      FlagPlayerPayload      flag a suspected illegal move
 //	game:restart          {}                     host restarts the game
 //	matchmaking:join      {}                     join the quick-match queue
 //	matchmaking:leave     {}                     leave the quick-match queue
@@ -53,9 +53,11 @@ import "github.com/npeprah/sparui/backend/service/game-server/entity"
 //	room:settings_updated   RoomSettingsUpdatedPayload
 //	lobby:left              MessagePayload             (confirmation to the leaver)
 //	lobby:error             ErrorPayload
-//	game:started            GameStartedPayload
+//	game:started            GameStartedPayload         (also the post-flag-void reshuffle)
 //	game:restarted          GameStartedPayload
 //	game:redirect           GameRedirectPayload        (matchmaking match -> game room)
+//	game:flag_resolved      FlagResolvedPayload        (flag outcome + revealed hand; game is voided)
+//	game:flag_error         ErrorPayload               (flag rejected: bad target, wrong phase, etc.)
 //	cardPlayed              CardPlayedPayload
 //	roundWon                RoundWonPayload
 //	gameEnded               GameEndedPayload
@@ -119,4 +121,38 @@ type TimerUpdatePayload struct {
 	PlayerID            string `json:"playerId"`
 	SecondsRemaining    int    `json:"secondsRemaining"`
 	TurnDurationSeconds int    `json:"turnDurationSeconds,omitempty"`
+}
+
+// FlagPlayerPayload is the data for the inbound `game:flag_player` event. A
+// player accuses TargetPlayerID of an illegal move. RoundIndex/CardIndex
+// identify the suspected play (advisory; the server resolves against the
+// accused's actual current holdings).
+type FlagPlayerPayload struct {
+	TargetPlayerID string `json:"targetPlayerId"`
+	RoundIndex     int    `json:"roundIndex"`
+	CardIndex      int    `json:"cardIndex"`
+}
+
+// FlagResolvedPayload is the data for the outbound `game:flag_resolved` event
+// (ticket 07). A flag ALWAYS voids the current game; a fresh reshuffled game
+// follows in a separate `game:started` broadcast (with voidedByFlag=true).
+//
+//   - Correct: true when the accused truly broke suit while holding the led suit.
+//   - PenalizedID: who lost Penalty match points (the offender if Correct, else
+//     the challenger). Penalty is the positive magnitude (3); it is applied as a
+//     subtraction from the cumulative match score, which persists across the void.
+//   - RevealedHand: the accused's remaining cards, revealed on resolution.
+//   - MatchScores: every player's cumulative match score after the penalty.
+type FlagResolvedPayload struct {
+	ChallengerID        string         `json:"challengerId"`
+	AccusedID           string         `json:"accusedId"`
+	Correct             bool           `json:"correct"`
+	PenalizedID         string         `json:"penalizedId"`
+	Penalty             int            `json:"penalty"`
+	LedSuit             string         `json:"ledSuit"`
+	AccusedCard         interface{}    `json:"accusedCard"`
+	RevealedHand        []interface{}  `json:"revealedHand"`
+	PenalizedMatchScore int            `json:"penalizedMatchScore"`
+	MatchScores         map[string]int `json:"matchScores"`
+	Voided              bool           `json:"voided"`
 }

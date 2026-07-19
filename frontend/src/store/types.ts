@@ -92,6 +92,9 @@ export interface GameStartedResponse {
   roomCode: string
   players: LobbyPlayer[]
   gameState: BackendGameState
+  // Set true when this fresh game is the reshuffle that follows a flag-voided
+  // game (ticket 07). Absent on a normal game start.
+  voidedByFlag?: boolean
 }
 
 // Backend game state types

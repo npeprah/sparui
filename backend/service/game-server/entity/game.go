@@ -297,6 +297,27 @@ const (
 	PhaseGameOver  GamePhase = "game_over" // Game completed
 )
 
+// LastRoundSnapshot captures the resolved state of the most recently completed
+// round. handleRoundCompletion resets LedSuit / PlayedCards the instant the last
+// card lands, so a flag WS message that arrives after the round completes (e.g.
+// against the player whose card completed the round) would otherwise find the
+// witness state already wiped. The snapshot preserves it so such a flag can
+// still be judged.
+type LastRoundSnapshot struct {
+	LedSuit     *Suit        `json:"ledSuit,omitempty"`
+	PlayedCards []PlayedCard `json:"playedCards"`
+}
+
+// GetPlayedCard finds a played card by player ID within the snapshot.
+func (s *LastRoundSnapshot) GetPlayedCard(playerID string) *PlayedCard {
+	for i := range s.PlayedCards {
+		if s.PlayedCards[i].PlayerID == playerID {
+			return &s.PlayedCards[i]
+		}
+	}
+	return nil
+}
+
 // GameState represents the complete state of an active game
 type GameState struct {
 	// Game identification
@@ -329,6 +350,11 @@ type GameState struct {
 	// Win streaks
 	FireStreakPlayer string `json:"fireStreakPlayer,omitempty"` // Player with active fire streak
 	FreezeTriggered  bool   `json:"freezeTriggered"`            // True if freeze just triggered
+
+	// Flagging support: the most recently completed round's led suit and played
+	// cards, captured before the per-round reset so a flag against the
+	// round-completing play can still be judged. Internal only (not serialized).
+	LastRound *LastRoundSnapshot `json:"-"`
 
 	// Game timestamps
 	StartedAt   time.Time  `json:"startedAt"`

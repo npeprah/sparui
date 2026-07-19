@@ -107,6 +107,28 @@ export interface GameRedirectResponse {
   message?: string
 }
 
+// game:flag_resolved payload (ticket 07). A flag ALWAYS voids the current game;
+// a reshuffled fresh game follows in a separate game:started (voidedByFlag=true).
+//   - correct: true when the accused truly broke suit while holding the led suit.
+//   - penalizedId: who lost `penalty` match points (the offender when correct,
+//     otherwise the challenger). `penalty` is the positive magnitude (3), applied
+//     as a subtraction from the cumulative match score, which persists the void.
+//   - revealedHand: the accused's remaining cards, revealed on resolution.
+//   - matchScores: every player's cumulative match score after the penalty.
+export interface FlagResolvedResponse {
+  challengerId: string
+  accusedId: string
+  correct: boolean
+  penalizedId: string
+  penalty: number
+  ledSuit: string
+  accusedCard: Card | null
+  revealedHand: Card[]
+  penalizedMatchScore: number
+  matchScores: Record<string, number>
+  voided: boolean
+}
+
 // WebSocket events sent FROM the server TO the client.
 export interface ServerToClientEvents {
   // Connection / auth
@@ -128,6 +150,13 @@ export interface ServerToClientEvents {
   'game:started': (data: GameStartedResponse) => void
   'game:restarted': (data: { roomCode: string; gameState: BackendGameState }) => void
   'game:redirect': (data: GameRedirectResponse) => void
+
+  // Flagging (ticket 07): a flag always voids the current game. The outcome
+  // (with the accused's revealed hand) arrives as game:flag_resolved, then the
+  // reshuffled fresh game follows as game:started (voidedByFlag=true). The
+  // cumulative match score in matchScores persists across the void.
+  'game:flag_resolved': (data: FlagResolvedResponse) => void
+  'game:flag_error': (data: { error: string; code?: string }) => void
 
   // In-game (legacy bare names)
   cardPlayed: (data: {
