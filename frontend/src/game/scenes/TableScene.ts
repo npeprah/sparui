@@ -5,6 +5,8 @@ import { usePlayerStore } from '../../store/playerStore'
 import { useThemeStore } from '../../store/themeStore'
 import { CardSprite } from '../sprites/CardSprite'
 import { ParticleEffects } from '../systems/ParticleEffects'
+import { CardStateOverlayDriver } from '../overlays/CardStateOverlayDriver'
+import type { OverlayStateSlice, DryZoneConfig } from '../overlays/overlayDecisions'
 import { getPlayableCards } from '../utils/sparRules'
 import { TableGameController } from '../orchestration/TableGameController'
 import { CARD_BACK_KEY, CARD_SCALES } from '../constants/cards'
@@ -64,6 +66,8 @@ import {
 export class TableScene extends Phaser.Scene {
   // --- composition: reused building blocks --------------------------------
   private particleEffects?: ParticleEffects
+  // Ticket 16: drives fire / freeze / dry overlays from the store overlay state.
+  private overlayDriver?: CardStateOverlayDriver
 
   // --- render layers ------------------------------------------------------
   private chromeLayer?: Phaser.GameObjects.Container
@@ -120,12 +124,19 @@ export class TableScene extends Phaser.Scene {
     this.buildHud()
 
     this.particleEffects = new ParticleEffects(this)
+    // Ticket 16: fire / freeze / dry overlays composited on the reused faces.
+    this.overlayDriver = new CardStateOverlayDriver(
+      this,
+      this.particleEffects,
+      this.dryZoneConfig()
+    )
 
     this.opponentLayer = this.add.container(0, 0).setDepth(200)
     this.pileLayer = this.add.container(0, 0).setDepth(100)
     this.handLayer = this.add.container(0, 0).setDepth(300)
 
     this.renderFromState()
+    this.syncOverlays()
     this.subscribeToStores()
 
     // Ticket 14: the orchestration controller owns all turn/round/timer/dry/flag
@@ -149,6 +160,8 @@ export class TableScene extends Phaser.Scene {
     this.unsubscribers = []
     // Stop the local turn countdown so its interval does not leak past the scene.
     useGameStore.getState().stopTurnCountdown()
+    this.overlayDriver?.destroy()
+    this.overlayDriver = undefined
     this.particleEffects?.cleanup()
   }
 
@@ -525,6 +538,43 @@ export class TableScene extends Phaser.Scene {
         this.pileSprites.delete(playerId)
       }
     }
+
+    // Re-attach fire / freeze overlays to the (possibly new) pile sprites.
+    this.syncPileOverlays()
+  }
+
+  // =========================================================================
+  // state-overlay driver wiring (ticket 16): fire / freeze / dry
+  // =========================================================================
+
+  /** The overlay-relevant slice of the game store the driver reconciles against. */
+  private overlaySlice(): OverlayStateSlice {
+    const g = useGameStore.getState()
+    return {
+      fireStreakPlayerId: g.fireStreakPlayerId,
+      frozenCard: g.frozenCard,
+      playedCards: g.playedCards,
+      dryDeclarations: g.dryDeclarations,
+    }
+  }
+
+  private syncPileOverlays(): void {
+    this.overlayDriver?.syncPileOverlays(this.pileSprites, this.overlaySlice())
+  }
+
+  private syncDryOverlays(): void {
+    this.overlayDriver?.syncDryOverlays(useGameStore.getState().dryDeclarations)
+  }
+
+  /** Sync every overlay from the current store state (initial render + resync). */
+  private syncOverlays(): void {
+    this.syncPileOverlays()
+    this.syncDryOverlays()
+  }
+
+  /** Where set-aside dry / show-dry cards are laid out (bottom-left strip). */
+  private dryZoneConfig(): DryZoneConfig {
+    return { x: 150, y: 470, spacing: 76 }
   }
 
   /**
@@ -566,7 +616,18 @@ export class TableScene extends Phaser.Scene {
           this.updateHud()
         }
         if (state.playedCards !== prev.playedCards) {
+          // renderPile() re-attaches the pile overlays after rebuilding sprites.
           this.renderPile()
+        } else if (
+          state.fireStreakPlayerId !== prev.fireStreakPlayerId ||
+          state.frozenCard !== prev.frozenCard
+        ) {
+          // Overlay state landed (roundWon) or cleared (clearRoundEffects) with
+          // the pile unchanged - reconcile fire / freeze on the existing sprites.
+          this.syncPileOverlays()
+        }
+        if (state.dryDeclarations !== prev.dryDeclarations) {
+          this.syncDryOverlays()
         }
         if (state.players !== prev.players || state.currentSuit !== prev.currentSuit) {
           this.renderHand()
