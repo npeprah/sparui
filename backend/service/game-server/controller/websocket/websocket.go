@@ -546,6 +546,22 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 		return
 	}
 
+	// All validations passed - commit the play. applyPlay is shared with the
+	// turn-timer expiry auto-play so both human and auto plays advance the turn,
+	// broadcast, resolve round completion, and walk the turn timer identically.
+	c.applyPlay(gameState, player, card)
+}
+
+// applyPlay commits a validated card play: it records the led suit (if opening),
+// removes the card from the player's hand, marks the player played, appends to
+// the round's played cards, advances the on-deck seat, broadcasts cardPlayed,
+// resolves round completion when everyone has played, and (re)arms or stops the
+// turn timer for the next on-deck seat.
+//
+// The caller MUST hold gamesMu and MUST have already validated the play (correct
+// phase, card in hand, opening rule). It is invoked both by handlePlayCard (a
+// human play) and by the turn-timer expiry path (an auto-play).
+func (c *Client) applyPlay(gameState *entity.GameState, player *entity.GamePlayer, card *entity.Card) {
 	// Off-suit freedom: a player MAY break suit even while holding the led suit.
 	// Follow-suit is a strategic expectation, not a hard rule - an illegal
 	// off-suit play is policed by the flag/challenge mechanic (a later ticket),
@@ -553,14 +569,12 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 	// the led suit when the round is opened.
 	if gameState.LedSuit == nil {
 		gameState.LedSuit = &card.Suit
-		slog.Info("Led suit set", "suit", card.Suit, "playerId", c.PlayerID)
+		slog.Info("Led suit set", "suit", card.Suit, "playerId", player.ID)
 	}
-
-	// All validations passed - update game state
 
 	// Remove card from player's hand
 	if !player.RemoveCard(card) {
-		slog.Error("Failed to remove card from hand", "playerId", c.PlayerID, "card", card.String())
+		slog.Error("Failed to remove card from hand", "playerId", player.ID, "card", card.String())
 		c.sendError("game:play_error", "Failed to play card")
 		return
 	}
@@ -573,7 +587,7 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 	// Add card to played cards
 	playedCard := entity.PlayedCard{
 		Card:     *card,
-		PlayerID: c.PlayerID,
+		PlayerID: player.ID,
 		PlayedAt: time.Now(),
 		IsOnFire: player.IsOnFire,
 		// A card is only known to be "frozen" once a round resolves and an
@@ -591,13 +605,13 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 	} else {
 		// All players have played - round is complete
 		gameState.CurrentTurn = ""
-		slog.Info("Round complete - all players have played", "roomCode", c.RoomID)
+		slog.Info("Round complete - all players have played", "roomCode", gameState.RoomCode)
 	}
 
 	gameState.UpdatedAt = time.Now()
 
 	slog.Info("Card played successfully",
-		"playerId", c.PlayerID,
+		"playerId", player.ID,
 		"card", card.String(),
 		"playedCardsCount", len(gameState.PlayedCards),
 		"allPlayed", gameState.AllPlayersPlayed(),
@@ -608,7 +622,7 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 	broadcastPayload := map[string]interface{}{
 		"event": "cardPlayed",
 		"data": map[string]interface{}{
-			"playerId":      c.PlayerID,
+			"playerId":      player.ID,
 			"card":          convertCardToFrontendFormat(card),
 			"playedCards":   convertPlayedCardsToFrontendFormat(gameState.PlayedCards),
 			"currentTurn":   gameState.CurrentTurn,
@@ -617,36 +631,22 @@ func (c *Client) handlePlayCard(data json.RawMessage) {
 		},
 	}
 
-	// Count clients in room for logging
-	c.Hub.mu.RLock()
-	clientsInRoom := 0
-	for client := range c.Hub.Clients {
-		if client.RoomID == c.RoomID {
-			clientsInRoom++
-		}
-	}
-	c.Hub.mu.RUnlock()
-
-	slog.Info("Broadcasting card played event to room",
-		"roomCode", c.RoomID,
-		"event", "cardPlayed",
-		"playerId", c.PlayerID,
-		"card", card.String(),
-		"clientsInRoom", clientsInRoom,
-	)
-
 	// Broadcast card played event to all players in room (including sender)
-	c.broadcastToRoomIncludingSelf(c.RoomID, broadcastPayload)
-
-	slog.Info("Card played broadcast completed",
-		"roomCode", c.RoomID,
-		"playerId", c.PlayerID,
-		"clientsInRoom", clientsInRoom,
-	)
+	c.broadcastToRoomIncludingSelf(gameState.RoomCode, broadcastPayload)
 
 	// Handle round completion if all players have played
 	if gameState.AllPlayersPlayed() {
 		c.handleRoundCompletion(gameState)
+	}
+
+	// Walk the turn timer: stop it when the game is over, otherwise re-arm it
+	// for the new on-deck seat (handleRoundCompletion has already set the next
+	// leader/turn for a fresh round; a mid-round play leaves CurrentTurn on the
+	// next clockwise seat).
+	if gameState.Phase == entity.PhaseGameOver {
+		turnTimers.stop(gameState.RoomCode)
+	} else {
+		turnTimers.reset(gameState.RoomCode, gameState)
 	}
 }
 
@@ -1734,6 +1734,11 @@ func (c *Client) handleStartGame(data json.RawMessage) {
 		},
 	})
 
+	// Arm the turn timer for the opening leader (on deck).
+	gamesMu.Lock()
+	turnTimers.reset(c.RoomID, gameState)
+	gamesMu.Unlock()
+
 	slog.Info("Game started successfully",
 		"roomCode", c.RoomID,
 		"gameId", gameState.GameID,
@@ -1842,7 +1847,9 @@ func (c *Client) handleRestartGame(data json.RawMessage) {
 		return
 	}
 
-	// 1. Delete old game state
+	// 1. Delete old game state (and stop its turn timer to avoid a leaked
+	// goroutine auto-playing into a discarded game).
+	turnTimers.stop(c.RoomID)
 	gamesMu.Lock()
 	delete(games, c.RoomID)
 	gamesMu.Unlock()
@@ -1895,6 +1902,11 @@ func (c *Client) handleRestartGame(data json.RawMessage) {
 			"gameState": convertGameStateToFrontendFormat(gameState),
 		},
 	})
+
+	// Arm the turn timer for the opening leader of the restarted game.
+	gamesMu.Lock()
+	turnTimers.reset(c.RoomID, gameState)
+	gamesMu.Unlock()
 }
 
 // pickRandomLeaderIndex returns a uniformly random player index in [0, numPlayers)
@@ -2019,6 +2031,9 @@ func (c *Client) sendJSON(data interface{}) {
 	message, err := json.Marshal(data)
 	if err != nil {
 		slog.Error("Failed to marshal message", "error", err)
+		return
+	}
+	if c.Send == nil {
 		return
 	}
 	c.Send <- message

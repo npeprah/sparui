@@ -90,6 +90,9 @@ func TestHandlePlayCard_LeaderOpensRound(t *testing.T) {
 		hub.Clients[client] = true
 		hub.mu.Unlock()
 		defer func() {
+			// Stop the room's turn timer so a background auto-play goroutine
+			// from this play cannot leak into a later play that reuses the room.
+			turnTimers.stop("OPENROOM")
 			hub.mu.Lock()
 			delete(hub.Clients, client)
 			hub.mu.Unlock()
