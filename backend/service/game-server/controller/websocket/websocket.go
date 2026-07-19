@@ -91,6 +91,52 @@ var matchmakingCancel context.CancelFunc
 var games = make(map[string]*entity.GameState)
 var gamesMu sync.RWMutex
 
+// matchScores holds the cumulative MATCH score for each player, keyed by room
+// code then player ID. A match is the sequence of 5-round games played in a
+// single room: individual games start fresh (see initializeGameState) but the
+// match score accumulates across every play-again, so it survives a game
+// restart. This is the persistence hook fire-streak (ticket 08) bonuses and
+// flag (ticket 07) penalties should adjust once those tickets land.
+var matchScores = make(map[string]map[string]int)
+var matchScoresMu sync.Mutex
+
+// addMatchScore adds delta to a player's cumulative match score for a room and
+// returns the new total. delta may be negative (e.g. a future flag penalty).
+func addMatchScore(roomCode, playerID string, delta int) int {
+	matchScoresMu.Lock()
+	defer matchScoresMu.Unlock()
+	room, ok := matchScores[roomCode]
+	if !ok {
+		room = make(map[string]int)
+		matchScores[roomCode] = room
+	}
+	room[playerID] += delta
+	return room[playerID]
+}
+
+// getMatchScore returns a player's current cumulative match score for a room
+// (0 if the player has never scored in this match).
+func getMatchScore(roomCode, playerID string) int {
+	matchScoresMu.Lock()
+	defer matchScoresMu.Unlock()
+	if room, ok := matchScores[roomCode]; ok {
+		return room[playerID]
+	}
+	return 0
+}
+
+// matchScoreSnapshot returns a copy of every player's cumulative match score
+// for a room, safe to serialize without holding the lock.
+func matchScoreSnapshot(roomCode string) map[string]int {
+	matchScoresMu.Lock()
+	defer matchScoresMu.Unlock()
+	snapshot := make(map[string]int)
+	for playerID, score := range matchScores[roomCode] {
+		snapshot[playerID] = score
+	}
+	return snapshot
+}
+
 func init() {
 	go hub.Run()
 	// Initialize room manager without repository (will be set later)
@@ -608,35 +654,58 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 	// Set round winner
 	gameState.RoundWinner = winnerID
 
-	// Track round wins (NOT accumulating points - just counting tricks won)
+	// Track round wins (NOT accumulating points - just counting tricks won).
+	// Points are only scored on the final round, by card value (see below).
 	winner := gameState.GetPlayer(winnerID)
 	if winner != nil {
 		winner.RoundsWon++
 		slog.Info("Round won", "winnerId", winnerID, "roundsWon", winner.RoundsWon)
 	}
 
-	// Check if game is over (all cards have been played)
+	// Check if the game is over. A Spar game is exactly TotalRounds (5) rounds;
+	// the winner of the final round wins the game and scores by the value of
+	// their winning card (6 -> 3, 7 -> 2, 8+ -> 1). Those points are added to
+	// the player's cumulative match score, which persists across play-again.
 	gameOver := false
 	gameWinnerID := ""
+	gameWinPoints := 0
+	var gameWinningCard *entity.Card
 
-	// Game ends only when all cards have been played (all hands empty)
-	allHandsEmpty := true
-	for _, player := range gameState.Players {
-		if len(player.Hand) > 0 {
-			allHandsEmpty = false
-			break
-		}
-	}
-
-	if allHandsEmpty {
+	if gameState.CurrentRound >= gameState.TotalRounds {
 		gameOver = true
 		gameState.Phase = entity.PhaseGameOver
 
-		// The leader at game end (winner of the last trick) wins the game
-		gameWinnerID = gameState.LeaderID
+		// The winner of the final round wins the game.
+		gameWinnerID = winnerID
 
-		slog.Info("Game over - all cards played",
+		// The winner's own played card is the trick-winning card of the led
+		// suit; score the game by its value.
+		if wonCard := gameState.GetPlayedCard(winnerID); wonCard != nil {
+			card := wonCard.Card
+			gameWinningCard = &card
+			gameWinPoints = card.Value.GameWinValue()
+		}
+
+		// Only the final round scores points in Spar.
+		if gw := gameState.GetPlayer(gameWinnerID); gw != nil {
+			gw.Score += gameWinPoints
+		}
+
+		// Persist the points onto the cumulative match score (survives
+		// play-again) and mirror the fresh totals onto every player so the
+		// serialized state reflects the running match standings.
+		newTotal := addMatchScore(c.RoomID, gameWinnerID, gameWinPoints)
+		for i := range gameState.Players {
+			gameState.Players[i].MatchScore = getMatchScore(c.RoomID, gameState.Players[i].ID)
+		}
+
+		completedAt := time.Now()
+		gameState.CompletedAt = &completedAt
+
+		slog.Info("Game over - final round complete",
 			"winnerId", gameWinnerID,
+			"gameWinPoints", gameWinPoints,
+			"matchScore", newTotal,
 			"totalRounds", gameState.CurrentRound,
 		)
 	}
@@ -663,7 +732,7 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 
 	// If game is over, broadcast gameEnded event
 	if gameOver {
-		c.handleGameOver(gameState, gameWinnerID)
+		c.handleGameOver(gameState, gameWinnerID, gameWinPoints, gameWinningCard)
 		return
 	}
 
@@ -757,8 +826,11 @@ func (c *Client) getPlayerRoundsWon(gameState *entity.GameState) map[string]int 
 	return roundsWon
 }
 
-// handleGameOver broadcasts the game ended event
-func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string) {
+// handleGameOver broadcasts the game ended event. The winner is the final-round
+// winner; gameWinPoints is the value they scored this game (added to their match
+// score) and winningCard is the card they won the final round with (may be nil
+// in the degenerate case where no played card is found).
+func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string, gameWinPoints int, winningCard *entity.Card) {
 	finalRoundsWon := c.getPlayerRoundsWon(gameState)
 
 	// Get winner details
@@ -770,10 +842,15 @@ func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string) {
 		winnerRoundsWon = winner.RoundsWon
 	}
 
+	matchScores := matchScoreSnapshot(c.RoomID)
+	winnerMatchScore := matchScores[winnerID]
+
 	slog.Info("Game over",
 		"roomCode", c.RoomID,
 		"winnerId", winnerID,
 		"winnerName", winnerName,
+		"gameWinPoints", gameWinPoints,
+		"matchScore", winnerMatchScore,
 		"roundsWon", winnerRoundsWon,
 		"totalRounds", gameState.CurrentRound,
 	)
@@ -781,11 +858,15 @@ func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string) {
 	gameEndedPayload := map[string]interface{}{
 		"event": "gameEnded",
 		"data": map[string]interface{}{
-			"winnerId":       winnerID,
-			"winnerName":     winnerName,
-			"winnerScore":    winnerRoundsWon, // Rounds won is the final score
-			"finalRoundsWon": finalRoundsWon,
-			"totalRounds":    gameState.CurrentRound,
+			"winnerId":         winnerID,
+			"winnerName":       winnerName,
+			"winnerScore":      gameWinPoints, // Value points scored this game (6->3, 7->2, 8+->1)
+			"winningCard":      winningCard,   // The card that won the final round
+			"gameWinPoints":    gameWinPoints,
+			"winnerMatchScore": winnerMatchScore, // Winner's cumulative match score
+			"matchScores":      matchScores,      // playerID -> cumulative match score
+			"finalRoundsWon":   finalRoundsWon,
+			"totalRounds":      gameState.CurrentRound,
 		},
 	}
 	c.broadcastToRoomIncludingSelf(c.RoomID, gameEndedPayload)
@@ -1449,14 +1530,18 @@ func initializeGameState(room *entity.Room) (*entity.GameState, error) {
 	gamePlayers := make([]entity.GamePlayer, len(room.Players))
 	for i, player := range room.Players {
 		gamePlayers[i] = entity.GamePlayer{
-			ID:             player.ID,
-			Username:       player.Username,
-			Avatar:         player.Avatar,
-			Hand:           hands[i],
-			DryCard:        nil,
-			Score:          0,
-			RoundsWon:      0,
-			WinStreak:      0,
+			ID:       player.ID,
+			Username: player.Username,
+			Avatar:   player.Avatar,
+			Hand:     hands[i],
+			DryCard:  nil,
+			// Per-game state starts fresh every game...
+			Score:     0,
+			RoundsWon: 0,
+			WinStreak: 0,
+			// ...but the cumulative MATCH score persists across every game
+			// (play-again) played in this room.
+			MatchScore:     getMatchScore(room.RoomCode, player.ID),
 			IsLeader:       i == leaderIndex, // Randomly seated initial leader
 			IsOnFire:       false,
 			HasPlayedCard:  false,

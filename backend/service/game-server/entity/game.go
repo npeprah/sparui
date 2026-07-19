@@ -147,6 +147,24 @@ func (c *Card) IsLowCard() bool {
 	return c.Value == Six || c.Value == Seven
 }
 
+// GameWinValue returns the points awarded for winning the final (5th) round
+// with a card of this value. Per the Spar ruleset the winner of the final
+// round wins the game and scores by the value of their winning card:
+// 6 -> 3, 7 -> 2, and any 8-or-higher card (8, 9, 10, J, Q, K, A) -> 1.
+// An invalid value yields 0.
+func (v Value) GameWinValue() int {
+	switch v {
+	case Six:
+		return 3
+	case Seven:
+		return 2
+	case Eight, Nine, Ten, Jack, Queen, King, Ace:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // DryType represents the type of dry declaration
 type DryType string
 
@@ -201,13 +219,14 @@ type GamePlayer struct {
 	Avatar   string `json:"avatar"`
 
 	// Game state
-	Hand      []Card   `json:"hand"`              // Cards in player's hand
-	DryCard   *DryCard `json:"dryCard,omitempty"` // Declared dry card
-	Score     int      `json:"score"`             // Current score
-	RoundsWon int      `json:"roundsWon"`         // Number of rounds won
-	WinStreak int      `json:"winStreak"`         // Current win streak count
-	IsLeader  bool     `json:"isLeader"`          // True if current leader
-	IsOnFire  bool     `json:"isOnFire"`          // True if has 3+ win streak
+	Hand       []Card   `json:"hand"`              // Cards in player's hand
+	DryCard    *DryCard `json:"dryCard,omitempty"` // Declared dry card
+	Score      int      `json:"score"`             // Score earned this game (value points from winning the final round)
+	MatchScore int      `json:"matchScore"`        // Cumulative match score across all games in this room
+	RoundsWon  int      `json:"roundsWon"`         // Number of rounds (tricks) won this game
+	WinStreak  int      `json:"winStreak"`         // Current win streak count
+	IsLeader   bool     `json:"isLeader"`          // True if current leader
+	IsOnFire   bool     `json:"isOnFire"`          // True if has 3+ win streak
 
 	// Turn state
 	HasPlayedCard  bool      `json:"hasPlayedCard"`            // True if played card this round

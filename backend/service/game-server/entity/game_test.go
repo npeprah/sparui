@@ -633,6 +633,85 @@ func TestGameState(t *testing.T) {
 	})
 }
 
+// TestValueGameWinValue verifies the final-round value scoring:
+// 6 -> 3, 7 -> 2, and every 8-or-higher card -> 1.
+func TestValueGameWinValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		value Value
+		want  int
+	}{
+		{"six scores three", Six, 3},
+		{"seven scores two", Seven, 2},
+		{"eight scores one", Eight, 1},
+		{"nine scores one", Nine, 1},
+		{"ten scores one", Ten, 1},
+		{"jack scores one", Jack, 1},
+		{"queen scores one", Queen, 1},
+		{"king scores one", King, 1},
+		{"ace scores one", Ace, 1},
+		{"invalid scores zero", Value("joker"), 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.value.GameWinValue(); got != tt.want {
+				t.Errorf("GameWinValue(%q) = %d, want %d", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestGetWinningPlayerHighestScorer verifies GetWinningPlayer returns the
+// highest scorer (not the leader) across a range of score distributions.
+func TestGetWinningPlayerHighestScorer(t *testing.T) {
+	tests := []struct {
+		name     string
+		scores   map[string]int
+		leaderID string
+		wantID   string
+	}{
+		{
+			name:     "highest scorer wins even when leader scored less",
+			scores:   map[string]int{"player1": 1, "player2": 3, "player3": 0},
+			leaderID: "player1",
+			wantID:   "player2",
+		},
+		{
+			name:     "leader also happens to be highest scorer",
+			scores:   map[string]int{"player1": 5, "player2": 2, "player3": 1},
+			leaderID: "player1",
+			wantID:   "player1",
+		},
+		{
+			name:     "all zero returns first player",
+			scores:   map[string]int{"player1": 0, "player2": 0, "player3": 0},
+			leaderID: "player2",
+			wantID:   "player1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gs := &GameState{
+				LeaderID: tt.leaderID,
+				Players: []GamePlayer{
+					{ID: "player1", Score: tt.scores["player1"]},
+					{ID: "player2", Score: tt.scores["player2"]},
+					{ID: "player3", Score: tt.scores["player3"]},
+				},
+			}
+			winner := gs.GetWinningPlayer()
+			if winner == nil {
+				t.Fatal("expected a winning player, got nil")
+			}
+			if winner.ID != tt.wantID {
+				t.Errorf("GetWinningPlayer() = %s, want %s", winner.ID, tt.wantID)
+			}
+		})
+	}
+}
+
 // TestGamePhase tests game phase constants
 func TestGamePhase(t *testing.T) {
 	phases := []GamePhase{
