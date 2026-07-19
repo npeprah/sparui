@@ -3,6 +3,8 @@ import type { Card, Suit } from '../../store/types'
 import { useGameStore } from '../../store/gameStore'
 import { usePlayerStore } from '../../store/playerStore'
 import { useThemeStore } from '../../store/themeStore'
+import { useUIStore } from '../../store/uiStore'
+import { AudioManager, type SoundKey } from '../../services/audioManager'
 import { CardSprite } from '../sprites/CardSprite'
 import { ParticleEffects } from '../systems/ParticleEffects'
 import { CardStateOverlayDriver } from '../overlays/CardStateOverlayDriver'
@@ -104,6 +106,9 @@ export class TableScene extends Phaser.Scene {
   // --- ticket 14: turn/round/play-again orchestration ---------------------
   private controller?: TableGameController
 
+  // --- ticket 10 SFX: cartoon audio played at the same beats as the callouts -
+  private audioManager?: AudioManager
+
   // --- SEAM (ticket 14): orchestration wires this to request a real play ---
   /** Called when the local player asks to play a card (click or drag-up). */
   public onPlayCardRequested?: (card: Card) => void
@@ -126,6 +131,19 @@ export class TableScene extends Phaser.Scene {
     this.buildHud()
 
     this.particleEffects = new ParticleEffects(this)
+
+    // Ticket 10 SFX: wire the preloaded cartoon sounds to this scene so the
+    // orchestration layer can play them at the same beats as the callouts. init()
+    // is a no-op-safe wrapper: if the sounds were not preloaded (e.g. a unit
+    // scene), we simply stay silent rather than throw.
+    try {
+      this.audioManager = AudioManager.getInstance()
+      this.audioManager.init(this)
+    } catch (error) {
+      console.warn('[TableScene] audio init skipped:', error)
+      this.audioManager = undefined
+    }
+
     // Ticket 16: fire / freeze / dry overlays composited on the reused faces.
     this.overlayDriver = new CardStateOverlayDriver(
       this,
@@ -170,6 +188,8 @@ export class TableScene extends Phaser.Scene {
     this.unsubscribers = []
     // Stop the local turn countdown so its interval does not leak past the scene.
     useGameStore.getState().stopTurnCountdown()
+    this.audioManager?.destroy()
+    this.audioManager = undefined
     this.overlayDriver?.destroy()
     this.overlayDriver = undefined
     this.particleEffects?.cleanup()
@@ -646,6 +666,17 @@ export class TableScene extends Phaser.Scene {
     this.onPlayCardRequested?.(card)
   }
 
+  /**
+   * SEAM (ticket 14/10): the orchestration layer plays a cartoon SFX at a game
+   * beat (card play, round win/loss, dry, fire, freeze, invalid...). Mute-safe:
+   * respects the live `soundEnabled` setting in uiStore, and no-ops if audio was
+   * never initialised. The AudioManager itself also honours its mute state.
+   */
+  public playSound(key: SoundKey): void {
+    if (!useUIStore.getState().soundEnabled) return
+    this.audioManager?.play(key)
+  }
+
   // =========================================================================
   // store subscriptions - re-render from state on change
   // =========================================================================
@@ -676,8 +707,13 @@ export class TableScene extends Phaser.Scene {
         if (state.dryDeclarations !== prev.dryDeclarations) {
           this.syncDryOverlays()
         }
-        if (state.players !== prev.players || state.currentSuit !== prev.currentSuit) {
-          this.renderHand()
+        // The local hand is sourced from playerStore, NOT gameStore.players, so
+        // opponent plays / score / streak updates must never rebuild it. Only the
+        // led-suit changing shifts the follow-suit hint, and that is a
+        // hint-only refresh - reapply it in place instead of destroying sprites
+        // (which would kill in-progress hover/drag and re-run deal animations).
+        if (state.currentSuit !== prev.currentSuit) {
+          this.applyHandAffordance()
         }
       })
     )

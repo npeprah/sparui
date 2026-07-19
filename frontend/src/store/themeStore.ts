@@ -88,6 +88,26 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'spar-theme-storage',
+      // Bumped when the ThemeName keys were renamed to the 3-palette set. Legacy
+      // stored keys are mapped onto the new palette on rehydration; anything
+      // unrecognised falls back to the default so the picker always has a match.
+      version: 1,
+      migrate: (persisted: unknown): { selectedTheme: ThemeName } => {
+        const legacyMap: Record<string, ThemeName> = {
+          afro_heritage: 'warm_heritage',
+          royal_gold: 'warm_heritage',
+          neon_arcade: 'neon',
+          ocean_breeze: 'comic',
+        }
+        const stored = (persisted as { selectedTheme?: string } | null)?.selectedTheme
+        let next: ThemeName = DEFAULT_THEME
+        if (stored && stored in themeData) {
+          next = stored as ThemeName
+        } else if (stored && legacyMap[stored]) {
+          next = legacyMap[stored]
+        }
+        return { selectedTheme: next }
+      },
       partialize: state => ({
         selectedTheme: state.selectedTheme,
       }),

@@ -31,7 +31,7 @@ const SOUND_CONFIG = {
   'sound:phase_transition': 'assets/sounds/sfx/game_events/phase_transition.wav',
 } as const
 
-type SoundKey = keyof typeof SOUND_CONFIG
+export type SoundKey = keyof typeof SOUND_CONFIG
 type VolumeCategory = 'master' | 'sfx'
 
 /**

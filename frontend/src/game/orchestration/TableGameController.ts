@@ -38,12 +38,14 @@ import {
   deriveTurnTotal,
 } from './tableOrchestration'
 import { resolveCallout, type CalloutEvent, type CalloutStyle } from '../config/callouts'
+import type { SoundKey } from '../../services/audioManager'
 
 /** The slice of the scene the controller drives. TableScene implements this. */
 export interface TableSceneHooks {
   onPlayCardRequested?: (card: Card) => void
   showCallout(text: string, style?: CalloutStyle): void
   setTurnTotal(seconds: number): void
+  playSound(key: SoundKey): void
 }
 
 /** How long the round-win beat holds before the pile clears and the next round starts. */
@@ -110,6 +112,8 @@ export class TableGameController {
     if (!affordance.canPlay) {
       if (affordance.reason === 'awaiting-leader') {
         this.fireCallout('wait')
+        // Pre-leader rejection: a follower tried to open the trick early.
+        this.scene.playSound('sound:invalid_move')
       }
       return
     }
@@ -186,6 +190,7 @@ export class TableGameController {
   private onCardPlayed(data: Parameters<ServerToClientEvents['cardPlayed']>[0]): void {
     const { playerId, card, currentTurn } = data
     this.game.getState().playCard(playerId, card)
+    this.scene.playSound('sound:card_play')
 
     // Local player's own card is authoritative-removed from the hand on echo.
     if (playerId === this.player.getState().playerId) {
@@ -259,6 +264,17 @@ export class TableGameController {
     g.setFireStreakPlayer(fireStreakPlayer ?? null)
     g.setFrozenCard(frozenCard ?? null)
 
+    // SFX beats: the round outcome (win/loss from the local player's view) plus
+    // the distinct fire/freeze cues layered over it.
+    const localId = this.player.getState().playerId
+    this.scene.playSound(winnerId === localId ? 'sound:win_round' : 'sound:lose_round')
+    if (fireStreakPlayer) {
+      this.scene.playSound('sound:fire_streak')
+    }
+    if (data.freezeTriggered) {
+      this.scene.playSound('sound:freeze_effect')
+    }
+
     // Callout words + style come from the designer-authored config by event.
     if (data.freezeTriggered) {
       this.fireCallout('freeze')
@@ -286,6 +302,9 @@ export class TableGameController {
   }
 
   private onGameEnded(data: Parameters<ServerToClientEvents['gameEnded']>[0]): void {
+    // A pending round-win beat must not fire nextRound() against the finished
+    // game (or a fresh one that follows).
+    this.clearRoundWinTimer()
     const { winnerId, winnerName, winnerScore, finalRoundsWon } = data
     this.game.getState().setGameWinner({
       id: winnerId,
@@ -295,6 +314,9 @@ export class TableGameController {
     this.game.getState().setGamePhase('finished')
     this.game.getState().stopTurnCountdown()
     this.fireCallout('gameWin')
+    this.scene.playSound(
+      winnerId === this.player.getState().playerId ? 'sound:game_victory' : 'sound:game_defeat'
+    )
     this.refreshAffordance()
   }
 
@@ -308,6 +330,9 @@ export class TableGameController {
   private onReinit(
     gameState: Parameters<ServerToClientEvents['game:restarted']>[0]['gameState']
   ): void {
+    // A restart / flag-void reshuffle can arrive inside the 2s round-win hold;
+    // cancel any pending beat so it cannot fire nextRound() against the fresh game.
+    this.clearRoundWinTimer()
     if (!gameState) return
     const localId = this.player.getState().playerId
 
@@ -320,6 +345,8 @@ export class TableGameController {
     this.player.getState().resetGameState()
     this.player.getState().setHand(localHand)
     this.game.getState().setOnDeckPlayer(onDeckId)
+    // Fresh hand dealt on game start / restart.
+    this.scene.playSound('sound:card_deal')
     this.refreshAffordance()
   }
 
@@ -330,6 +357,7 @@ export class TableGameController {
       isShown: data.isShown,
       card: data.card ?? null,
     })
+    this.scene.playSound(data.isShown ? 'sound:show_dry_declaration' : 'sound:dry_declaration')
     this.fireCallout(data.isShown ? 'showDry' : 'dry')
   }
 
@@ -352,6 +380,7 @@ export class TableGameController {
     // Non-fatal: a bad flag / dry attempt. Surface a light callout; the backend
     // stays authoritative.
     console.warn('[TableGameController] action rejected:', data.error)
+    this.scene.playSound('sound:invalid_move')
     this.fireCallout('invalid')
   }
 

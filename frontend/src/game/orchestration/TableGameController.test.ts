@@ -82,16 +82,24 @@ const backendState = (overrides: Partial<BackendGameState> = {}): BackendGameSta
   ...overrides,
 })
 
-function makeScene(): TableSceneHooks & { callouts: string[]; turnTotals: number[] } {
+function makeScene(): TableSceneHooks & {
+  callouts: string[]
+  turnTotals: number[]
+  sounds: string[]
+} {
   return {
     onPlayCardRequested: undefined,
     callouts: [],
     turnTotals: [],
+    sounds: [],
     showCallout(text: string) {
       this.callouts.push(text)
     },
     setTurnTotal(seconds: number) {
       this.turnTotals.push(seconds)
+    },
+    playSound(key: string) {
+      this.sounds.push(key)
     },
   }
 }
