@@ -678,6 +678,11 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 	gameWinnerID := ""
 	gameWinPoints := 0
 	var gameWinningCard *entity.Card
+	// Dry / show-dry bonus flags (ticket 06). Set only when the final-round
+	// winner won by playing their declared card, in which case the dry bonus
+	// REPLACES the base value score.
+	dryBonusApplied := false
+	var dryBonusType entity.DryType
 
 	if gameState.CurrentRound >= gameState.TotalRounds {
 		gameOver = true
@@ -691,7 +696,18 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 		if wonCard := gameState.GetPlayedCard(winnerID); wonCard != nil {
 			card := wonCard.Card
 			gameWinningCard = &card
-			gameWinPoints = card.Value.GameWinValue()
+
+			// Dry / show-dry bonus (ticket 06): if the winner had declared a
+			// dry card AND won the final round by playing that exact card, the
+			// dry bonus (dry 6->6, 7->4; show-dry 6->12, 7->8) REPLACES the base
+			// value score. Any other outcome falls back to the base value.
+			if gw := gameState.GetPlayer(gameWinnerID); gw != nil && gw.DryCard != nil && gw.DryCard.Card.Equals(&card) {
+				gameWinPoints = gw.DryCard.BonusPoints()
+				dryBonusApplied = true
+				dryBonusType = gw.DryCard.Type
+			} else {
+				gameWinPoints = card.Value.GameWinValue()
+			}
 		}
 
 		// Only the final round scores points in Spar.
@@ -723,8 +739,8 @@ func (c *Client) handleRoundCompletion(gameState *entity.GameState) {
 		"event": "roundWon",
 		"data": map[string]interface{}{
 			"winnerId":     winnerID,
-			"isDry":        false, // TODO: Implement dry detection
-			"isShowDry":    false, // TODO: Implement show dry detection
+			"isDry":        dryBonusApplied && dryBonusType == entity.DryHidden,
+			"isShowDry":    dryBonusApplied && dryBonusType == entity.DryShown,
 			"currentRound": gameState.CurrentRound,
 			"roundsWon":    c.getPlayerRoundsWon(gameState),
 			"gameOver":     gameOver,
@@ -885,14 +901,30 @@ func (c *Client) handleGameOver(gameState *entity.GameState, winnerID string, ga
 	c.broadcastToRoomIncludingSelf(c.RoomID, gameEndedPayload)
 }
 
+// handleDeclareDry records a player's dry / show-dry declaration at game start.
+//
+// A player may declare exactly one 6 or 7 - either "dry" (face-down) or
+// "show dry" (face-up) - or skip entirely (a player who never sends this event
+// simply plays on). The declared card STAYS in the player's hand: the bonus is
+// only paid if they win the FINAL round by playing that exact card (see the
+// final-round scoring block in handleRoundCompletion). The declaring window is
+// the opening round, before the declaring player has committed a card.
+//
+// NOTE (ticket 07 seam): a hidden ("dry") declaration is broadcast to opponents
+// as type + player only - the card identity is withheld here and in the game
+// state serialization until a successful flag/challenge reveals it. The reveal
+// resolution is ticket 07's responsibility; this handler only establishes the
+// hidden/shown state and the "declared" fact that a flag can act on.
 func (c *Client) handleDeclareDry(data json.RawMessage) {
 	slog.Info("Declare dry event", "clientId", c.ID, "playerId", c.PlayerID)
 
-	// Parse request
+	// Parse request (see contract.go / wireContract.ts - DeclareDryPayload).
+	// Accept either backend value ("6") or frontend rank notation.
 	var req struct {
 		Card struct {
 			Suit  string `json:"suit"`
 			Value string `json:"value"`
+			Rank  string `json:"rank"`
 		} `json:"card"`
 		IsShown bool `json:"isShown"`
 	}
@@ -901,6 +933,12 @@ func (c *Client) handleDeclareDry(data json.RawMessage) {
 		c.sendError("game:dry_error", "Invalid request format")
 		return
 	}
+
+	cardValue := req.Card.Value
+	if cardValue == "" {
+		cardValue = req.Card.Rank
+	}
+	cardValue = mapFrontendRankToBackend(cardValue)
 
 	// Validate player is authenticated
 	if c.PlayerID == "" {
@@ -915,73 +953,110 @@ func (c *Client) handleDeclareDry(data json.RawMessage) {
 		return
 	}
 
-	// Get room to access game state
-	room, err := roomManager.GetRoom(c.RoomID)
-	if err != nil {
-		slog.Error("Failed to get room", "error", err, "roomCode", c.RoomID)
-		c.sendError("game:dry_error", "Room not found")
+	// The game state is authoritative; operate on it under the games lock.
+	gamesMu.Lock()
+	defer gamesMu.Unlock()
+
+	gameState, exists := games[c.RoomID]
+	if !exists {
+		c.sendError("game:dry_error", "Game not found")
 		return
 	}
 
-	// Check if game is active
-	if room.Status != entity.StatusInProgress {
-		c.sendError("game:dry_error", "Game is not active")
+	// Declarations are only accepted during the opening round of the game,
+	// before the declaring player has played a card. This is the skippable
+	// declaring window at game start.
+	if gameState.Phase != entity.PhasePlaying {
+		c.sendError("game:dry_error", "Game is not in playing phase")
+		return
+	}
+	if gameState.CurrentRound != 1 {
+		c.sendError("game:dry_error", "Dry can only be declared at the start of the game")
 		return
 	}
 
-	// TODO: Get game state from room/game manager
-	// For now, this is a placeholder response
-	// In a complete implementation, we would:
-	// 1. Get the active GameState for this room
-	// 2. Create a DryCardHandler with that game state
-	// 3. Validate and execute the dry declaration
-	// 4. Broadcast the declaration to all players in the room
+	player := gameState.GetPlayer(c.PlayerID)
+	if player == nil {
+		slog.Error("Player not found in game state", "playerId", c.PlayerID, "roomCode", c.RoomID)
+		c.sendError("game:dry_error", "Player not found in game")
+		return
+	}
+	if player.HasPlayedCard {
+		c.sendError("game:dry_error", "Cannot declare after playing a card")
+		return
+	}
 
-	// Convert request card to entity.Card
+	// One declaration per game.
+	if player.DryCard != nil {
+		c.sendError("game:dry_error", "Already declared a dry card")
+		return
+	}
+
 	card := &entity.Card{
 		Suit:  entity.Suit(req.Card.Suit),
-		Value: entity.Value(req.Card.Value),
+		Value: entity.Value(cardValue),
 	}
-
-	// Validate card
 	if !card.IsValid() {
 		c.sendError("game:dry_error", "Invalid card")
 		return
 	}
+	// Only a 6 or 7 is eligible.
+	if !card.IsLowCard() {
+		c.sendError("game:dry_error", "Only a 6 or 7 can be declared as dry")
+		return
+	}
+	// The player must actually hold the card.
+	if !player.HasCard(card) {
+		c.sendError("game:dry_error", "Card not in your hand")
+		return
+	}
 
-	// Send success response with frontend-formatted card
-	c.sendJSON(map[string]interface{}{
-		"event": "game:dry_declared",
-		"data": map[string]interface{}{
-			"playerId": c.PlayerID,
-			"card":     convertCardToFrontendFormat(card),
-			"isShown":  req.IsShown,
-			"message":  "Dry card declared successfully",
-		},
-	})
-
-	// Broadcast to other players in room with frontend-formatted card
-	c.broadcastToRoom(c.RoomID, map[string]interface{}{
-		"event": "game:player_declared_dry",
-		"data": map[string]interface{}{
-			"playerId": c.PlayerID,
-			"isShown":  req.IsShown,
-			// Only include card details if shown (in frontend format)
-			"card": func() interface{} {
-				if req.IsShown {
-					return convertCardToFrontendFormat(card)
-				}
-				return nil
-			}(),
-		},
-	})
+	// Record the declaration (card is NOT removed from the hand).
+	dryType := entity.DryHidden
+	if req.IsShown {
+		dryType = entity.DryShown
+	}
+	player.DryCard = &entity.DryCard{
+		Card:     *card,
+		Type:     dryType,
+		PlayerID: c.PlayerID,
+	}
+	gameState.UpdatedAt = time.Now()
 
 	slog.Info("Dry card declared",
 		"playerId", c.PlayerID,
 		"roomCode", c.RoomID,
 		"card", card.String(),
+		"type", dryType,
 		"isShown", req.IsShown,
 	)
+
+	// Confirm to the declarer, who always sees their own card.
+	c.sendJSON(map[string]interface{}{
+		"event": "game:dry_declared",
+		"data": map[string]interface{}{
+			"playerId": c.PlayerID,
+			"card":     convertCardToFrontendFormat(card),
+			"type":     dryType,
+			"isShown":  req.IsShown,
+		},
+	})
+
+	// Tell the rest of the room. A hidden dry reveals only THAT a declaration
+	// was made (type + player); the card identity stays secret until a flag
+	// reveals it (ticket 07). A show-dry reveals the card face-up.
+	declared := map[string]interface{}{
+		"playerId": c.PlayerID,
+		"type":     dryType,
+		"isShown":  req.IsShown,
+	}
+	if req.IsShown {
+		declared["card"] = convertCardToFrontendFormat(card)
+	}
+	c.broadcastToRoom(c.RoomID, map[string]interface{}{
+		"event": "game:player_declared_dry",
+		"data":  declared,
+	})
 }
 
 func (c *Client) handleFlagPlayer(data json.RawMessage) {
