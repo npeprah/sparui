@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -28,22 +29,56 @@ func main() {
 
 	slog.Info("Starting Spar Game Server...")
 
-	// Initialize database connection
-	database, err := initDatabase()
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	// SPAR_TEST_MODE is a strictly-gated switch used ONLY by the e2e harness.
+	// It MUST NEVER be enabled in production. When on, it bundles a DB-optional
+	// boot (the server runs with no Postgres; auth/stats degrade to no-op and
+	// live gameplay runs entirely in memory) plus the deterministic
+	// hand-injection hook. When off (the default), the boot path below is the
+	// unchanged production path that hard-fails without a database.
+	testMode := testModeFromEnv(os.Getenv)
+
+	if testMode {
+		slog.Warn("SPAR_TEST_MODE is set - booting in DB-optional test mode; NOT FOR PRODUCTION")
+		websocket.EnableTestMode()
+
+		// Try to connect to the DB but tolerate its absence: the acceptance
+		// scenarios exercise no persisted data.
+		var database *db.DB
+		if d, err := initDatabase(); err != nil {
+			slog.Warn("SPAR_TEST_MODE: continuing without a database", "error", err)
+		} else {
+			database = d
+			defer database.Close()
+		}
+
+		// Initialize auth/stats regardless of DB presence so their REST routes
+		// mount without panicking. With a nil DB these degrade to non-validating
+		// stubs / no-ops (the e2e acceptance path never calls these endpoints;
+		// the WS auth handshake derives player ids without the DB).
+		auth.InitService(database)
+		stats.InitService(database)
+
+		// Live gameplay + rooms run in memory; never wire the repository-backed
+		// path (it would try to persist and fail without Postgres).
+		websocket.InitWebSocketTestMode()
+	} else {
+		// Production boot path (unchanged): a database is required.
+		database, err := initDatabase()
+		if err != nil {
+			log.Fatalf("Failed to initialize database: %v", err)
+		}
+		defer database.Close()
+		slog.Info("Database connection established")
+
+		// Initialize auth service with database
+		auth.InitService(database)
+
+		// Initialize stats service with database
+		stats.InitService(database)
+
+		// Initialize WebSocket service with database
+		websocket.InitWebSocket(database)
 	}
-	defer database.Close()
-	slog.Info("Database connection established")
-
-	// Initialize auth service with database
-	auth.InitService(database)
-
-	// Initialize stats service with database
-	stats.InitService(database)
-
-	// Initialize WebSocket service with database
-	websocket.InitWebSocket(database)
 
 	// Get port from environment or use default
 	port := os.Getenv("PORT")
@@ -91,6 +126,15 @@ func main() {
 
 	// WebSocket endpoint
 	r.Get("/ws", websocket.HandleWebSocket)
+
+	// Test-only endpoints (SPAR_TEST_MODE): deterministic hand injection for the
+	// e2e harness. Mounted ONLY when test mode is on, so these routes simply do
+	// not exist in a normal/production boot.
+	if testMode {
+		r.Post("/test/inject-hands", websocket.HandleTestInject)
+		r.Post("/test/reset", websocket.HandleTestReset)
+		slog.Warn("SPAR_TEST_MODE: /test/inject-hands and /test/reset endpoints mounted")
+	}
 
 	// Create server
 	srv := &http.Server{
@@ -161,6 +205,20 @@ func initDatabase() (*db.DB, error) {
 	}
 
 	return database, nil
+}
+
+// testModeFromEnv reports whether SPAR_TEST_MODE requests test mode. It is
+// deliberately conservative: only explicitly truthy values ("1", "true", "yes",
+// "on", case-insensitive) enable it, and it defaults OFF so a missing or empty
+// variable always yields the production boot path. getenv is injected for
+// testability.
+func testModeFromEnv(getenv func(string) string) bool {
+	switch strings.ToLower(strings.TrimSpace(getenv("SPAR_TEST_MODE"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // getEnv gets an environment variable with a default value
