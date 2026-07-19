@@ -217,7 +217,7 @@ func (m *turnTimerManager) run(roomCode, playerID string, duration int, gen uint
 				}
 				return
 			}
-			if emit != nil {
+			if emit != nil && m.isCurrent(roomCode, gen) {
 				emit(roomCode, playerID, remaining, duration)
 			}
 		}

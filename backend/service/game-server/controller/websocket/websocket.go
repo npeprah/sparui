@@ -2033,6 +2033,9 @@ func (c *Client) sendJSON(data interface{}) {
 		slog.Error("Failed to marshal message", "error", err)
 		return
 	}
+	if c.Send == nil {
+		return
+	}
 	c.Send <- message
 }
 
