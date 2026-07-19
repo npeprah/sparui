@@ -19,7 +19,7 @@ describe('Avatar and Theme Integration', () => {
     })
 
     useThemeStore.setState({
-      selectedTheme: 'afro_heritage',
+      selectedTheme: 'warm_heritage',
     })
   })
 
@@ -103,54 +103,43 @@ describe('Avatar and Theme Integration', () => {
         useThemeStore.getState().setTheme(theme)
       })
 
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={handleSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={handleSelect} />)
 
-      // Select neon arcade theme
+      // Select the Comic palette (index 1 in the canonical order).
       const themeItems = screen.getAllByTestId(/theme-item-/)
       await user.click(themeItems[1])
 
-      expect(handleSelect).toHaveBeenCalledWith('neon_arcade')
+      expect(handleSelect).toHaveBeenCalledWith('comic')
 
       // Simulate the store update
-      handleSelect('neon_arcade')
+      handleSelect('comic')
 
       // Check store was updated
-      expect(useThemeStore.getState().selectedTheme).toBe('neon_arcade')
+      expect(useThemeStore.getState().selectedTheme).toBe('comic')
     })
 
     it('should persist theme selection across sessions', () => {
-      // Set a theme
-      useThemeStore.getState().setTheme('royal_gold')
+      // Set a palette; persistence is via the zustand persist middleware.
+      useThemeStore.getState().setTheme('neon')
 
-      // Check it was set
-      expect(useThemeStore.getState().selectedTheme).toBe('royal_gold')
-
-      // Get theme path
-      const themePath = useThemeStore.getState().getThemePath()
-      expect(themePath).toBe('/assets/surfaces/surface_royal_gold.png')
+      expect(useThemeStore.getState().selectedTheme).toBe('neon')
     })
 
-    it('should display all 4 themes with correct names', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={vi.fn()} />)
+    it('should display all 3 palettes with correct names', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={vi.fn()} />)
 
-      // Check all theme names are present
-      expect(screen.getByText('Afro Heritage')).toBeInTheDocument()
-      expect(screen.getByText('Neon Arcade')).toBeInTheDocument()
-      expect(screen.getByText('Royal Gold')).toBeInTheDocument()
-      expect(screen.getByText('Ocean Breeze')).toBeInTheDocument()
+      expect(screen.getByText('Warm Heritage')).toBeInTheDocument()
+      expect(screen.getByText('Comic')).toBeInTheDocument()
+      expect(screen.getByText('Neon')).toBeInTheDocument()
     })
 
-    it('should show preview images for all themes', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={vi.fn()} />)
+    it('should show swatch previews for all palettes', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={vi.fn()} />)
 
-      const images = screen.getAllByRole('img')
-      expect(images).toHaveLength(4)
-
-      // Check each image has correct src
-      expect(images[0]).toHaveAttribute('src', '/assets/surfaces/surface_afro_heritage.png')
-      expect(images[1]).toHaveAttribute('src', '/assets/surfaces/surface_neon_arcade.png')
-      expect(images[2]).toHaveAttribute('src', '/assets/surfaces/surface_royal_gold.png')
-      expect(images[3]).toHaveAttribute('src', '/assets/surfaces/surface_ocean_breeze.png')
+      // Palette previews are swatch divs (role=img), one per canonical palette.
+      const previews = screen.getAllByRole('img')
+      expect(previews).toHaveLength(3)
+      previews.forEach(p => expect(p).toHaveAttribute('aria-label'))
     })
   })
 
@@ -160,7 +149,7 @@ describe('Avatar and Theme Integration', () => {
 
       // Set initial avatar and theme
       usePlayerStore.getState().setAvatar('1')
-      useThemeStore.getState().setTheme('afro_heritage')
+      useThemeStore.getState().setTheme('warm_heritage')
 
       // Mock handlers
       const handleAvatarSelect = vi.fn((avatarId: number) => {
@@ -175,7 +164,7 @@ describe('Avatar and Theme Integration', () => {
       render(
         <div>
           <AvatarSelector selectedAvatarId={1} onSelect={handleAvatarSelect} />
-          <ThemeSelector selectedTheme="afro_heritage" onSelect={handleThemeSelect} />
+          <ThemeSelector selectedTheme="warm_heritage" onSelect={handleThemeSelect} />
         </div>
       )
 
@@ -183,21 +172,21 @@ describe('Avatar and Theme Integration', () => {
       const avatarItems = screen.getAllByTestId(/avatar-item-/)
       await user.click(avatarItems[3]) // Select Yaa
 
-      // Select new theme
+      // Select new palette
       const themeItems = screen.getAllByTestId(/theme-item-/)
-      await user.click(themeItems[2]) // Select Royal Gold
+      await user.click(themeItems[2]) // Select Neon
 
       // Verify both were called
       expect(handleAvatarSelect).toHaveBeenCalledWith(4)
-      expect(handleThemeSelect).toHaveBeenCalledWith('royal_gold')
+      expect(handleThemeSelect).toHaveBeenCalledWith('neon')
 
       // Simulate updates
       handleAvatarSelect(4)
-      handleThemeSelect('royal_gold')
+      handleThemeSelect('neon')
 
       // Verify stores updated
       expect(usePlayerStore.getState().avatar).toBe('4')
-      expect(useThemeStore.getState().selectedTheme).toBe('royal_gold')
+      expect(useThemeStore.getState().selectedTheme).toBe('neon')
     })
 
     it('should maintain visual consistency across components', () => {
@@ -240,7 +229,7 @@ describe('Avatar and Theme Integration', () => {
       render(
         <div>
           <AvatarSelector selectedAvatarId={1} onSelect={handleAvatarSelect} />
-          <ThemeSelector selectedTheme="afro_heritage" onSelect={handleThemeSelect} />
+          <ThemeSelector selectedTheme="warm_heritage" onSelect={handleThemeSelect} />
         </div>
       )
 
@@ -263,14 +252,14 @@ describe('Avatar and Theme Integration', () => {
 
       // Select with Space
       await user.keyboard(' ')
-      expect(handleThemeSelect).toHaveBeenCalledWith('afro_heritage')
+      expect(handleThemeSelect).toHaveBeenCalledWith('warm_heritage')
     })
 
     it('should have proper ARIA attributes', () => {
       render(
         <div>
           <AvatarSelector selectedAvatarId={1} onSelect={vi.fn()} />
-          <ThemeSelector selectedTheme="afro_heritage" onSelect={vi.fn()} />
+          <ThemeSelector selectedTheme="warm_heritage" onSelect={vi.fn()} />
         </div>
       )
 
@@ -290,10 +279,11 @@ describe('Avatar and Theme Integration', () => {
         expect(item).toHaveAttribute('tabIndex', '0')
       })
 
-      // Check images have alt text
+      // Check images / swatch previews have an accessible name (alt or aria-label)
       const images = screen.getAllByRole('img')
       images.forEach(img => {
-        expect(img).toHaveAttribute('alt')
+        const hasName = img.hasAttribute('alt') || img.hasAttribute('aria-label')
+        expect(hasName).toBe(true)
       })
     })
   })

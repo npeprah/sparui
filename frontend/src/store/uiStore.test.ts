@@ -20,7 +20,7 @@ describe('UIStore - Settings and Surface Integration', () => {
     })
 
     useThemeStore.setState({
-      selectedTheme: 'afro_heritage',
+      selectedTheme: 'warm_heritage',
     })
   })
 
@@ -135,49 +135,40 @@ describe('UIStore - Settings and Surface Integration', () => {
   describe('Theme Integration', () => {
     it('should have access to current theme from themeStore', () => {
       const theme = useThemeStore.getState().selectedTheme
-      expect(theme).toBe('afro_heritage')
+      expect(theme).toBe('warm_heritage')
     })
 
     it('should be able to change theme through themeStore', () => {
       const { setTheme } = useThemeStore.getState()
-      setTheme('neon_arcade')
+      setTheme('neon')
 
       const theme = useThemeStore.getState().selectedTheme
-      expect(theme).toBe('neon_arcade')
+      expect(theme).toBe('neon')
     })
 
     it('should get available themes from themeStore', () => {
       const themes = useThemeStore.getState().availableThemes
-      expect(themes).toEqual(['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze'])
+      expect(themes).toEqual(['warm_heritage', 'comic', 'neon'])
     })
 
     it('should get theme info from themeStore', () => {
       const { getThemeInfo } = useThemeStore.getState()
-      const info = getThemeInfo('royal_gold')
+      const info = getThemeInfo('comic')
 
-      expect(info.id).toBe('royal_gold')
-      expect(info.name).toBe('Royal Gold')
-      expect(info.description).toBe('Deep purple majesty with golden highlights')
-      expect(info.preview).toBe('/assets/surfaces/surface_royal_gold.png')
-    })
-
-    it('should get theme path from themeStore', () => {
-      const { getThemePath, setTheme } = useThemeStore.getState()
-
-      setTheme('ocean_breeze')
-      const path = getThemePath()
-
-      expect(path).toBe('/assets/surfaces/surface_ocean_breeze.png')
+      expect(info.id).toBe('comic')
+      expect(info.name).toBe('Comic')
+      expect(info.description).toBeTruthy()
+      expect(info.swatch.base).toMatch(/^#[0-9a-f]{6}$/i)
     })
 
     it('should reset theme to default', () => {
       const { setTheme, resetTheme } = useThemeStore.getState()
 
-      setTheme('neon_arcade')
-      expect(useThemeStore.getState().selectedTheme).toBe('neon_arcade')
+      setTheme('neon')
+      expect(useThemeStore.getState().selectedTheme).toBe('neon')
 
       resetTheme()
-      expect(useThemeStore.getState().selectedTheme).toBe('afro_heritage')
+      expect(useThemeStore.getState().selectedTheme).toBe('warm_heritage')
     })
 
     it('should persist theme selection', () => {

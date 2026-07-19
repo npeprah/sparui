@@ -26,7 +26,6 @@ export class PreloadScene extends Phaser.Scene {
     this.loadCardAssets()
     this.loadSoundAssets()
     this.loadParticleAssets()
-    this.loadSurfaceAssets()
   }
 
   create() {
@@ -51,8 +50,8 @@ export class PreloadScene extends Phaser.Scene {
 
     // Transition to game scene after a short delay
     this.time.delayedCall(500, () => {
-      console.log('[PreloadScene] Starting GameScene...')
-      this.scene.start('GameScene')
+      console.log('[PreloadScene] Starting TableScene...')
+      this.scene.start('TableScene')
     })
   }
 
@@ -222,27 +221,6 @@ export class PreloadScene extends Phaser.Scene {
     })
 
     console.log('[PreloadScene] Queued 34 particle textures for loading')
-  }
-
-  /**
-   * Load all surface theme assets
-   */
-  private loadSurfaceAssets(): void {
-    console.log('[PreloadScene] ===== LOADING SURFACE ASSETS =====')
-
-    const surfaces = [
-      { key: 'surface_afro_heritage', path: 'assets/surfaces/surface_afro_heritage.png' },
-      { key: 'surface_neon_arcade', path: 'assets/surfaces/surface_neon_arcade.png' },
-      { key: 'surface_royal_gold', path: 'assets/surfaces/surface_royal_gold.png' },
-      { key: 'surface_ocean_breeze', path: 'assets/surfaces/surface_ocean_breeze.png' },
-    ]
-
-    surfaces.forEach(surface => {
-      console.log(`[PreloadScene] Loading surface: ${surface.key}`)
-      this.load.image(surface.key, surface.path)
-    })
-
-    console.log(`[PreloadScene] Queued ${surfaces.length} surfaces for loading`)
   }
 
   /**

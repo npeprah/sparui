@@ -19,6 +19,7 @@
 
 import { socketService } from './socketService'
 import { useGameStore } from '../store/gameStore'
+import { usePlayerStore } from '../store/playerStore'
 import type { Suit, Rank, Card, BackendGameState, LobbySettings } from '../store/types'
 import type { FlagResolvedResponse, GameEndedResponse } from './wireContract'
 
@@ -163,6 +164,11 @@ class SparTestHarness implements SparTestApi {
 
     socketService.on('auth:success', data => {
       this.playerId = data.playerId
+      // Establish the SAME local identity the menu chrome (HomePage) sets on
+      // auth. The e2e harness drives the game directly on /game, bypassing the
+      // menu, so without this the TableScene/TableGameController cannot identify
+      // the local seat (empty playerId => no local hand, everyone an opponent).
+      usePlayerStore.getState().setPlayerId(data.playerId)
       this.record('auth:success', data)
     })
 
@@ -258,7 +264,11 @@ class SparTestHarness implements SparTestApi {
     this.playedCards = []
     this.lastRoundWon = null
     this.gameEnded = null
-    this.flagResolved = null
+    // NOTE: do not clear flagResolved here. A flag void broadcasts
+    // game:flag_resolved immediately followed by game:started (the fresh game);
+    // clearing it here would wipe the resolution before a client (or the e2e
+    // harness) can observe it. It is cleared on connect()/reset() and overwritten
+    // by the next flag.
     this.fireStreakPlayer =
       (gameState as unknown as { fireStreakPlayer?: string }).fireStreakPlayer || null
     this.freezeTriggered = false

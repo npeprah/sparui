@@ -1,6 +1,6 @@
 // The WebSocket event contract is the single source of truth in wireContract.ts
 // (mirrored by backend contract.go). Re-exported here so existing importers
-// (e.g. GameScene) keep working.
+// (e.g. TableScene) keep working.
 import type { ServerToClientEvents, ClientToServerEvents } from './wireContract'
 
 export type { ServerToClientEvents, ClientToServerEvents } from './wireContract'

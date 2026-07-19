@@ -10,6 +10,18 @@ interface EmitterData {
 }
 
 /**
+ * Where a card-anchored effect should render. Structurally matches
+ * `CardSprite.getOverlayAnchor()` so its result can be passed straight through.
+ */
+export interface CardOverlayAnchor {
+  x: number
+  y: number
+  width: number
+  height: number
+  depth: number
+}
+
+/**
  * Manages particle effects for game celebrations and special effects
  */
 export class ParticleEffects {
@@ -159,6 +171,147 @@ export class ParticleEffects {
   playGameVictoryEffect(): void {
     this.playConfettiCelebration()
     this.playVictoryExplosion()
+  }
+
+  // ==========================================================================
+  // Card-anchored state overlays (ticket 16): fire / freeze composited on the
+  // reused illustrated card faces. These build on the SAME particle system - no
+  // new framework. The persistent card emitters have their lifecycle owned by
+  // the CardSprite they are attached to (which destroys them on detach/round
+  // reset), so they are intentionally NOT tracked in `activeEmitters`; the
+  // one-shot bursts are transient and self-clean.
+  // ==========================================================================
+
+  /** Loaded fire textures, best-first (see PreloadScene.loadParticleAssets). */
+  private static readonly FIRE_TEXTURES: readonly string[] = [
+    'flame_small',
+    'flame_large',
+    'fire_trail',
+    'embers',
+    'firebolt',
+  ]
+
+  /** Loaded ice textures, best-first (see PreloadScene.loadParticleAssets). */
+  private static readonly ICE_TEXTURES: readonly string[] = [
+    'snowflake_small',
+    'snowflake_large',
+    'frost',
+    'ice_shard',
+    'freeze_wave',
+  ]
+
+  /**
+   * First candidate texture actually present in the scene's texture cache, or
+   * null when none are loaded (e.g. a bare test scene). Guards against emitting
+   * with an unloaded key.
+   */
+  private firstLoadedTexture(candidates: readonly string[]): string | null {
+    const cache = this.scene.textures
+    if (!cache || typeof cache.exists !== 'function') return null
+    for (const key of candidates) {
+      if (cache.exists(key)) return key
+    }
+    return null
+  }
+
+  /**
+   * Create a PERSISTENT flame emitter to composite on a card face while a fire
+   * streak is active. Flames rise from the card centre. Returns the emitter so
+   * the caller can `CardSprite.attachOverlay('fire', emitter)` - the card then
+   * owns its lifecycle. Returns undefined when no flame texture is loaded.
+   */
+  createCardFireEmitter(
+    anchor: CardOverlayAnchor
+  ): Phaser.GameObjects.Particles.ParticleEmitter | undefined {
+    const texture = this.firstLoadedTexture(ParticleEffects.FIRE_TEXTURES)
+    if (!texture) return undefined
+    const emitter = this.scene.add.particles(anchor.x, anchor.y, texture, {
+      lifespan: 700,
+      speed: { min: 60, max: 150 },
+      scale: { start: 0.55, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      angle: { min: -110, max: -70 },
+      frequency: 55,
+      quantity: 2,
+      blendMode: Phaser.BlendModes.ADD,
+    })
+    emitter.setDepth(anchor.depth)
+    return emitter
+  }
+
+  /**
+   * Create a PERSISTENT frost emitter to composite on a card face when it froze
+   * a fire streak. Crystals drift outward. Lifecycle is owned by the CardSprite
+   * it is attached to. Returns undefined when no ice texture is loaded.
+   */
+  createCardFreezeEmitter(
+    anchor: CardOverlayAnchor
+  ): Phaser.GameObjects.Particles.ParticleEmitter | undefined {
+    const texture = this.firstLoadedTexture(ParticleEffects.ICE_TEXTURES)
+    if (!texture) return undefined
+    const emitter = this.scene.add.particles(anchor.x, anchor.y, texture, {
+      lifespan: 1100,
+      speed: { min: 30, max: 80 },
+      scale: { start: 0.2, end: 0.6 },
+      alpha: { start: 0.9, end: 0 },
+      angle: { min: 0, max: 360 },
+      frequency: 70,
+      quantity: 1,
+      blendMode: Phaser.BlendModes.NORMAL,
+    })
+    emitter.setDepth(anchor.depth)
+    return emitter
+  }
+
+  /** One-shot flame burst centred on a card - the fire-streak trigger accent. */
+  playCardFlameBurst(anchor: CardOverlayAnchor): void {
+    const texture = this.firstLoadedTexture(ParticleEffects.FIRE_TEXTURES)
+    if (!texture) return
+    const emitter = this.scene.add.particles(anchor.x, anchor.y, texture, {
+      lifespan: 600,
+      speed: { min: 120, max: 260 },
+      scale: { start: 0.7, end: 0 },
+      alpha: { start: 1, end: 0 },
+      angle: { min: 0, max: 360 },
+      blendMode: Phaser.BlendModes.ADD,
+      frequency: -1,
+      quantity: 24,
+    })
+    emitter.setDepth(anchor.depth)
+    emitter.explode(24, anchor.x, anchor.y)
+    this.trackTransient(emitter, 800)
+  }
+
+  /** One-shot frost burst centred on a card - the streak-broken freeze accent. */
+  playCardFrostBurst(anchor: CardOverlayAnchor): void {
+    const texture = this.firstLoadedTexture(ParticleEffects.ICE_TEXTURES)
+    if (!texture) return
+    const emitter = this.scene.add.particles(anchor.x, anchor.y, texture, {
+      lifespan: 900,
+      speed: { min: 80, max: 180 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 1, end: 0 },
+      angle: { min: 0, max: 360 },
+      blendMode: Phaser.BlendModes.NORMAL,
+      frequency: -1,
+      quantity: 20,
+    })
+    emitter.setDepth(anchor.depth)
+    emitter.explode(20, anchor.x, anchor.y)
+    this.trackTransient(emitter, 1000)
+  }
+
+  /**
+   * Track a transient (self-stopping) emitter so it is stopped/destroyed after
+   * `durationMs`, and swept up by {@link cleanup} if the scene ends first.
+   */
+  private trackTransient(
+    emitter: Phaser.GameObjects.Particles.ParticleEmitter,
+    durationMs: number
+  ): void {
+    const data = { emitter }
+    this.activeEmitters.push(data)
+    this.scene.time.delayedCall(durationMs, () => this.stopEffect(data), [], this.scene)
   }
 
   /**

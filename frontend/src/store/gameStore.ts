@@ -36,6 +36,21 @@ interface GameState {
   playedCards: Map<string, Card>
   currentSuit: string | null
   timeRemaining: number
+  // The seat whose turn timer is currently running (the "on-deck" player). This
+  // is the only seat under time pressure; it drives whose-timer-is-running UI.
+  // It does NOT gate who may play - after the leader opens, any follower who has
+  // not yet played may play (see computeAffordance in tableOrchestration.ts).
+  onDeckPlayerId: string | null
+
+  // ----- Overlay state (SEAM for ticket 16: fire / freeze / dry visuals) -----
+  // Ticket 14 lands the authoritative STATE; ticket 16 renders the overlays by
+  // reading these fields and driving CardSprite.setFireState/Freeze/Dry.
+  /** The player currently on a fire streak (>= 3 consecutive leader wins). */
+  fireStreakPlayerId: string | null
+  /** The breaker's winning card that froze a fire streak (this round only). */
+  frozenCard: Card | null
+  /** Dry / show-dry declarations made this game, keyed by declaring player id. */
+  dryDeclarations: Record<string, { isShown: boolean; card: Card | null }>
 
   // Game settings
   settings: GameSettings
@@ -57,6 +72,13 @@ interface GameState {
   resetGame: () => void
   updateSettings: (settings: Partial<GameSettings>) => void
   setTimeRemaining: (time: number) => void
+  setOnDeckPlayer: (playerId: string | null) => void
+  // Overlay-state setters (ticket 16 seam).
+  setFireStreakPlayer: (playerId: string | null) => void
+  setFrozenCard: (card: Card | null) => void
+  recordDryDeclaration: (playerId: string, info: { isShown: boolean; card: Card | null }) => void
+  /** Clear per-round overlay effects (fire highlight / frozen card). */
+  clearRoundEffects: () => void
   // Turn timer: seed the countdown from a server-provided value and tick it
   // down locally (1s) between server emissions. See timerUpdate / turnChanged
   // in wireContract.ts - the backend engine (ticket 04) provides the value.
@@ -145,6 +167,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   playedCards: new Map(),
   currentSuit: null,
   timeRemaining: 15,
+  onDeckPlayerId: null,
+  fireStreakPlayerId: null,
+  frozenCard: null,
+  dryDeclarations: {},
   settings: DEFAULT_SETTINGS,
 
   // Actions
@@ -216,6 +242,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameWinner: null,
       playedCards: new Map(),
       currentSuit: null,
+      onDeckPlayerId: null,
+      fireStreakPlayerId: null,
+      frozenCard: null,
+      dryDeclarations: {},
       gamePhase: 'lobby',
       roundPhase: 'waiting',
       players: [],
@@ -229,6 +259,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     })),
 
   setTimeRemaining: time => set({ timeRemaining: time }),
+
+  setOnDeckPlayer: playerId => set({ onDeckPlayerId: playerId }),
+
+  setFireStreakPlayer: playerId => set({ fireStreakPlayerId: playerId }),
+
+  setFrozenCard: card => set({ frozenCard: card }),
+
+  recordDryDeclaration: (playerId, info) =>
+    set(state => ({
+      dryDeclarations: { ...state.dryDeclarations, [playerId]: info },
+    })),
+
+  clearRoundEffects: () => set({ fireStreakPlayerId: null, frozenCard: null }),
 
   startTurnCountdown: seconds => {
     // Reset any in-flight countdown, seed with the authoritative server value,
@@ -289,15 +332,25 @@ export const useGameStore = create<GameState>((set, get) => ({
         pointsToWin: backendState.pointsToWin,
       }
 
+      // A single authoritative re-init. Used both for the initial game start AND
+      // for a clean play-again / restart / flag-void reshuffle - so it also
+      // clears the winner, on-deck seat and all overlay effects. This is what
+      // replaces the old fragile multi-step teardown/rebuild.
       const newState = {
         roomCode: backendState.roomCode,
         gamePhase: 'playing' as GamePhase,
         roundPhase: 'waiting' as RoundPhase,
         currentRound: backendState.currentRound,
         leaderId: backendState.leaderId,
+        winnerId: null,
+        gameWinner: null,
         players,
         playedCards: new Map(), // Clear any existing played cards
         currentSuit: null, // Reset current suit
+        onDeckPlayerId: backendState.currentTurn ?? null,
+        fireStreakPlayerId: null,
+        frozenCard: null,
+        dryDeclarations: {},
         settings: updatedSettings,
       }
 

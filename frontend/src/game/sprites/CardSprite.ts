@@ -23,6 +23,20 @@ import {
   createGlowEffect,
 } from '../utils/cardAnimations'
 import { applyCardVisualState, transitionToState } from '../utils/cardVisuals'
+import {
+  type EKBorderStyle,
+  type EKBorderTreatment,
+  getEKBorderStyle,
+  resolveEKTreatment,
+} from '../constants/cardTheme'
+import {
+  type OverlayKind,
+  type OverlaySlotState,
+  createOverlaySlotState,
+  isOverlayActive,
+  setOverlaySlot,
+} from '../constants/cardOverlays'
+import { useThemeStore } from '../../store/themeStore'
 
 /**
  * CardSprite - Interactive card game object
@@ -66,6 +80,29 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private sceneMoveHandler?: (pointer: Phaser.Input.Pointer) => void
   private sceneUpHandler?: (pointer: Phaser.Input.Pointer) => void
 
+  // ---------------------------------------------------------------------------
+  // EK look: chunky ink-outline border + per-theme comic framing (ticket 12)
+  // ---------------------------------------------------------------------------
+  /** Graphics that renders the chunky ink border / comic frame behind the card. */
+  private ekBorder?: Phaser.GameObjects.Graphics
+  /** Active EK border treatment (gold / comic / neon), resolved from themeStore. */
+  private ekTreatment: EKBorderTreatment
+  /** Set when the border geometry must be redrawn on the next frame. */
+  private ekBorderDirty: boolean = true
+  /** Last drawn display size, so the border only redraws when it actually changes. */
+  private ekLastDrawnWidth: number = -1
+  private ekLastDrawnHeight: number = -1
+  /** Unsubscribe handle for the themeStore subscription. */
+  private themeUnsub?: () => void
+
+  // ---------------------------------------------------------------------------
+  // State-overlay hooks/slots for fire / freeze / dry (ticket 12; effects: 16)
+  // ---------------------------------------------------------------------------
+  /** Active/inactive flags for the fire / freeze / dry overlay slots. */
+  private overlaySlots: OverlaySlotState = createOverlaySlotState()
+  /** Display objects ticket 16 attaches to each overlay slot; kept in sync with the card. */
+  private overlayObjects: Partial<Record<OverlayKind, Phaser.GameObjects.GameObject>> = {}
+
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -93,7 +130,7 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     this.setOrigin(0.5, 0.5)
     this.setInteractive({ useHandCursor: true })
 
-    // Set initial depth to ensure card is visible (will be adjusted by GameScene)
+    // Set initial depth to ensure card is visible (will be adjusted by TableScene)
     this.setDepth(200)
 
     // Add to scene
@@ -104,6 +141,12 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     console.log(
       `[CardSprite] Card added to scene, visible: ${this.visible}, active: ${this.active}`
     )
+
+    // Resolve the EK border treatment from the active theme and render the
+    // chunky ink-outline border / comic frame behind the card.
+    this.ekTreatment = resolveEKTreatment(useThemeStore.getState().selectedTheme)
+    this.renderEKBorder()
+    this.subscribeToTheme()
 
     // Setup interactions
     this.setupInteractions()
@@ -702,6 +745,19 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     // Clear state effects
     this.clearStateEffects()
 
+    // Tear down EK border, theme subscription and any attached state overlays.
+    if (this.themeUnsub) {
+      this.themeUnsub()
+      this.themeUnsub = undefined
+    }
+    if (this.ekBorder) {
+      this.ekBorder.destroy()
+      this.ekBorder = undefined
+    }
+    for (const kind of Object.keys(this.overlayObjects) as OverlayKind[]) {
+      this.detachOverlay(kind)
+    }
+
     super.destroy(fromScene)
   }
 
@@ -716,11 +772,234 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     }
   }
 
+  // ===========================================================================
+  // EK border / comic framing (ticket 12)
+  // ===========================================================================
+
+  /**
+   * Create (once) and draw the EK chunky ink-outline border + comic framing for
+   * the current treatment. Drawn as a Graphics object BEHIND the card so an
+   * ink "sticker" margin peeks out around every edge. Safe to call repeatedly;
+   * a no-op if the scene cannot create graphics (e.g. in unit-test mocks).
+   */
+  private renderEKBorder(): void {
+    if (!this.scene?.add?.graphics) return
+
+    if (!this.ekBorder) {
+      const g = this.scene.add.graphics()
+      if (!g) return
+      this.ekBorder = g
+    }
+
+    this.drawEKBorder(this.ekBorder, getEKBorderStyle(this.ekTreatment))
+    this.ekBorder.setPosition(this.x, this.y)
+    this.ekBorder.setDepth(this.depth - 1)
+    this.ekBorder.setVisible(this.visible)
+    this.ekBorderDirty = false
+    this.ekLastDrawnWidth = this.displayWidth
+    this.ekLastDrawnHeight = this.displayHeight
+  }
+
+  /**
+   * Draw the border geometry for a treatment, centred on the graphics object's
+   * own origin (0,0) and sized to the card's current display bounds. The border
+   * is drawn in screen-space pixel widths (not the card's render scale) so the
+   * outline stays chunky, then positioned onto the card via `setPosition` in
+   * {@link syncEKVisuals} so it follows the card cheaply as it moves.
+   */
+  private drawEKBorder(g: Phaser.GameObjects.Graphics, style: EKBorderStyle): void {
+    const dw = this.displayWidth
+    const dh = this.displayHeight
+    const m = style.inkWidth
+    const r = style.cornerRadius
+    const left = -dw / 2
+    const top = -dh / 2
+
+    g.clear()
+
+    // Chunky drop shadow behind everything.
+    if (style.shadowAlpha > 0) {
+      g.fillStyle(style.shadowColor, style.shadowAlpha)
+      g.fillRoundedRect(left - m, top - m + style.shadowOffsetY, dw + m * 2, dh + m * 2, r + m)
+    }
+
+    // Ink "sticker" frame - peeks out around the card face as the chunky border.
+    g.fillStyle(style.inkColor, 1)
+    g.fillRoundedRect(left - m, top - m, dw + m * 2, dh + m * 2, r + m)
+
+    // Optional thin inner accent frame (e.g. comic white pop line / gold line).
+    if (style.innerFrameColor !== null) {
+      const im = Math.max(1, m * 0.5)
+      g.fillStyle(style.innerFrameColor, 1)
+      g.fillRoundedRect(left - im, top - im, dw + im * 2, dh + im * 2, r + im)
+    }
+
+    // Neon additive outer glow ring.
+    if (style.glow) {
+      g.lineStyle(m + 4, style.accentColor, 0.35)
+      g.strokeRoundedRect(left - m - 3, top - m - 3, dw + m * 2 + 6, dh + m * 2 + 6, r + m + 3)
+    }
+  }
+
+  /**
+   * Subscribe to themeStore so the border/chrome switches live when the player
+   * changes the active theme (the settings palette picker lands in ticket 15).
+   */
+  private subscribeToTheme(): void {
+    this.themeUnsub = useThemeStore.subscribe((state, prevState) => {
+      if (state.selectedTheme === prevState.selectedTheme) return
+      if (!this.scene || !this.active) return
+      const next = resolveEKTreatment(state.selectedTheme)
+      if (next === this.ekTreatment) return
+      this.ekTreatment = next
+      this.ekBorderDirty = true
+    })
+  }
+
+  /** Current EK border treatment (gold / comic / neon). */
+  public getEKTreatment(): EKBorderTreatment {
+    return this.ekTreatment
+  }
+
+  /**
+   * Per-frame sync: keep the EK border (and any attached state overlays) locked
+   * to the card as it moves/scales during deals, plays, hovers and drags.
+   */
+  public preUpdate(time: number, delta: number): void {
+    super.preUpdate(time, delta)
+    this.syncEKVisuals()
+  }
+
+  /**
+   * Reposition/redraw the EK border and reposition attached overlay objects to
+   * follow the card. Redraws the border only when its size or treatment changed.
+   */
+  private syncEKVisuals(): void {
+    if (this.ekBorder) {
+      const sizeChanged =
+        this.displayWidth !== this.ekLastDrawnWidth || this.displayHeight !== this.ekLastDrawnHeight
+      // Redraw the geometry only when the treatment or display size changed;
+      // otherwise just reposition (cheap) so the border tracks the moving card.
+      if (this.ekBorderDirty || sizeChanged) {
+        this.renderEKBorder()
+      }
+      this.ekBorder.setPosition(this.x, this.y)
+      this.ekBorder.setDepth(this.depth - 1)
+      this.ekBorder.setVisible(this.visible)
+    }
+
+    // Keep attached overlay display objects anchored to the card.
+    const anchor = this.getOverlayAnchor()
+    for (const kind of Object.keys(this.overlayObjects) as OverlayKind[]) {
+      const obj = this.overlayObjects[kind] as
+        | (Phaser.GameObjects.GameObject &
+            Partial<Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Depth>)
+        | undefined
+      if (!obj) continue
+      obj.setPosition?.(anchor.x, anchor.y)
+      obj.setDepth?.(anchor.depth)
+    }
+  }
+
+  // ===========================================================================
+  // State-overlay hooks/slots for ticket 16 (fire / freeze / dry)
+  // ===========================================================================
+
+  /**
+   * Anchor describing where a state overlay should render, relative to the
+   * card's live position/size and depth. Ticket 16 uses this to place its
+   * particle emitters / sprites; anything attached via {@link attachOverlay} is
+   * kept on this anchor automatically.
+   */
+  public getOverlayAnchor(): {
+    x: number
+    y: number
+    width: number
+    height: number
+    depth: number
+  } {
+    return {
+      x: this.x,
+      y: this.y,
+      width: this.displayWidth,
+      height: this.displayHeight,
+      depth: this.depth + 1,
+    }
+  }
+
+  /**
+   * Attach a display object (particle emitter, sprite, container) to an overlay
+   * slot. The object is depth-sorted above the card and repositioned to the
+   * card each frame. Attaching also marks the slot active. Ticket 16 calls this
+   * with effects built from `ParticleEffects`.
+   */
+  public attachOverlay(kind: OverlayKind, object: Phaser.GameObjects.GameObject): this {
+    this.detachOverlay(kind)
+    this.overlayObjects[kind] = object
+    setOverlaySlot(this.overlaySlots, kind, true)
+    return this
+  }
+
+  /**
+   * Detach and destroy the display object in an overlay slot (if any). Does not
+   * change the slot's active flag - use the `set*State` setters for that.
+   */
+  public detachOverlay(kind: OverlayKind): this {
+    const existing = this.overlayObjects[kind]
+    if (existing) {
+      existing.destroy()
+      delete this.overlayObjects[kind]
+    }
+    return this
+  }
+
+  /** Current active/inactive flag for an overlay slot. */
+  public isOverlayActive(kind: OverlayKind): boolean {
+    return isOverlayActive(this.overlaySlots, kind)
+  }
+
+  /** Snapshot of all overlay slot flags (fire / freeze / dry). */
+  public getOverlayState(): OverlaySlotState {
+    return { ...this.overlaySlots }
+  }
+
+  /**
+   * Set card to "dry" state - a declared low card (6/7) awaiting challenge.
+   * Ticket 12 owns the slot/flag only; ticket 16 renders the dry marker overlay
+   * via {@link attachOverlay}. On disable the attached overlay is torn down.
+   */
+  public setDryState(enabled: boolean): this {
+    const changed = setOverlaySlot(this.overlaySlots, 'dry', enabled)
+    if (!changed) return this
+    if (!enabled) {
+      this.detachOverlay('dry')
+    }
+    return this
+  }
+
+  /**
+   * Set card to freeze state (frozen border/aura). Alias-style hook that keeps
+   * the freeze overlay slot in sync and drives the built-in frozen visual; the
+   * richer freeze effect plugs into the slot in ticket 16.
+   */
+  public setFreezeState(enabled: boolean): this {
+    setOverlaySlot(this.overlaySlots, 'freeze', enabled)
+    if (!enabled) {
+      this.detachOverlay('freeze')
+    }
+    this.setFrozenState(enabled)
+    return this
+  }
+
   /**
    * Set card to fire state - animated gradient border and glow
    * Used when player is on a fire streak
    */
   public setFireState(enabled: boolean): this {
+    setOverlaySlot(this.overlaySlots, 'fire', enabled)
+    if (!enabled) {
+      this.detachOverlay('fire')
+    }
     if (enabled && this._visualState !== 'fire') {
       this.setState('fire')
       this.clearStateEffects()

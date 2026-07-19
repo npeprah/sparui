@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ThemeSelector } from './ThemeSelector'
@@ -11,87 +11,78 @@ describe('ThemeSelector Component', () => {
   })
 
   describe('Rendering', () => {
-    it('should render all 4 themes', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should render all 3 canonical palettes', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      // Check for all 4 theme previews
       const themePreviews = screen.getAllByTestId(/theme-preview-/)
-      expect(themePreviews).toHaveLength(4)
+      expect(themePreviews).toHaveLength(3)
     })
 
-    it('should display theme names', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should display palette names', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      expect(screen.getByText('Afro Heritage')).toBeInTheDocument()
-      expect(screen.getByText('Neon Arcade')).toBeInTheDocument()
-      expect(screen.getByText('Royal Gold')).toBeInTheDocument()
-      expect(screen.getByText('Ocean Breeze')).toBeInTheDocument()
+      expect(screen.getByText('Warm Heritage')).toBeInTheDocument()
+      expect(screen.getByText('Comic')).toBeInTheDocument()
+      expect(screen.getByText('Neon')).toBeInTheDocument()
     })
 
-    it('should display theme descriptions', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should display palette descriptions', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      expect(screen.getByText('Traditional Kente patterns with gold accents')).toBeInTheDocument()
-      expect(screen.getByText('Vibrant neon glow with rainbow energy')).toBeInTheDocument()
-      expect(screen.getByText('Deep purple majesty with golden highlights')).toBeInTheDocument()
-      expect(screen.getByText('Turquoise coastal vibes')).toBeInTheDocument()
+      // Each item shows its authored description.
+      const items = screen.getAllByTestId(/theme-item-/)
+      items.forEach(item => {
+        expect(item.querySelector('p')?.textContent).toBeTruthy()
+      })
     })
 
     it('should have a heading', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      const heading = screen.getByRole('heading', { name: /choose your theme/i })
+      const heading = screen.getByRole('heading', { name: /choose your palette/i })
       expect(heading).toBeInTheDocument()
     })
 
-    it('should show theme preview images', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should show a swatch preview per palette (no image assets)', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      const images = screen.getAllByRole('img')
-      expect(images).toHaveLength(4)
-
-      // Check that images have correct src
-      expect(images[0]).toHaveAttribute('src', '/assets/surfaces/surface_afro_heritage.png')
-      expect(images[1]).toHaveAttribute('src', '/assets/surfaces/surface_neon_arcade.png')
-      expect(images[2]).toHaveAttribute('src', '/assets/surfaces/surface_royal_gold.png')
-      expect(images[3]).toHaveAttribute('src', '/assets/surfaces/surface_ocean_breeze.png')
+      // Previews are palette-honest swatch divs (role=img), not surface images.
+      const previews = screen.getAllByRole('img')
+      expect(previews).toHaveLength(3)
+      previews.forEach(p => expect(p.querySelector('div')).toBeTruthy())
     })
   })
 
   describe('Selection', () => {
-    it('should highlight the selected theme', () => {
-      render(<ThemeSelector selectedTheme="neon_arcade" onSelect={mockOnSelect} />)
+    it('should highlight the selected palette', () => {
+      render(<ThemeSelector selectedTheme="comic" onSelect={mockOnSelect} />)
 
       const themeItems = screen.getAllByTestId(/theme-item-/)
-      // Neon Arcade should be selected (index 1)
+      // Comic is index 1 in the canonical order.
       expect(themeItems[1].className).toMatch(/border-gold/i)
-
-      // Others should not be selected
       expect(themeItems[0].className).not.toMatch(/border-gold/i)
       expect(themeItems[2].className).not.toMatch(/border-gold/i)
-      expect(themeItems[3].className).not.toMatch(/border-gold/i)
     })
 
-    it('should call onSelect when a theme is clicked', async () => {
+    it('should call onSelect when a palette is clicked', async () => {
       const user = userEvent.setup()
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
       const themeItems = screen.getAllByTestId(/theme-item-/)
-      // Click on the second theme (Neon Arcade)
       await user.click(themeItems[1])
 
       expect(mockOnSelect).toHaveBeenCalledTimes(1)
-      expect(mockOnSelect).toHaveBeenCalledWith('neon_arcade')
+      expect(mockOnSelect).toHaveBeenCalledWith('comic')
     })
 
-    it('should call onSelect with correct theme id for each theme', async () => {
+    it('should call onSelect with correct id for each palette', async () => {
       const user = userEvent.setup()
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      const themes = ['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze']
+      const themes = ['warm_heritage', 'comic', 'neon']
       const themeItems = screen.getAllByTestId(/theme-item-/)
 
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {
         mockOnSelect.mockClear()
         await user.click(themeItems[i])
         expect(mockOnSelect).toHaveBeenCalledWith(themes[i])
@@ -100,25 +91,24 @@ describe('ThemeSelector Component', () => {
   })
 
   describe('Grid Layout', () => {
-    it('should display themes in a grid', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should display palettes in a grid', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
       const grid = screen.getByTestId('theme-grid')
       expect(grid).toHaveClass('grid')
     })
 
     it('should be responsive', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
       const grid = screen.getByTestId('theme-grid')
-      // Should have responsive grid columns
       expect(grid.className).toMatch(/grid-cols-/i)
     })
   })
 
   describe('Hover Effects', () => {
-    it('should have hover state on theme items', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should have hover state on palette items', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
       const themeItems = screen.getAllByTestId(/theme-item-/)
       themeItems.forEach(item => {
@@ -130,21 +120,19 @@ describe('ThemeSelector Component', () => {
   describe('Accessibility', () => {
     it('should be keyboard navigable', async () => {
       const user = userEvent.setup()
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
       const themeItems = screen.getAllByTestId(/theme-item-/)
 
-      // Tab to first theme
       await user.tab()
       expect(themeItems[0]).toHaveFocus()
 
-      // Press Enter to select
       await user.keyboard('{Enter}')
-      expect(mockOnSelect).toHaveBeenCalledWith('afro_heritage')
+      expect(mockOnSelect).toHaveBeenCalledWith('warm_heritage')
     })
 
     it('should have proper ARIA labels', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
       const themeItems = screen.getAllByTestId(/theme-item-/)
       themeItems.forEach(item => {
@@ -153,12 +141,12 @@ describe('ThemeSelector Component', () => {
       })
     })
 
-    it('should have alt text for images', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+    it('should have accessible labels for the swatch previews', () => {
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      const images = screen.getAllByRole('img')
-      images.forEach(img => {
-        expect(img).toHaveAttribute('alt')
+      const previews = screen.getAllByRole('img')
+      previews.forEach(img => {
+        expect(img).toHaveAttribute('aria-label')
       })
     })
   })
@@ -167,7 +155,7 @@ describe('ThemeSelector Component', () => {
     it('should apply custom className', () => {
       render(
         <ThemeSelector
-          selectedTheme="afro_heritage"
+          selectedTheme="warm_heritage"
           onSelect={mockOnSelect}
           className="custom-theme-class"
         />
@@ -182,20 +170,20 @@ describe('ThemeSelector Component', () => {
     it('should show Apply button when showApplyButton is true', () => {
       render(
         <ThemeSelector
-          selectedTheme="afro_heritage"
+          selectedTheme="warm_heritage"
           onSelect={mockOnSelect}
           showApplyButton={true}
         />
       )
 
-      const applyButton = screen.getByRole('button', { name: /apply theme/i })
+      const applyButton = screen.getByRole('button', { name: /apply palette/i })
       expect(applyButton).toBeInTheDocument()
     })
 
     it('should not show Apply button by default', () => {
-      render(<ThemeSelector selectedTheme="afro_heritage" onSelect={mockOnSelect} />)
+      render(<ThemeSelector selectedTheme="warm_heritage" onSelect={mockOnSelect} />)
 
-      const applyButton = screen.queryByRole('button', { name: /apply theme/i })
+      const applyButton = screen.queryByRole('button', { name: /apply palette/i })
       expect(applyButton).not.toBeInTheDocument()
     })
   })

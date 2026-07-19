@@ -31,7 +31,7 @@ const SOUND_CONFIG = {
   'sound:phase_transition': 'assets/sounds/sfx/game_events/phase_transition.wav',
 } as const
 
-type SoundKey = keyof typeof SOUND_CONFIG
+export type SoundKey = keyof typeof SOUND_CONFIG
 type VolumeCategory = 'master' | 'sfx'
 
 /**
@@ -56,7 +56,7 @@ interface PlaySoundOptions {
  * ```typescript
  * const audioManager = AudioManager.getInstance()
  * audioManager.preload(scene)  // In PreloadScene
- * audioManager.init(scene)     // In GameScene.create()
+ * audioManager.init(scene)     // In TableScene.create()
  * audioManager.play('sound:card_deal')
  * ```
  */
