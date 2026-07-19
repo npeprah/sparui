@@ -155,7 +155,6 @@ describe('GameScene - Playable Card Updates Logic', () => {
   describe('playable card filtering with suit rules', () => {
     it('should only update initialized cards based on suit rules', () => {
       const isMyTurn = true
-      const currentSuit = 'hearts'
 
       const hand = [
         { scene: {}, active: true, input: {}, cardId: 'card-1', suit: 'hearts' }, // Should be playable
@@ -163,15 +162,11 @@ describe('GameScene - Playable Card Updates Logic', () => {
         { scene: {}, active: true, input: {}, cardId: 'card-3', suit: 'diamonds' }, // Wrong suit
       ]
 
-      // Simulate playable cards determination
-      const playableIds = new Set(['card-1']) // Only hearts card is playable
-
       const updatedCards: string[] = []
 
       if (isMyTurn) {
         hand.forEach((card) => {
           if (card.scene && card.active && card.input) {
-            const isPlayable = playableIds.has(card.cardId)
             updatedCards.push(card.cardId)
             // Would call card.setPlayable(isPlayable)
           }

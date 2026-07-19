@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { BrowserRouter } from 'react-router-dom'
 import { LobbyScreen } from './LobbyScreen'

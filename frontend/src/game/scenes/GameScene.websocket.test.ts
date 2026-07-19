@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { useGameStore } from '../../store/gameStore'
 import { usePlayerStore } from '../../store/playerStore'
 import type { Card } from '../../store/types'

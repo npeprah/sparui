@@ -370,9 +370,15 @@ export function getVariants(variants: Variants): Variants {
 export function shouldReduceAnimations(): boolean {
   if (getPrefersReducedMotion()) return true
 
-  // Check if device is low-end (simplified heuristic)
+  // Check if device is low-end (simplified heuristic).
+  // The Network Information API is not part of the standard lib types.
   if (typeof navigator !== 'undefined') {
-    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
+    const nav = navigator as Navigator & {
+      connection?: { saveData?: boolean }
+      mozConnection?: { saveData?: boolean }
+      webkitConnection?: { saveData?: boolean }
+    }
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection
     if (connection && connection.saveData) {
       return true
     }

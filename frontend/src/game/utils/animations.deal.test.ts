@@ -10,7 +10,7 @@
  * - Sound hook: "card_deal" sound plays during animation
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import Phaser from 'phaser'
 import { createDealAnimation, calculateDealStagger } from './animations'
 import { ANIMATION_DURATION, ANIMATION_EASING, SOUND_EVENTS } from '../constants/animations'

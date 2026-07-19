@@ -9,6 +9,7 @@ import type {
   RoomPlayerReadyResponse,
   RoomSettingsUpdatedResponse,
   GameStartedResponse,
+  BackendGameState,
 } from '../store/types'
 
 // WebSocket event types from backend
@@ -47,7 +48,7 @@ export interface ServerToClientEvents {
 
   // Game events
   gameStarted: (data: { leaderId: string; round: number }) => void
-  'game:restarted': (data: { roomCode: string; gameState: any }) => void
+  'game:restarted': (data: { roomCode: string; gameState: BackendGameState }) => void
   cardPlayed: (data: { playerId: string; card: Card; currentTurn?: string; ledSuit?: string | null; roundComplete?: boolean }) => void
   roundWon: (data: { winnerId: string; roundsWon?: Record<string, number>; isDry: boolean; isShowDry: boolean; currentRound?: number; gameOver?: boolean }) => void
   gameEnded: (data: { winnerId: string; finalScores: Record<string, number> }) => void

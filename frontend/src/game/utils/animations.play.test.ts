@@ -19,7 +19,7 @@ import {
   createLoseFadeAnimation,
   createCollectAnimation
 } from './animations'
-import { ANIMATION_DURATION, ANIMATION_EASING, ANIMATION_SCALE, ANIMATION_ALPHA, SOUND_EVENTS } from '../constants/animations'
+import { ANIMATION_DURATION, ANIMATION_EASING, ANIMATION_SCALE, SOUND_EVENTS } from '../constants/animations'
 
 // Mock Phaser.GameObjects.Sprite
 const createMockSprite = (): Phaser.GameObjects.Sprite => {
@@ -148,7 +148,7 @@ describe('Card Play Animation', () => {
 
     it('should trigger card_flip sound event', () => {
       const onMidpoint = vi.fn()
-      const [scaleDown, scaleUp] = createFlipAnimation(mockSprite, onMidpoint)
+      const [scaleDown] = createFlipAnimation(mockSprite, onMidpoint)
 
       expect(SOUND_EVENTS.CARD_FLIP).toBe('sound:card_flip')
       expect(scaleDown.onStart).toBeDefined()

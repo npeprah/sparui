@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { usePlayerStore } from '../store/playerStore'
 import { useThemeStore } from '../store/themeStore'
@@ -25,8 +25,6 @@ describe('Avatar and Theme Integration', () => {
 
   describe('Avatar System Integration', () => {
     it('should update PlayerProfile when avatar is selected', async () => {
-      const user = userEvent.setup()
-
       // Mock handler for profile editing
       const handleEditProfile = vi.fn()
 
@@ -199,7 +197,7 @@ describe('Avatar and Theme Integration', () => {
       })
 
       // Render both selectors
-      const { container } = render(
+      render(
         <div>
           <AvatarSelector
             selectedAvatarId={1}
@@ -237,7 +235,7 @@ describe('Avatar and Theme Integration', () => {
       // This test verifies that avatar and theme selections
       // maintain consistent styling across different components
 
-      const { container } = render(
+      render(
         <div>
           <PlayerProfile
             playerName="TestPlayer"
@@ -256,7 +254,6 @@ describe('Avatar and Theme Integration', () => {
       // Both components should show the same avatar
       const avatarImages = screen.getAllByRole('img')
       const profileAvatar = avatarImages[0]
-      const selectorAvatars = avatarImages.slice(1)
 
       // Profile should show avatar 2
       expect(profileAvatar).toHaveAttribute('src', '/assets/avatars/avatar_02.svg')

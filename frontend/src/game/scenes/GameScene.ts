@@ -2,12 +2,7 @@ import Phaser from 'phaser'
 import { CardSprite } from '../sprites/CardSprite'
 import type { Suit, Rank, Card } from '../../store/types'
 import { CARD_SCALES, CARD_DIMENSIONS } from '../constants/cards'
-import {
-  createDealAnimation,
-  createPlayAnimation,
-  calculateDealStagger,
-} from '../utils/animations'
-import { emitSoundEvent, triggerHaptic } from '../constants/animations'
+import { triggerHaptic } from '../constants/animations'
 import { useGameStore } from '../../store/gameStore'
 import { usePlayerStore } from '../../store/playerStore'
 import { useThemeStore } from '../../store/themeStore'
@@ -67,7 +62,7 @@ export class GameScene extends Phaser.Scene {
   private positionMap: Map<PlayerPosition, string> = new Map()
 
   // WebSocket event handlers (stored for cleanup)
-  private socketHandlers: Map<keyof ServerToClientEvents, any> = new Map()
+  private socketHandlers: Map<keyof ServerToClientEvents, (...args: never[]) => void> = new Map()
 
   // FPS counter (dev mode only)
   private fpsCounter: FPSCounter | null = null
@@ -560,26 +555,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Deal test hand (fallback for development/testing)
-   * @deprecated Use dealCardsFromBackendState() instead
-   */
-  private dealTestHand(): void {
-    const testCards: Array<{ suit: Suit; rank: Rank }> = [
-      { suit: 'hearts', rank: '6' },
-      { suit: 'hearts', rank: '7' },
-      { suit: 'clubs', rank: 'J' },
-      { suit: 'diamonds', rank: 'K' },
-      { suit: 'spades', rank: '9' },
-    ]
-
-    testCards.forEach((cardData, index) => {
-      setTimeout(() => {
-        this.dealCardToPlayer('bottom', cardData.suit, cardData.rank, 'player-1')
-      }, index * 150) // Stagger dealing
-    })
-  }
-
-  /**
    * Deal a card to a player's hand
    */
   public dealCardToPlayer(
@@ -600,7 +575,7 @@ export class GameScene extends Phaser.Scene {
 
     // Override cardId if provided (for store sync)
     if (cardId) {
-      ;(card as any).cardId = cardId
+      ;(card as { cardId: string }).cardId = cardId
       console.log(`[GameScene] Set cardId: ${cardId}`)
     }
 
@@ -1095,7 +1070,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Get playable cards based on Spar rules
-    const playableCards = getPlayableCards(playerHand, currentSuit as any)
+    const playableCards = getPlayableCards(playerHand, currentSuit as Suit | null)
     const playableIds = new Set(playableCards.map((c) => c.id))
 
     // Update card sprites - only update cards that are fully initialized
@@ -1191,7 +1166,7 @@ export class GameScene extends Phaser.Scene {
     // roundWon - Round finished, someone won
     const roundWonHandler: ServerToClientEvents['roundWon'] = (data) => {
       const { winnerId, isDry, isShowDry } = data
-      const roundsWon = (data as any).roundsWon as Record<string, number> | undefined
+      const roundsWon = data.roundsWon
 
       // Update scores from roundsWon map (sync with backend)
       if (roundsWon) {
@@ -1272,9 +1247,11 @@ export class GameScene extends Phaser.Scene {
     // gameEnded - Game finished
     const gameEndedHandler: ServerToClientEvents['gameEnded'] = (data) => {
       const { winnerId, finalScores } = data
-      // Extract winnerName and winnerScore from the event data
-      const winnerName = (data as any).winnerName || 'Unknown'
-      const winnerScore = (data as any).winnerScore || finalScores?.[winnerId] || 0
+      // Extract winnerName and winnerScore from the event data. The backend may
+      // include these extra fields beyond the declared event contract (see ticket 02).
+      const extra = data as { winnerName?: string; winnerScore?: number }
+      const winnerName = extra.winnerName || 'Unknown'
+      const winnerScore = extra.winnerScore || finalScores?.[winnerId] || 0
 
       // Set the game winner info
       useGameStore.getState().setGameWinner({
@@ -1346,7 +1323,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       // 3. Clear all player hands (stop tweens first, then destroy sprites)
-      this.playerHands.forEach((hand, position) => {
+      this.playerHands.forEach((hand) => {
         hand.forEach((card) => {
           // Stop any active tweens on this card to prevent onComplete errors
           this.tweens.killTweensOf(card)
@@ -1389,14 +1366,14 @@ export class GameScene extends Phaser.Scene {
         const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId)
         if (currentPlayer && currentPlayer.hand) {
           console.log('[GameScene] Initializing playerStore hand with', currentPlayer.hand.length, 'cards')
-          console.log('[GameScene] Hand cards:', currentPlayer.hand.map((c: any) => `${c.suit} ${c.rank} (${c.id})`))
+          console.log('[GameScene] Hand cards:', currentPlayer.hand.map((c) => `${c.suit} ${c.rank} (${c.id})`))
           usePlayerStore.getState().setHand(currentPlayer.hand)
           console.log('[GameScene] playerStore hand initialized successfully')
         } else {
           console.error('[GameScene] ERROR: Could not find current player or hand!', {
             currentPlayer,
             currentPlayerId,
-            availablePlayers: gameState.players.map((p: any) => p.id),
+            availablePlayers: gameState.players.map((p) => p.id),
           })
         }
 
@@ -1450,7 +1427,7 @@ export class GameScene extends Phaser.Scene {
    */
   private cleanupWebSocketListeners(): void {
     this.socketHandlers.forEach((handler, event) => {
-      socketService.off(event, handler)
+      socketService.off(event, handler as ServerToClientEvents[typeof event])
     })
 
     this.socketHandlers.clear()

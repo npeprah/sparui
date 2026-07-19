@@ -68,7 +68,7 @@ describe('GameScene Initialization Race Conditions', () => {
       const cameras: any = undefined
       const positions: PlayerPosition[] = ['bottom', 'left', 'top', 'right']
 
-      positions.forEach(position => {
+      positions.forEach(() => {
         let result: any = null
         if (!cameras || !cameras.main) {
           result = null
@@ -137,7 +137,6 @@ describe('GameScene Initialization Race Conditions', () => {
   describe('syncPlayerHand() - Early Return Logic', () => {
     it('should return early when scene not ready', () => {
       const isSceneReady = false
-      const hand: any[] = []
 
       let repositionCalled = false
 
@@ -155,7 +154,6 @@ describe('GameScene Initialization Race Conditions', () => {
 
     it('should execute when scene is ready', () => {
       const isSceneReady = true
-      const hand: any[] = []
 
       let repositionCalled = false
 
@@ -180,7 +178,6 @@ describe('GameScene Initialization Race Conditions', () => {
 
       const isSceneReady = false
       const cameras: any = undefined
-      const hand: any[] = []
 
       let crashed = false
 
@@ -202,9 +199,8 @@ describe('GameScene Initialization Race Conditions', () => {
           return null // Safe early return
         }
 
-        // This destructuring would crash if we get here with undefined camera
-        const { width, height } = cameras.main
-      } catch (e) {
+        // Reaching here means the guard above did not early-return
+      } catch {
         crashed = true
       }
 

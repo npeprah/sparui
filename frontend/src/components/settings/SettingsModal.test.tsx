@@ -89,12 +89,13 @@ describe('SettingsModal Component', () => {
   })
 
   describe('Avatar Selection', () => {
-    it('should call setAvatar when an avatar is clicked', async () => {
+    it('should stage the clicked avatar and persist it on save', async () => {
       render(<SettingsModal />)
       const avatarGrid = screen.getByTestId('avatar-selection-grid')
       const avatars = avatarGrid.querySelectorAll('[data-testid="avatar-container"]')
 
-      fireEvent.click(avatars[1]) // Click avatar 2
+      fireEvent.click(avatars[1]) // Click avatar 2 (staged locally)
+      fireEvent.click(screen.getByText('Save Settings'))
 
       await waitFor(() => {
         expect(mockSetAvatar).toHaveBeenCalledWith('avatar_02')
@@ -234,7 +235,8 @@ describe('SettingsModal Component', () => {
     it('should close modal when pressing Escape key', () => {
       render(<SettingsModal />)
 
-      fireEvent.keyDown(document, { key: 'Escape' })
+      // The Escape handler lives on the modal dialog, not on document
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
 
       expect(mockCloseSettings).toHaveBeenCalled()
     })
@@ -289,19 +291,18 @@ describe('SettingsModal Component', () => {
   })
 
   describe('Accessibility', () => {
-    it('should support keyboard navigation for avatar selection', async () => {
+    it('should support keyboard selection of an avatar', async () => {
       render(<SettingsModal />)
       const avatarGrid = screen.getByTestId('avatar-selection-grid')
-      const firstAvatar = avatarGrid.querySelector('[data-testid="avatar-container"]') as HTMLElement
+      const thirdWrapper = avatarGrid.querySelector('[data-avatar-index="2"]') as HTMLElement
 
-      firstAvatar.focus()
-      expect(document.activeElement).toBe(firstAvatar)
-
-      // Simulate Enter key press
-      fireEvent.keyDown(firstAvatar, { key: 'Enter' })
+      thirdWrapper.focus()
+      // Enter/Space on a wrapper stages that avatar locally
+      fireEvent.keyDown(thirdWrapper, { key: 'Enter' })
+      fireEvent.click(screen.getByText('Save Settings'))
 
       await waitFor(() => {
-        expect(mockSetAvatar).toHaveBeenCalledWith('avatar_01')
+        expect(mockSetAvatar).toHaveBeenCalledWith('avatar_03')
       })
     })
 
@@ -311,7 +312,7 @@ describe('SettingsModal Component', () => {
       const avatarWrappers = avatarGrid.querySelectorAll('[data-avatar-index]')
 
       // Focus first avatar wrapper
-      (avatarWrappers[0] as HTMLElement).focus()
+      ;(avatarWrappers[0] as HTMLElement).focus()
 
       // Press right arrow
       fireEvent.keyDown(avatarWrappers[0], { key: 'ArrowRight' })

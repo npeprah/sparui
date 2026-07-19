@@ -21,7 +21,6 @@ import {
   applyDisabledState,
   removeDisabledState,
   createGlowEffect,
-  updateGlowPosition,
 } from '../utils/cardAnimations'
 import {
   applyCardVisualState,
@@ -536,17 +535,6 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
       this.isDragging = false
     }
-  }
-
-  /**
-   * Cancel drag and return card to original position
-   */
-  private cancelDrag(): void {
-    if (!this.isDragging) return
-
-    this.isDragging = false
-    this.hideDragGlow()
-    this.returnToOriginalPosition()
   }
 
   /**

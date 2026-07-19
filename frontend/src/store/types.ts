@@ -79,6 +79,9 @@ export interface RoomPlayerReadyResponse {
   playerId: string
   isReady: boolean
   allReady: boolean
+  // Backend sends the full player list on room:player_ready so clients can
+  // resync. LobbyScreen guards on its presence and falls back when absent.
+  players?: LobbyPlayer[]
 }
 
 export interface RoomSettingsUpdatedResponse {
@@ -112,7 +115,7 @@ export interface BackendPlayer {
   isLeader: boolean
   isOnFire: boolean
   hasPlayedCard: boolean
-  dryCardInfo: any | null
+  dryCardInfo: Record<string, unknown> | null
 }
 
 export interface BackendGameState {
@@ -125,6 +128,9 @@ export interface BackendGameState {
   leaderId: string
   currentTurn: string
   currentRound: number
+  // The backend may include the led suit on state snapshots (e.g. on restart);
+  // full contract alignment is ticket 02.
+  currentSuit?: string | null
   playedCards: Array<{
     playerId: string
     card: BackendCard

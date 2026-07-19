@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { usePlayerStore, useUIStore, useLobbyStore } from '../store'
 import { socketService } from '../services/socketService'
+import type { RoomCreatedResponse, RoomPlayerJoinedResponse } from '../store/types'
 import { Button, Modal } from '../components/ui'
 import { PlayerProfile, PulseButton } from '../components/home'
 import { SettingsModal } from '../components/settings'
@@ -24,7 +25,6 @@ function HomePage() {
   const [isCreatingLobby, setIsCreatingLobby] = useState(false)
   const [isJoiningLobby, setIsJoiningLobby] = useState(false)
 
-  const playerId = usePlayerStore((state) => state.playerId)
   const playerName = usePlayerStore((state) => state.playerName)
   const avatar = usePlayerStore((state) => state.avatar)
   const token = usePlayerStore((state) => state.token)
@@ -37,14 +37,6 @@ function HomePage() {
 
   // Responsive breakpoints
   const { isMobile, isTablet } = useMediaQuery()
-
-  // Generate player ID if not exists
-  const getOrCreatePlayerId = () => {
-    if (playerId) return playerId
-    const newId = `player-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    usePlayerStore.getState().setPlayerId(newId)
-    return newId
-  }
 
   // Get or create auth token
   const getOrCreateToken = () => {
@@ -69,7 +61,7 @@ function HomePage() {
     socketService.connect(authToken)
 
     // Listen for auth:success to get backend-assigned playerId
-    const handleAuthSuccess = (data: any) => {
+    const handleAuthSuccess = (data: { playerId: string; message: string }) => {
       console.log('Auth success, backend assigned playerId:', data.playerId)
       // Store the backend-assigned playerId (critical for matching in players arrays)
       usePlayerStore.getState().setPlayerId(data.playerId)
@@ -79,7 +71,7 @@ function HomePage() {
     socketService.on('auth:success', handleAuthSuccess)
 
     // Listen for room:created event, then navigate
-    const handleRoomCreated = (data: any) => {
+    const handleRoomCreated = (data: RoomCreatedResponse) => {
       console.log('Room created successfully:', data)
 
       // Get the backend-assigned playerId
@@ -143,7 +135,7 @@ function HomePage() {
     socketService.connect(authToken)
 
     // Listen for auth:success to get backend-assigned playerId
-    const handleAuthSuccess = (data: any) => {
+    const handleAuthSuccess = (data: { playerId: string; message: string }) => {
       console.log('Auth success (join), backend assigned playerId:', data.playerId)
       // Store the backend-assigned playerId (critical for matching in players arrays)
       usePlayerStore.getState().setPlayerId(data.playerId)
@@ -153,7 +145,7 @@ function HomePage() {
     socketService.on('auth:success', handleAuthSuccess)
 
     // Listen for room:player_joined event, then navigate
-    const handlePlayerJoined = (data: any) => {
+    const handlePlayerJoined = (data: RoomPlayerJoinedResponse) => {
       console.log('Successfully joined room:', data)
 
       // Get the backend-assigned playerId
@@ -167,7 +159,7 @@ function HomePage() {
       lobbyStore.setIsConnecting(false)
 
       // Determine if current player is host
-      const hostPlayer = data.players.find((p: any) => p.isHost)
+      const hostPlayer = data.players.find((p) => p.isHost)
       if (hostPlayer) {
         lobbyStore.setHostId(hostPlayer.id)
         lobbyStore.setIsHost(hostPlayer.id === backendPlayerId)
@@ -182,7 +174,7 @@ function HomePage() {
     }
 
     // Listen for join errors
-    const handleJoinError = (data: any) => {
+    const handleJoinError = (data: { error: string }) => {
       console.error('Failed to join room:', data.error)
       socketService.off('room:player_joined', handlePlayerJoined)
       socketService.off('lobby:error', handleJoinError)

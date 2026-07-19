@@ -155,7 +155,7 @@ describe('GameScene - Player 2 Start Race Condition', () => {
       // But if a store update happens DURING this sequence, it should be safe
 
       let handUpdateCount = 0
-      const unsubscribe = usePlayerStore.subscribe((state) => {
+      const unsubscribe = usePlayerStore.subscribe(() => {
         handUpdateCount++
         // In real GameScene, this would call syncPlayerHand()
         // which would check isSceneReady and return early if false
@@ -250,7 +250,7 @@ describe('GameScene - Player 2 Start Race Condition', () => {
       }
 
       // Should never reach here with undefined camera
-      const { width, height } = cameras.main
+      const { width } = cameras.main
       expect(width).toBeDefined()
     })
   })

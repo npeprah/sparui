@@ -124,7 +124,6 @@ export function createCardGlow(
   state: CardState
 ): Phaser.GameObjects.Graphics {
   const graphics = sprite.scene.add.graphics()
-  const config = getCardStateConfig(state)
 
   // Position glow behind card
   graphics.setDepth(sprite.depth - 1)
@@ -183,8 +182,8 @@ export function transitionToState(
   const config = getStateTransitionConfig(fromState, toState)
   if (config.duration) {
     sprite.scene.tweens.add({
-      targets: sprite,
       ...config,
+      targets: sprite,
     })
   }
 }
@@ -199,7 +198,7 @@ export function getStateTransitionConfig(
   _fromState: CardState,
   toState: CardState
 ): Phaser.Types.Tweens.TweenBuilderConfig {
-  const config: any = {}
+  const config: Partial<Phaser.Types.Tweens.TweenBuilderConfig> = {}
 
   if (toState === 'hover') {
     config.duration = 600
@@ -220,5 +219,5 @@ export function getStateTransitionConfig(
     config.alpha = 1
   }
 
-  return config
+  return config as Phaser.Types.Tweens.TweenBuilderConfig
 }

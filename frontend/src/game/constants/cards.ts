@@ -40,7 +40,7 @@ export function getCardAssetKey(suit: Suit, rank: Rank): string {
  * Generate the file path for a card asset
  * @param suit - The card suit
  * @param rank - The card rank
- * @returns File path: "/assets/cards/hearts/hearts_6.png"
+ * @returns File path: "assets/cards/hearts/hearts_6.png"
  */
 export function getCardAssetPath(suit: Suit, rank: Rank): string {
   return `${CARD_ASSET_BASE_PATH}/${suit}/${suit}_${rank.toLowerCase()}.png`

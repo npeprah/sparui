@@ -55,8 +55,8 @@ function GamePage() {
       {/* Phase Transition Overlay */}
       <PhaseTransition
         visible={showTransition}
-        phase={gamePhase as any}
-        fromPhase={transitionFromPhase as any}
+        phase={gamePhase}
+        fromPhase={transitionFromPhase}
         roundNumber={currentRound}
         onComplete={handleTransitionComplete}
       />

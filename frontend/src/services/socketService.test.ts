@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { socketService as SocketServiceType } from './socketService'
 
 /**
  * Basic unit tests for WebSocket service

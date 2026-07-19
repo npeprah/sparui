@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import Phaser from 'phaser'
 import {
   createDealAnimation,
@@ -65,8 +65,9 @@ describe('Animation Utilities', () => {
       const config = createDealAnimation(card, 100, 200, 0)
 
       expect(config.targets).toBe(card)
-      expect(config.x).toBe(100)
-      expect(config.y).toBe(200)
+      // Deal uses Phaser from/to value syntax so the card slides in from an offset
+      expect(config.x).toEqual({ from: 100 - 200, to: 100 })
+      expect(config.y).toEqual({ from: 200 + 100, to: 200 })
       expect(config.duration).toBe(ANIMATION_DURATION.DEAL)
       expect(config.ease).toBe(ANIMATION_EASING.DEAL)
       expect(config.delay).toBe(0)
@@ -141,8 +142,9 @@ describe('Animation Utilities', () => {
       expect(config.targets).toBe(card)
       expect(config.x).toBe(150)
       expect(config.y).toBe(250)
-      expect(config.scaleX).toBe(0.7)
-      expect(config.scaleY).toBe(0.7)
+      // Play applies a squash keyframe effect (1 -> 0.9 -> targetScale)
+      expect(config.scaleX).toEqual({ value: [1, 0.9, 0.7], duration: [133, 133, 134] })
+      expect(config.scaleY).toEqual({ value: [1, 0.9, 0.7], duration: [133, 133, 134] })
       expect(config.duration).toBe(ANIMATION_DURATION.PLAY)
       expect(config.ease).toBe(ANIMATION_EASING.PLAY)
       expect(config.rotation).toBeDefined()

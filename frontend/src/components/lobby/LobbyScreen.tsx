@@ -85,7 +85,7 @@ export function LobbyScreen() {
       setCurrentPlayers(data.players)
 
       // Always sync isHost with the players array
-      const currentPlayer = data.players.find((p: any) => p.id === playerId)
+      const currentPlayer = data.players.find((p) => p.id === playerId)
       console.log('[DEBUG] Found current player:', currentPlayer)
       if (currentPlayer) {
         console.log('[DEBUG] Setting isHost to:', currentPlayer.isHost)
@@ -158,7 +158,7 @@ export function LobbyScreen() {
         setCurrentPlayers(data.players)
 
         // Re-check if current player is host (in case players array changed)
-        const currentPlayer = data.players.find((p: any) => p.id === playerId)
+        const currentPlayer = data.players.find((p) => p.id === playerId)
         console.log('[DEBUG] Found current player in ready event:', currentPlayer)
         if (currentPlayer) {
           console.log('[DEBUG] Setting isHost to:', currentPlayer.isHost)

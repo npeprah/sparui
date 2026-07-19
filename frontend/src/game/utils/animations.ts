@@ -12,7 +12,6 @@ import {
   ANIMATION_EASING,
   ANIMATION_SCALE,
   ANIMATION_ALPHA,
-  getRandomDealRotation,
   getRandomPlayRotation,
   emitSoundEvent,
 } from '../constants/animations'

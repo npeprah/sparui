@@ -18,7 +18,7 @@ export class CardSprite {
   scene: any
 
   private _cardState: 'default' | 'fire' | 'frozen' | 'disabled' = 'default'
-  private originalY = 200
+  originalY = 200
   private originalScale = 1
   private suitPulseTween: any
   private stateTween: any
@@ -155,21 +155,6 @@ export class CardSprite {
     this.x = tableCenterX
     this.y = tableCenterY
     return this
-  }
-
-  private onHoverEnter() {
-    if (this._cardState === 'disabled') return
-    if (this.hoverTween?.stop) {
-      this.hoverTween.stop()
-    }
-    this.hoverTween = { stop: vi.fn() }
-  }
-
-  private onHoverExit() {
-    if (this.hoverTween?.stop) {
-      this.hoverTween.stop()
-    }
-    this.hoverTween = { stop: vi.fn() }
   }
 
   destroy() {

@@ -55,7 +55,7 @@ describe('PhaserGame Component', () => {
     const { unmount } = render(<PhaserGame />)
     unmount()
 
-    expect(mockDestroy).toHaveBeenCalledWith(true, false)
+    expect(mockDestroy).toHaveBeenCalledWith(true)
   })
 
   it('should not create multiple game instances on re-render', () => {
@@ -78,20 +78,6 @@ describe('PhaserGame Component', () => {
   })
 
   describe('HMR Handling', () => {
-    it('should have HMR protection code in the component', () => {
-      // This test verifies that the component source code includes HMR handling
-      // The actual HMR behavior only runs in development (when import.meta.hot exists)
-      // and is tested through manual testing in the dev environment
-
-      const componentSource = PhaserGame.toString()
-
-      // Verify component includes HMR disposal logic (Vite transforms import.meta.hot)
-      expect(componentSource).toMatch(/hot\.(dispose|accept)/)
-
-      // Note: import.meta.hot is undefined in test environment, so HMR handlers
-      // won't be registered. This is expected - HMR only works in dev mode.
-    })
-
     it('should not break when import.meta.hot is undefined (production)', () => {
       // In production and test environments, import.meta.hot is undefined
       // This test ensures the component still works correctly

@@ -34,15 +34,15 @@ describe('PlayerProfile', () => {
     expect(screen.getByText('TestPlayer')).toBeInTheDocument()
   })
 
-  it('should display player avatar with first letter', () => {
+  it('should display the player avatar image', () => {
     render(
       <BrowserRouter>
         <PlayerProfile {...defaultProps} />
       </BrowserRouter>
     )
 
-    // Should display first letter of username
-    expect(screen.getByText('T')).toBeInTheDocument()
+    // Avatar is now an image-based component, not a first-letter placeholder
+    expect(screen.getByTestId('avatar-container')).toBeInTheDocument()
   })
 
   it('should display username', () => {
@@ -153,30 +153,27 @@ describe('PlayerProfile', () => {
       </BrowserRouter>
     )
 
-    // Letter appears in both avatar and username, so use getAllByText
-    const elements = screen.getAllByText('A')
-    expect(elements.length).toBeGreaterThanOrEqual(2) // Avatar + username
+    // Username is rendered verbatim (avatar is image-based, not a letter)
+    expect(screen.getByText('A')).toBeInTheDocument()
   })
 
-  it('should handle empty username gracefully', () => {
+  it('should fall back to "Guest" for an empty username', () => {
     render(
       <BrowserRouter>
         <PlayerProfile {...defaultProps} playerName="" />
       </BrowserRouter>
     )
 
-    // Should display '?' for empty username
-    expect(screen.getByText('?')).toBeInTheDocument()
+    expect(screen.getByText('Guest')).toBeInTheDocument()
   })
 
-  it('should display uppercase first letter', () => {
+  it('should render the username verbatim', () => {
     render(
       <BrowserRouter>
         <PlayerProfile {...defaultProps} playerName="testplayer" />
       </BrowserRouter>
     )
 
-    // Should convert to uppercase
-    expect(screen.getByText('T')).toBeInTheDocument()
+    expect(screen.getByText('testplayer')).toBeInTheDocument()
   })
 })

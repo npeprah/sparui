@@ -120,7 +120,6 @@ describe('GameScene Logic', () => {
       })
 
       it('should calculate hand position for left player', () => {
-        const width = 1280
         const height = 720
         const margin = 50
 
@@ -132,7 +131,6 @@ describe('GameScene Logic', () => {
 
       it('should calculate hand position for top player', () => {
         const width = 1280
-        const height = 720
         const margin = 50
 
         const topPosition = { x: width / 2, y: margin, rotation: Math.PI }

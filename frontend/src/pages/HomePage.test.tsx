@@ -67,7 +67,7 @@ vi.mock('../components/home', () => ({
       <div>Wins: {totalWins}</div>
     </div>
   ),
-  PulseButton: ({ children, disabled }: any) => <div data-testid="pulse-button">{children}</div>,
+  PulseButton: ({ children }: any) => <div data-testid="pulse-button">{children}</div>,
 }))
 
 // Mock responsive hooks

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { AudioManager } from './audioManager'
-import Phaser from 'phaser'
 
 /**
  * Tests for AudioManager Service
@@ -27,9 +26,21 @@ describe('AudioManager', () => {
 
     // Create mock Phaser scene
     mockScene = {
+      scene: {
+        key: 'TestScene',
+      },
       load: {
         audio: vi.fn(),
         on: vi.fn(),
+        isLoading: vi.fn(() => false),
+        isReady: vi.fn(() => true),
+        totalToLoad: 0,
+        list: { size: 0 },
+      },
+      cache: {
+        audio: {
+          exists: vi.fn(() => true),
+        },
       },
       sound: {
         add: vi.fn().mockReturnValue({
@@ -433,8 +444,6 @@ describe('AudioManager', () => {
       mockScene.sound.add.mockClear()
       pointerCallback()
 
-      const firstCallCount = mockScene.sound.add.mock.calls.length
-
       // Simulate second tap
       mockScene.sound.add.mockClear()
       pointerCallback()
@@ -519,9 +528,21 @@ describe('AudioManager', () => {
 
       // Create fresh mock scene
       const freshMockScene = {
+        scene: {
+          key: 'TestScene',
+        },
         load: {
           audio: vi.fn(),
           on: vi.fn(),
+          isLoading: vi.fn(() => false),
+          isReady: vi.fn(() => true),
+          totalToLoad: 0,
+          list: { size: 0 },
+        },
+        cache: {
+          audio: {
+            exists: vi.fn(() => true),
+          },
         },
         sound: {
           add: vi.fn().mockReturnValue({

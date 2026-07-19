@@ -22,5 +22,20 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
+  },
+  {
+    // Test and mock files legitimately use `any`/loose function types to stub
+    // out Phaser, WebSocket, and store shapes. Dead code (unused vars) is still
+    // flagged everywhere.
+    files: [
+      '**/*.test.{ts,tsx}',
+      '**/__mocks__/**/*.{ts,tsx}',
+      '**/__tests__/**/*.{ts,tsx}',
+      'src/test/**/*.{ts,tsx}',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+    },
   }
 )

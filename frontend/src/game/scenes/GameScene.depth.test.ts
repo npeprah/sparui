@@ -1,5 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
-import type { CardSprite } from '../sprites/CardSprite'
+import { describe, it, expect } from 'vitest'
 import type { PlayerPosition } from '../utils/playerPositions'
 
 /**
@@ -71,8 +70,6 @@ describe('GameScene - Card Depth Ordering Logic', () => {
 
     it('should reset to base depth when played cards are cleared', () => {
       // Play some cards
-      const depth1 = calculateCardDepth(0)
-      const depth2 = calculateCardDepth(1)
       const depth3 = calculateCardDepth(2)
 
       expect(depth3).toBe(1002)

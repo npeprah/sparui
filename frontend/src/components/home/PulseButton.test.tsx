@@ -42,7 +42,7 @@ describe('PulseButton', () => {
   })
 
   it('should disable animation when disabled prop is true', () => {
-    const { container } = render(
+    render(
       <PulseButton disabled>
         <button>Disabled</button>
       </PulseButton>

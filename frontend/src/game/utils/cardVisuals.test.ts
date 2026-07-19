@@ -6,7 +6,6 @@ import {
   transitionToState,
   getStateTransitionConfig,
 } from './cardVisuals'
-import type { CardState } from '../constants/cardStates'
 
 // Mock Phaser objects
 const mockSprite = {
@@ -123,7 +122,7 @@ describe('Card Visual Utilities', () => {
     })
 
     it('should create fire glow for fire state', () => {
-      const glow = createCardGlow(mockSprite as any, 'fire')
+      createCardGlow(mockSprite as any, 'fire')
 
       expect(mockGraphics.fillStyle).toHaveBeenCalled()
       // Fire state would use orange/red colors

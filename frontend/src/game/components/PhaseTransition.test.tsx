@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { PhaseTransition } from './PhaseTransition'
-import type { GamePhase } from '../../store/types'
 
 describe('PhaseTransition', () => {
   const mockOnComplete = vi.fn()

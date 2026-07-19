@@ -88,24 +88,24 @@ describe('Card Asset Functions', () => {
 
   describe('getCardAssetPath', () => {
     it('should generate correct path for number cards', () => {
-      expect(getCardAssetPath('hearts', '6')).toBe('/assets/cards/hearts/hearts_6.png')
-      expect(getCardAssetPath('clubs', '10')).toBe('/assets/cards/clubs/clubs_10.png')
+      expect(getCardAssetPath('hearts', '6')).toBe('assets/cards/hearts/hearts_6.png')
+      expect(getCardAssetPath('clubs', '10')).toBe('assets/cards/clubs/clubs_10.png')
     })
 
     it('should generate correct path for face cards', () => {
-      expect(getCardAssetPath('diamonds', 'J')).toBe('/assets/cards/diamonds/diamonds_j.png')
-      expect(getCardAssetPath('spades', 'Q')).toBe('/assets/cards/spades/spades_q.png')
-      expect(getCardAssetPath('hearts', 'K')).toBe('/assets/cards/hearts/hearts_k.png')
+      expect(getCardAssetPath('diamonds', 'J')).toBe('assets/cards/diamonds/diamonds_j.png')
+      expect(getCardAssetPath('spades', 'Q')).toBe('assets/cards/spades/spades_q.png')
+      expect(getCardAssetPath('hearts', 'K')).toBe('assets/cards/hearts/hearts_k.png')
     })
 
     it('should generate correct path for aces', () => {
-      expect(getCardAssetPath('hearts', 'A')).toBe('/assets/cards/hearts/hearts_a.png')
-      expect(getCardAssetPath('clubs', 'A')).toBe('/assets/cards/clubs/clubs_a.png')
+      expect(getCardAssetPath('hearts', 'A')).toBe('assets/cards/hearts/hearts_a.png')
+      expect(getCardAssetPath('clubs', 'A')).toBe('assets/cards/clubs/clubs_a.png')
     })
 
     it('should use lowercase for rank in path', () => {
       const path = getCardAssetPath('hearts', 'J')
-      expect(path).toBe('/assets/cards/hearts/hearts_j.png')
+      expect(path).toBe('assets/cards/hearts/hearts_j.png')
       expect(path).not.toContain('_J.') // uppercase
     })
   })
