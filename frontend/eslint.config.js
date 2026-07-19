@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'playwright-report', 'test-results'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -36,6 +36,18 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',
+    },
+  },
+  {
+    // Playwright e2e specs + config run under Node and use Playwright's own
+    // test globals. They are not React modules, so disable the react-refresh
+    // component rule and provide Node globals.
+    files: ['e2e/**/*.{ts,tsx}', 'playwright.config.ts'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   }
 )
