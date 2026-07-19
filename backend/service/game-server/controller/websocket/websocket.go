@@ -167,6 +167,24 @@ func InitWebSocket(database *db.DB) {
 	slog.Info("WebSocket service initialized with database dependencies")
 }
 
+// InitWebSocketTestMode initializes the WebSocket service for SPAR_TEST_MODE
+// without any database. It deliberately keeps the in-memory room manager
+// (created in init) instead of the repository-backed one, so room create/join
+// and live gameplay run entirely in memory - the DB-optional half of test mode.
+// The matchmaking worker is still started so the quick-match path stays
+// available. userRepository is left nil (every read of it is nil-guarded and
+// falls back to placeholder player info).
+func InitWebSocketTestMode() {
+	// roomManager already points at the in-memory room.NewManager() from init().
+	// Re-bind matchmaking to it and start the background worker.
+	matchmakingQueue = matchmaking.NewQueueManager(roomManager)
+
+	matchmakingCtx, matchmakingCancel = context.WithCancel(context.Background())
+	go matchmakingQueue.Start(matchmakingCtx)
+
+	slog.Warn("WebSocket service initialized in SPAR_TEST_MODE (no database)")
+}
+
 // ShutdownWebSocket gracefully shuts down the WebSocket service
 func ShutdownWebSocket() {
 	if matchmakingCancel != nil {
@@ -1935,19 +1953,32 @@ type playerSeed struct {
 // call (win-streak bonuses, flag penalties) carry into the new game. This is the
 // single new-game path shared by game start, play-again, and flag-void reshuffle.
 func buildFreshGame(roomCode string, pointsToWin int, seeds []playerSeed) (*entity.GameState, error) {
-	// Create and shuffle deck
-	deck := entity.NewDeck()
-	deck.Shuffle()
+	var hands [][]entity.Card
+	var leaderIndex int
 
-	// Deal cards to players
-	hands, err := deck.Deal(len(seeds))
-	if err != nil {
-		return nil, fmt.Errorf("failed to deal cards: %w", err)
+	// SPAR_TEST_MODE hand injection: when a deterministic scenario is pinned for
+	// this room (and the seat count matches), use its exact hands + opening
+	// leader instead of a shuffled deck. This hook is a hard no-op unless test
+	// mode is enabled, so the production path below is unchanged.
+	if injHands, injLeader, ok := injectedHandsFor(roomCode, len(seeds)); ok {
+		hands = injHands
+		leaderIndex = injLeader
+	} else {
+		// Create and shuffle deck
+		deck := entity.NewDeck()
+		deck.Shuffle()
+
+		// Deal cards to players
+		dealt, err := deck.Deal(len(seeds))
+		if err != nil {
+			return nil, fmt.Errorf("failed to deal cards: %w", err)
+		}
+		hands = dealt
+
+		// Pick a random leader for the first round. The winner of each round leads
+		// the next one, so this randomness only applies to the opening round.
+		leaderIndex = pickRandomLeaderIndex(len(seeds))
 	}
-
-	// Pick a random leader for the first round. The winner of each round leads
-	// the next one, so this randomness only applies to the opening round.
-	leaderIndex := pickRandomLeaderIndex(len(seeds))
 
 	// Convert seeds to game players with dealt hands
 	gamePlayers := make([]entity.GamePlayer, len(seeds))
