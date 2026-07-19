@@ -67,6 +67,7 @@ import "github.com/npeprah/sparui/backend/service/game-server/entity"
 //	matchmaking:match_found MatchmakingMatchFoundPayload
 //	matchmaking:status      QueueStatus
 //	matchmaking:status_update QueueStatus
+//	matchmaking:error       ErrorPayload               (queue join/leave/status failures)
 //	error                   ErrorPayload
 //
 // ---------------------------------------------------------------------------

@@ -234,8 +234,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Reset any in-flight countdown, seed with the authoritative server value,
     // then decrement locally once per second until the next server update.
     get().stopTurnCountdown()
-    const seed = Math.max(0, Math.floor(seconds))
+    const seed = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0
     set({ timeRemaining: seed })
+    if (seed <= 0) {
+      return
+    }
     turnCountdownHandle = setInterval(() => {
       const current = get().timeRemaining
       if (current <= 0) {

@@ -156,6 +156,7 @@ export interface ServerToClientEvents {
   'matchmaking:match_found': (data: MatchmakingMatchFoundResponse) => void
   'matchmaking:status': (data: MatchmakingStatusResponse) => void
   'matchmaking:status_update': (data: MatchmakingStatusResponse) => void
+  'matchmaking:error': (data: { error: string }) => void
 
   // Errors
   error: (data: { error: string; code?: string }) => void
