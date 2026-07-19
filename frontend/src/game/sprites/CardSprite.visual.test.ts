@@ -40,10 +40,24 @@ vi.mock('../utils/cardVisuals', () => ({
   applyKentePattern: vi.fn(),
 }))
 
+const makeGraphicsStub = () => ({
+  lineStyle: vi.fn().mockReturnThis(),
+  fillStyle: vi.fn().mockReturnThis(),
+  strokeRoundedRect: vi.fn().mockReturnThis(),
+  fillRoundedRect: vi.fn().mockReturnThis(),
+  fillRect: vi.fn().mockReturnThis(),
+  clear: vi.fn().mockReturnThis(),
+  setPosition: vi.fn().mockReturnThis(),
+  setDepth: vi.fn().mockReturnThis(),
+  setVisible: vi.fn().mockReturnThis(),
+  setAlpha: vi.fn().mockReturnThis(),
+  destroy: vi.fn(),
+})
+
 const mockScene = {
   add: {
     existing: vi.fn(),
-    graphics: vi.fn(),
+    graphics: vi.fn(() => makeGraphicsStub()),
   },
   tweens: {
     add: vi.fn(),
@@ -51,6 +65,9 @@ const mockScene = {
   },
   textures: {
     exists: vi.fn().mockReturnValue(true),
+  },
+  events: {
+    emit: vi.fn(),
   },
 }
 
@@ -208,6 +225,78 @@ describe('CardSprite Visual States', () => {
         'disabled',
         'default'
       )
+    })
+  })
+
+  describe('EK border treatment (ticket 12)', () => {
+    it('resolves a treatment from the active theme (default gold)', () => {
+      // Default themeStore theme is afro_heritage -> gold treatment.
+      expect(cardSprite.getEKTreatment()).toBe('gold')
+    })
+  })
+
+  describe('State-overlay hooks/slots (ticket 12 -> ticket 16)', () => {
+    it('starts with all overlay slots inactive', () => {
+      expect(cardSprite.getOverlayState()).toEqual({
+        fire: false,
+        freeze: false,
+        dry: false,
+      })
+    })
+
+    it('setDryState toggles only the dry slot and reports via isOverlayActive', () => {
+      cardSprite.setDryState(true)
+      expect(cardSprite.isOverlayActive('dry')).toBe(true)
+      expect(cardSprite.getOverlayState()).toEqual({
+        fire: false,
+        freeze: false,
+        dry: true,
+      })
+
+      cardSprite.setDryState(false)
+      expect(cardSprite.isOverlayActive('dry')).toBe(false)
+    })
+
+    it('setFireState marks the fire overlay slot active', () => {
+      cardSprite.setFireState(true)
+      expect(cardSprite.isOverlayActive('fire')).toBe(true)
+
+      cardSprite.setFireState(false)
+      expect(cardSprite.isOverlayActive('fire')).toBe(false)
+    })
+
+    it('setFreezeState marks the freeze overlay slot active', () => {
+      cardSprite.setFreezeState(true)
+      expect(cardSprite.isOverlayActive('freeze')).toBe(true)
+
+      cardSprite.setFreezeState(false)
+      expect(cardSprite.isOverlayActive('freeze')).toBe(false)
+    })
+
+    it('attachOverlay stores an object, marks the slot active, and detach destroys it', () => {
+      const destroy = vi.fn()
+      const fakeEffect = { destroy } as unknown as import('phaser').GameObjects.GameObject
+
+      cardSprite.attachOverlay('dry', fakeEffect)
+      expect(cardSprite.isOverlayActive('dry')).toBe(true)
+
+      cardSprite.detachOverlay('dry')
+      expect(destroy).toHaveBeenCalledOnce()
+    })
+
+    it('attaching a new object to a slot destroys the previous one', () => {
+      const firstDestroy = vi.fn()
+      const secondDestroy = vi.fn()
+      const first = { destroy: firstDestroy } as unknown as import('phaser').GameObjects.GameObject
+      const second = {
+        destroy: secondDestroy,
+      } as unknown as import('phaser').GameObjects.GameObject
+
+      cardSprite.attachOverlay('fire', first)
+      cardSprite.attachOverlay('fire', second)
+
+      expect(firstDestroy).toHaveBeenCalledOnce()
+      expect(secondDestroy).not.toHaveBeenCalled()
     })
   })
 })
