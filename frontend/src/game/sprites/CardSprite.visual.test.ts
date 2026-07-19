@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CardSprite } from './CardSprite'
 import * as cardVisuals from '../utils/cardVisuals'
+import { useThemeStore } from '../../store/themeStore'
+import { getCardAssetKey } from '../constants/cards'
 
 // Mock Phaser
 vi.mock('phaser', () => ({
@@ -230,8 +232,28 @@ describe('CardSprite Visual States', () => {
 
   describe('EK border treatment (ticket 12)', () => {
     it('resolves a treatment from the active theme (default gold)', () => {
-      // Default themeStore theme is afro_heritage -> gold treatment.
+      // Default themeStore theme is warm_heritage -> gold treatment.
       expect(cardSprite.getEKTreatment()).toBe('gold')
+    })
+
+    it('reskins the border per palette while the FACE stays palette-agnostic', () => {
+      const faceKey = getCardAssetKey('hearts', '7')
+      const treatments: Record<string, string> = {}
+
+      for (const theme of ['warm_heritage', 'comic', 'neon'] as const) {
+        useThemeStore.setState({ selectedTheme: theme })
+        const card = new CardSprite(mockScene as any, 100, 200, 'hearts', '7', 'p')
+        treatments[theme] = card.getEKTreatment()
+        // The card FACE texture is the same across every palette - only the
+        // surrounding border treatment changes.
+        expect((card as any).texture).toBe(faceKey)
+      }
+
+      // Each palette produced its own distinct border treatment.
+      expect(treatments).toEqual({ warm_heritage: 'gold', comic: 'comic', neon: 'neon' })
+
+      // Restore the default palette for the remaining tests.
+      useThemeStore.setState({ selectedTheme: 'warm_heritage' })
     })
   })
 

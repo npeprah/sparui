@@ -101,19 +101,12 @@ export const EK_BORDER_STYLES: Record<EKBorderTreatment, EKBorderStyle> = {
 /**
  * Map an app theme (from `themeStore`) to an EK border treatment.
  *
- * The canonical EK palettes are Warm Heritage / Comic / Neon (ticket 15 will
- * introduce those as first-class `themeStore` entries). Until then this maps
- * the existing four surface themes onto the three treatments and also accepts
- * the future canonical keys, defaulting to `gold` for anything unknown so the
- * card always has a valid, well-defined frame.
+ * The canonical EK palettes are Warm Heritage / Comic / Neon (ticket 15 made
+ * these first-class `themeStore` entries, retiring the old four surface-theme
+ * names). Each canonical palette maps 1:1 onto a treatment; anything unknown
+ * defaults to `gold` so the card always has a valid, well-defined frame.
  */
 const THEME_TO_TREATMENT: Record<string, EKBorderTreatment> = {
-  // Existing surface themes.
-  afro_heritage: 'gold',
-  royal_gold: 'gold',
-  neon_arcade: 'neon',
-  ocean_breeze: 'comic',
-  // Forward-compatible canonical EK theme keys (ticket 15).
   warm_heritage: 'gold',
   comic: 'comic',
   neon: 'neon',

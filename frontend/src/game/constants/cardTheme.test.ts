@@ -8,27 +8,21 @@ import {
 
 describe('cardTheme - EK border treatment mapping', () => {
   describe('resolveEKTreatment', () => {
-    it('maps existing surface themes to a treatment', () => {
-      expect(resolveEKTreatment('afro_heritage')).toBe('gold')
-      expect(resolveEKTreatment('royal_gold')).toBe('gold')
-      expect(resolveEKTreatment('neon_arcade')).toBe('neon')
-      expect(resolveEKTreatment('ocean_breeze')).toBe('comic')
-    })
-
-    it('accepts forward-compatible canonical EK theme keys (ticket 15)', () => {
+    it('maps the three canonical palettes 1:1 onto a treatment', () => {
       expect(resolveEKTreatment('warm_heritage')).toBe('gold')
       expect(resolveEKTreatment('comic')).toBe('comic')
       expect(resolveEKTreatment('neon')).toBe('neon')
     })
 
-    it('falls back to gold for unknown themes', () => {
+    it('falls back to gold for unknown / retired themes', () => {
       expect(resolveEKTreatment('does_not_exist')).toBe('gold')
+      expect(resolveEKTreatment('afro_heritage')).toBe('gold')
       expect(resolveEKTreatment('')).toBe('gold')
     })
 
-    it('reaches all three treatments across the current theme set', () => {
+    it('reaches all three treatments across the canonical theme set', () => {
       const reached = new Set<EKBorderTreatment>(
-        ['afro_heritage', 'royal_gold', 'neon_arcade', 'ocean_breeze'].map(resolveEKTreatment)
+        ['warm_heritage', 'comic', 'neon'].map(resolveEKTreatment)
       )
       expect(reached).toEqual(new Set(['gold', 'comic', 'neon']))
     })
@@ -36,9 +30,9 @@ describe('cardTheme - EK border treatment mapping', () => {
 
   describe('getEKBorderStyle', () => {
     it('returns the style whose treatment matches the resolved treatment', () => {
-      expect(getEKBorderStyle('afro_heritage').treatment).toBe('gold')
-      expect(getEKBorderStyle('neon_arcade').treatment).toBe('neon')
-      expect(getEKBorderStyle('ocean_breeze').treatment).toBe('comic')
+      expect(getEKBorderStyle('warm_heritage').treatment).toBe('gold')
+      expect(getEKBorderStyle('neon').treatment).toBe('neon')
+      expect(getEKBorderStyle('comic').treatment).toBe('comic')
     })
 
     it('returns the gold style for unknown themes', () => {

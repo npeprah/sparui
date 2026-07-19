@@ -178,19 +178,26 @@ export function SettingsModal() {
             </div>
           </div>
 
-          {/* Surface Theme Selection */}
+          {/* Table Palette Selection (3 canonical EK palettes) */}
           <div className="mb-8">
-            <h3 className="text-lg font-medium text-gray-300 mb-4">Table Surface</h3>
-            <div data-testid="surface-theme-grid" className="grid grid-cols-2 gap-4">
+            <h3 className="text-lg font-medium text-gray-300 mb-4">Table Palette</h3>
+            <div data-testid="palette-grid" className="grid grid-cols-3 gap-4">
               {availableThemes.map(theme => {
                 const info = getThemeInfo(theme)
                 const isSelected = localTheme === theme
+                const swatchColors = [
+                  info.swatch.base,
+                  info.swatch.ink,
+                  info.swatch.accent,
+                  info.swatch.pop,
+                ]
 
                 return (
                   <button
                     key={theme}
                     role="button"
                     aria-label={info.name}
+                    title={info.description}
                     onClick={() => setLocalTheme(theme)}
                     onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -202,7 +209,7 @@ export function SettingsModal() {
                   >
                     <div
                       className={`
-                        rounded-lg overflow-hidden transition-all duration-200
+                        relative rounded-lg overflow-hidden transition-all duration-200
                         ${
                           isSelected
                             ? 'ring-4 ring-gold shadow-lg'
@@ -210,11 +217,12 @@ export function SettingsModal() {
                         }
                       `}
                     >
-                      <img
-                        src={info.preview}
-                        alt={info.name}
-                        className="w-full h-24 object-cover"
-                      />
+                      {/* Palette-honest swatch preview (no image asset). */}
+                      <div data-testid={`palette-swatch-${theme}`} className="flex h-24 w-full">
+                        {swatchColors.map((color, i) => (
+                          <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2">
                         <p className="text-white font-medium text-sm">{info.name}</p>

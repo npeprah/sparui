@@ -37,11 +37,12 @@ import {
   deriveRestart,
   deriveTurnTotal,
 } from './tableOrchestration'
+import { resolveCallout, type CalloutEvent, type CalloutStyle } from '../config/callouts'
 
 /** The slice of the scene the controller drives. TableScene implements this. */
 export interface TableSceneHooks {
   onPlayCardRequested?: (card: Card) => void
-  showCallout(text: string): void
+  showCallout(text: string, style?: CalloutStyle): void
   setTurnTotal(seconds: number): void
 }
 
@@ -82,6 +83,17 @@ export class TableGameController {
     this.refreshAffordance()
   }
 
+  /**
+   * Fire a comic callout for a game event. The word + style come from the
+   * designer-authored config (`game/config/callouts.ts`); the scene renders the
+   * style against the active palette. This is the single place events turn into
+   * banners, so the words/timing stay data-driven and editable without code.
+   */
+  private fireCallout(event: CalloutEvent): void {
+    const spec = resolveCallout(event)
+    this.scene.showCallout(spec.word, spec.style)
+  }
+
   // =========================================================================
   // local play intent (card click / drag-up from the scene)
   // =========================================================================
@@ -97,7 +109,7 @@ export class TableGameController {
     const affordance = this.currentAffordance()
     if (!affordance.canPlay) {
       if (affordance.reason === 'awaiting-leader') {
-        this.scene.showCallout('WAIT')
+        this.fireCallout('wait')
       }
       return
     }
@@ -178,6 +190,8 @@ export class TableGameController {
     // Local player's own card is authoritative-removed from the hand on echo.
     if (playerId === this.player.getState().playerId) {
       this.player.getState().removeCardFromHand(card.id)
+      // Big-play beat: pop the "POW!" callout when the local player slams a card.
+      this.fireCallout('bigPlay')
     }
 
     // Shrink the player's stored hand so opponent card-back fans lose a card as
@@ -245,17 +259,17 @@ export class TableGameController {
     g.setFireStreakPlayer(fireStreakPlayer ?? null)
     g.setFrozenCard(frozenCard ?? null)
 
-    // Callout (placeholder words - ticket 15 makes these data-driven).
+    // Callout words + style come from the designer-authored config by event.
     if (data.freezeTriggered) {
-      this.scene.showCallout('FREEZE!')
+      this.fireCallout('freeze')
     } else if (isShowDry) {
-      this.scene.showCallout('SHOW DRY!')
+      this.fireCallout('showDry')
     } else if (isDry) {
-      this.scene.showCallout('DRY!')
+      this.fireCallout('dry')
     } else if (fireStreakPlayer) {
-      this.scene.showCallout('ON FIRE!')
+      this.fireCallout('fireStreak')
     } else {
-      this.scene.showCallout('ROUND!')
+      this.fireCallout('roundWin')
     }
 
     this.refreshAffordance()
@@ -280,7 +294,7 @@ export class TableGameController {
     })
     this.game.getState().setGamePhase('finished')
     this.game.getState().stopTurnCountdown()
-    this.scene.showCallout('GAME!')
+    this.fireCallout('gameWin')
     this.refreshAffordance()
   }
 
@@ -316,7 +330,7 @@ export class TableGameController {
       isShown: data.isShown,
       card: data.card ?? null,
     })
-    this.scene.showCallout(data.isShown ? 'SHOW DRY!' : 'DRY!')
+    this.fireCallout(data.isShown ? 'showDry' : 'dry')
   }
 
   private onFlagResolved(data: Parameters<ServerToClientEvents['game:flag_resolved']>[0]): void {
@@ -331,14 +345,14 @@ export class TableGameController {
         }
       }
     }
-    this.scene.showCallout(data.correct ? 'BUSTED!' : 'SAFE!')
+    this.fireCallout(data.correct ? 'flagBusted' : 'flagSafe')
   }
 
   private onFlagError(data: { error: string; code?: string }): void {
     // Non-fatal: a bad flag / dry attempt. Surface a light callout; the backend
     // stays authoritative.
     console.warn('[TableGameController] action rejected:', data.error)
-    this.scene.showCallout('NOPE!')
+    this.fireCallout('invalid')
   }
 
   // =========================================================================

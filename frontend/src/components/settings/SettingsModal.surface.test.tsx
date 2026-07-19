@@ -31,7 +31,13 @@ vi.mock('../avatar', () => ({
   ),
 }))
 
-describe('SettingsModal - Surface Selection', () => {
+const SWATCHES: Record<string, { base: string; ink: string; accent: string; pop: string }> = {
+  warm_heritage: { base: '#f5e6c8', ink: '#14100c', accent: '#ffd700', pop: '#e4002b' },
+  comic: { base: '#ffd400', ink: '#14100c', accent: '#ff5a1f', pop: '#ffffff' },
+  neon: { base: '#0d0221', ink: '#00f5ff', accent: '#ff006e', pop: '#2a0a4a' },
+}
+
+describe('SettingsModal - Palette Selection', () => {
   const mockCloseSettings = vi.fn()
   const mockSetTheme = vi.fn()
   const mockToggleSound = vi.fn()
@@ -41,8 +47,6 @@ describe('SettingsModal - Surface Selection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-
-    // Setup default mock returns for UIStore
     ;(useUIStore as any).mockReturnValue({
       isSettingsOpen: true,
       closeSettings: mockCloseSettings,
@@ -51,11 +55,9 @@ describe('SettingsModal - Surface Selection', () => {
       toggleSound: mockToggleSound,
       toggleMusic: mockToggleMusic,
     })
-
-    // Setup default mock returns for ThemeStore
     ;(useThemeStore as any).mockReturnValue({
-      selectedTheme: 'afro_heritage',
-      availableThemes: ['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze'],
+      selectedTheme: 'warm_heritage',
+      availableThemes: ['warm_heritage', 'comic', 'neon'],
       setTheme: mockSetTheme,
       getThemeInfo: (theme: string) => ({
         id: theme,
@@ -64,11 +66,9 @@ describe('SettingsModal - Surface Selection', () => {
           .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(' '),
         description: `Description for ${theme}`,
-        preview: `/assets/surfaces/surface_${theme}.png`,
+        swatch: SWATCHES[theme],
       }),
     })
-
-    // Setup default mock returns for PlayerStore
     ;(usePlayerStore as any).mockReturnValue({
       playerName: 'TestPlayer',
       avatar: 'avatar_01',
@@ -77,106 +77,80 @@ describe('SettingsModal - Surface Selection', () => {
     })
   })
 
-  describe('Surface Theme Section', () => {
-    it('should display surface theme section', () => {
+  describe('Palette Section', () => {
+    it('should display the palette section', () => {
       render(<SettingsModal />)
-      expect(screen.getByText('Table Surface')).toBeInTheDocument()
+      expect(screen.getByText('Table Palette')).toBeInTheDocument()
     })
 
-    it('should display all 4 surface theme options', () => {
+    it('should display all 3 canonical palette options', () => {
       render(<SettingsModal />)
 
-      expect(screen.getByAltText('Afro Heritage')).toBeInTheDocument()
-      expect(screen.getByAltText('Neon Arcade')).toBeInTheDocument()
-      expect(screen.getByAltText('Royal Gold')).toBeInTheDocument()
-      expect(screen.getByAltText('Ocean Breeze')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Warm Heritage/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^Comic$/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^Neon$/i })).toBeInTheDocument()
     })
 
-    it('should show surface preview images', () => {
+    it('should render a swatch preview per palette (no image assets)', () => {
       render(<SettingsModal />)
 
-      const previews = screen
-        .getAllByRole('img')
+      expect(screen.getByTestId('palette-swatch-warm_heritage')).toBeInTheDocument()
+      expect(screen.getByTestId('palette-swatch-comic')).toBeInTheDocument()
+      expect(screen.getByTestId('palette-swatch-neon')).toBeInTheDocument()
+
+      // No surface images are used anymore.
+      const surfaceImages = screen
+        .queryAllByRole('img')
         .filter(img => img.getAttribute('src')?.includes('/assets/surfaces/'))
-
-      expect(previews).toHaveLength(4)
-      expect(previews[0]).toHaveAttribute('src', '/assets/surfaces/surface_afro_heritage.png')
-      expect(previews[1]).toHaveAttribute('src', '/assets/surfaces/surface_neon_arcade.png')
-      expect(previews[2]).toHaveAttribute('src', '/assets/surfaces/surface_royal_gold.png')
-      expect(previews[3]).toHaveAttribute('src', '/assets/surfaces/surface_ocean_breeze.png')
+      expect(surfaceImages).toHaveLength(0)
     })
 
-    it('should highlight the currently selected theme', () => {
+    it('should highlight the currently selected palette', () => {
       render(<SettingsModal />)
 
-      const afroHeritageButton = screen.getByRole('button', { name: /Afro Heritage/i })
-      const buttonContainer = afroHeritageButton.querySelector('div')
-      expect(buttonContainer).toHaveClass('ring-gold')
+      const button = screen.getByRole('button', { name: /Warm Heritage/i })
+      expect(button.querySelector('div')).toHaveClass('ring-gold')
     })
 
-    it('should update local state when a different surface is clicked', () => {
+    it('should update local state when a different palette is clicked', () => {
       render(<SettingsModal />)
 
-      const neonArcadeButton = screen.getByRole('button', { name: /Neon Arcade/i })
-      fireEvent.click(neonArcadeButton)
+      const neonButton = screen.getByRole('button', { name: /^Neon$/i })
+      fireEvent.click(neonButton)
 
-      // Check that the selection is visually updated (class change)
-      const buttonContainer = neonArcadeButton.querySelector('div')
-      expect(buttonContainer).toHaveClass('ring-gold')
+      expect(neonButton.querySelector('div')).toHaveClass('ring-gold')
     })
 
     it('should not immediately call setTheme before saving', () => {
       render(<SettingsModal />)
 
-      const royalGoldButton = screen.getByRole('button', { name: /Royal Gold/i })
-      fireEvent.click(royalGoldButton)
-
-      // Theme should not be set until Save is clicked
+      fireEvent.click(screen.getByRole('button', { name: /^Comic$/i }))
       expect(mockSetTheme).not.toHaveBeenCalled()
     })
 
-    it('should call setTheme with selected surface when Save is clicked', () => {
+    it('should call setTheme with selected palette when Save is clicked', () => {
       render(<SettingsModal />)
 
-      // Select a new surface
-      const oceanBreezeButton = screen.getByRole('button', { name: /Ocean Breeze/i })
-      fireEvent.click(oceanBreezeButton)
+      fireEvent.click(screen.getByRole('button', { name: /^Neon$/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Save Settings/i }))
 
-      // Click Save
-      const saveButton = screen.getByRole('button', { name: /Save Settings/i })
-      fireEvent.click(saveButton)
-
-      // Verify setTheme was called with the new theme
-      expect(mockSetTheme).toHaveBeenCalledWith('ocean_breeze')
+      expect(mockSetTheme).toHaveBeenCalledWith('neon')
     })
 
     it('should not call setTheme when Cancel is clicked', () => {
       render(<SettingsModal />)
 
-      // Select a new surface
-      const neonArcadeButton = screen.getByRole('button', { name: /Neon Arcade/i })
-      fireEvent.click(neonArcadeButton)
+      fireEvent.click(screen.getByRole('button', { name: /^Comic$/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
 
-      // Click Cancel
-      const cancelButton = screen.getByRole('button', { name: /Cancel/i })
-      fireEvent.click(cancelButton)
-
-      // Verify setTheme was NOT called
       expect(mockSetTheme).not.toHaveBeenCalled()
     })
 
     it('should reset local selection when modal reopens', () => {
       const { rerender } = render(<SettingsModal />)
 
-      // Select a new surface
-      const neonArcadeButton = screen.getByRole('button', { name: /Neon Arcade/i })
-      fireEvent.click(neonArcadeButton)
-
-      // Close without saving
-      const cancelButton = screen.getByRole('button', { name: /Cancel/i })
-      fireEvent.click(cancelButton)
-
-      // Simulate modal closing and reopening
+      fireEvent.click(screen.getByRole('button', { name: /^Comic$/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
       ;(useUIStore as any).mockReturnValue({
         isSettingsOpen: false,
         closeSettings: mockCloseSettings,
@@ -192,97 +166,51 @@ describe('SettingsModal - Surface Selection', () => {
       })
       rerender(<SettingsModal />)
 
-      // Original selection should be shown
-      const afroHeritageButton = screen.getByRole('button', { name: /Afro Heritage/i })
-      const buttonContainer = afroHeritageButton.querySelector('div')
-      expect(buttonContainer).toHaveClass('ring-gold')
+      const warmButton = screen.getByRole('button', { name: /Warm Heritage/i })
+      expect(warmButton.querySelector('div')).toHaveClass('ring-gold')
     })
 
-    it('should display surface theme descriptions', () => {
+    it('should display a name for each palette', () => {
       render(<SettingsModal />)
 
-      const surfaceButtons = screen
-        .getAllByRole('button')
-        .filter(btn => btn.querySelector('img[src*="/assets/surfaces/"]'))
-
-      surfaceButtons.forEach(button => {
-        const surfaceName = button.querySelector('p')?.textContent
-        expect(surfaceName).toBeTruthy()
-      })
+      const grid = screen.getByTestId('palette-grid')
+      const names = grid.querySelectorAll('p')
+      expect(names.length).toBe(3)
+      names.forEach(n => expect(n.textContent).toBeTruthy())
     })
 
-    it('should have proper keyboard navigation for surface selection', () => {
+    it('should select palette on Enter key press', () => {
       render(<SettingsModal />)
 
-      const surfaceButtons = screen
-        .getAllByRole('button')
-        .filter(btn => btn.querySelector('img[src*="/assets/surfaces/"]'))
+      const comicButton = screen.getByRole('button', { name: /^Comic$/i })
+      comicButton.focus()
+      fireEvent.keyDown(comicButton, { key: 'Enter' })
 
-      // Each button should be focusable
-      surfaceButtons.forEach(button => {
-        button.focus()
-        expect(document.activeElement).toBe(button)
-      })
+      expect(comicButton.querySelector('div')).toHaveClass('ring-gold')
     })
 
-    it('should select surface on Enter key press', () => {
+    it('should select palette on Space key press', () => {
       render(<SettingsModal />)
 
-      const royalGoldButton = screen.getByRole('button', { name: /Royal Gold/i })
-      royalGoldButton.focus()
+      const neonButton = screen.getByRole('button', { name: /^Neon$/i })
+      neonButton.focus()
+      fireEvent.keyDown(neonButton, { key: ' ' })
 
-      fireEvent.keyDown(royalGoldButton, { key: 'Enter' })
-
-      const buttonContainer = royalGoldButton.querySelector('div')
-      expect(buttonContainer).toHaveClass('ring-gold')
+      expect(neonButton.querySelector('div')).toHaveClass('ring-gold')
     })
 
-    it('should select surface on Space key press', () => {
+    it('should display palettes in a 3-column grid', () => {
       render(<SettingsModal />)
 
-      const oceanBreezeButton = screen.getByRole('button', { name: /Ocean Breeze/i })
-      oceanBreezeButton.focus()
-
-      fireEvent.keyDown(oceanBreezeButton, { key: ' ' })
-
-      const buttonContainer = oceanBreezeButton.querySelector('div')
-      expect(buttonContainer).toHaveClass('ring-gold')
+      const grid = screen.getByTestId('palette-grid')
+      expect(grid).toHaveClass('grid-cols-3')
     })
 
-    it('should display surfaces in a 2x2 grid', () => {
+    it('should show checkmark icon on selected palette', () => {
       render(<SettingsModal />)
 
-      const surfaceGrid = screen.getByTestId('surface-theme-grid')
-      expect(surfaceGrid).toHaveClass('grid-cols-2')
-    })
-
-    it('should show checkmark icon on selected surface', () => {
-      render(<SettingsModal />)
-
-      const afroHeritageButton = screen.getByRole('button', { name: /Afro Heritage/i })
-      const checkIcon = afroHeritageButton.querySelector('[data-testid="check-icon"]')
-
-      expect(checkIcon).toBeInTheDocument()
-    })
-
-    it('should have hover effect on surface buttons', () => {
-      render(<SettingsModal />)
-
-      const surfaceButtons = screen
-        .getAllByRole('button')
-        .filter(btn => btn.querySelector('img[src*="/assets/surfaces/"]'))
-
-      // At least one non-selected button should have hover effect
-      const nonSelectedButtons = surfaceButtons.filter(button => {
-        const buttonContainer = button.querySelector('div')
-        return buttonContainer && !buttonContainer.className.includes('ring-gold')
-      })
-
-      expect(nonSelectedButtons.length).toBeGreaterThan(0)
-      nonSelectedButtons.forEach(button => {
-        const buttonContainer = button.querySelector('div')
-        expect(buttonContainer?.className).toContain('hover:ring-gray-')
-      })
+      const warmButton = screen.getByRole('button', { name: /Warm Heritage/i })
+      expect(warmButton.querySelector('[data-testid="check-icon"]')).toBeInTheDocument()
     })
   })
 
@@ -290,35 +218,24 @@ describe('SettingsModal - Surface Selection', () => {
     it('should save all settings together when Save is clicked', () => {
       render(<SettingsModal />)
 
-      // Change player name
       const nameInput = screen.getByLabelText('Player Name')
       fireEvent.change(nameInput, { target: { value: 'NewName' } })
 
-      // Select new surface
-      const neonArcadeButton = screen.getByRole('button', { name: /Neon Arcade/i })
-      fireEvent.click(neonArcadeButton)
-
-      // Save all settings
-      const saveButton = screen.getByRole('button', { name: /Save Settings/i })
-      fireEvent.click(saveButton)
+      fireEvent.click(screen.getByRole('button', { name: /^Comic$/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Save Settings/i }))
 
       expect(mockSetPlayerName).toHaveBeenCalledWith('NewName')
-      expect(mockSetTheme).toHaveBeenCalledWith('neon_arcade')
+      expect(mockSetTheme).toHaveBeenCalledWith('comic')
     })
 
     it('should not save any settings when Cancel is clicked', () => {
       render(<SettingsModal />)
 
-      // Change multiple settings
       const nameInput = screen.getByLabelText('Player Name')
       fireEvent.change(nameInput, { target: { value: 'NewName' } })
 
-      const neonArcadeButton = screen.getByRole('button', { name: /Neon Arcade/i })
-      fireEvent.click(neonArcadeButton)
-
-      // Cancel
-      const cancelButton = screen.getByRole('button', { name: /Cancel/i })
-      fireEvent.click(cancelButton)
+      fireEvent.click(screen.getByRole('button', { name: /^Comic$/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }))
 
       expect(mockSetPlayerName).not.toHaveBeenCalled()
       expect(mockSetTheme).not.toHaveBeenCalled()

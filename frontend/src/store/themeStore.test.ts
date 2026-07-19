@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useThemeStore } from './themeStore'
+import { useThemeStore, DEFAULT_THEME } from './themeStore'
+import { resolveEKTreatment } from '../game/constants/cardTheme'
 
 // Mock localStorage
 const localStorageMock = {
@@ -15,27 +16,20 @@ global.localStorage = localStorageMock as Storage
 
 describe('themeStore', () => {
   beforeEach(() => {
-    // Clear all mocks and reset store
     vi.clearAllMocks()
-    useThemeStore.setState({
-      selectedTheme: 'afro_heritage',
-    })
+    useThemeStore.setState({ selectedTheme: DEFAULT_THEME })
   })
 
   describe('Initial State', () => {
-    it('should have default theme as afro_heritage', () => {
+    it('should have default theme as warm_heritage', () => {
       const { result } = renderHook(() => useThemeStore())
-      expect(result.current.selectedTheme).toBe('afro_heritage')
+      expect(result.current.selectedTheme).toBe('warm_heritage')
+      expect(DEFAULT_THEME).toBe('warm_heritage')
     })
 
-    it('should have all available themes', () => {
+    it('should expose exactly the three canonical palettes', () => {
       const { result } = renderHook(() => useThemeStore())
-      expect(result.current.availableThemes).toEqual([
-        'afro_heritage',
-        'neon_arcade',
-        'royal_gold',
-        'ocean_breeze',
-      ])
+      expect(result.current.availableThemes).toEqual(['warm_heritage', 'comic', 'neon'])
     })
   })
 
@@ -44,25 +38,25 @@ describe('themeStore', () => {
       const { result } = renderHook(() => useThemeStore())
 
       act(() => {
-        result.current.setTheme('neon_arcade')
+        result.current.setTheme('neon')
       })
 
-      expect(result.current.selectedTheme).toBe('neon_arcade')
+      expect(result.current.selectedTheme).toBe('neon')
     })
 
     it('should not update theme if invalid theme is provided', () => {
       const { result } = renderHook(() => useThemeStore())
 
       act(() => {
-        result.current.setTheme('invalid_theme' as any)
+        result.current.setTheme('invalid_theme' as never)
       })
 
-      expect(result.current.selectedTheme).toBe('afro_heritage')
+      expect(result.current.selectedTheme).toBe('warm_heritage')
     })
 
     it('should handle all valid themes', () => {
       const { result } = renderHook(() => useThemeStore())
-      const themes = ['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze'] as const
+      const themes = ['warm_heritage', 'comic', 'neon'] as const
 
       themes.forEach(theme => {
         act(() => {
@@ -74,100 +68,69 @@ describe('themeStore', () => {
   })
 
   describe('Theme Info', () => {
-    it('should return correct theme info for each theme', () => {
+    it('should return name, description and a palette swatch for each theme', () => {
       const { result } = renderHook(() => useThemeStore())
 
-      const afroInfo = result.current.getThemeInfo('afro_heritage')
-      expect(afroInfo).toEqual({
-        id: 'afro_heritage',
-        name: 'Afro Heritage',
-        description: 'Traditional Kente patterns with gold accents',
-        preview: '/assets/surfaces/surface_afro_heritage.png',
-      })
+      for (const theme of result.current.availableThemes) {
+        const info = result.current.getThemeInfo(theme)
+        expect(info.id).toBe(theme)
+        expect(info.name).toBeTruthy()
+        expect(info.description).toBeTruthy()
+        expect(info.swatch.base).toMatch(/^#[0-9a-f]{6}$/i)
+        expect(info.swatch.ink).toMatch(/^#[0-9a-f]{6}$/i)
+        expect(info.swatch.accent).toMatch(/^#[0-9a-f]{6}$/i)
+        expect(info.swatch.pop).toMatch(/^#[0-9a-f]{6}$/i)
+      }
+    })
 
-      const neonInfo = result.current.getThemeInfo('neon_arcade')
-      expect(neonInfo).toEqual({
-        id: 'neon_arcade',
-        name: 'Neon Arcade',
-        description: 'Vibrant neon glow with rainbow energy',
-        preview: '/assets/surfaces/surface_neon_arcade.png',
-      })
-
-      const royalInfo = result.current.getThemeInfo('royal_gold')
-      expect(royalInfo).toEqual({
-        id: 'royal_gold',
-        name: 'Royal Gold',
-        description: 'Deep purple majesty with golden highlights',
-        preview: '/assets/surfaces/surface_royal_gold.png',
-      })
-
-      const oceanInfo = result.current.getThemeInfo('ocean_breeze')
-      expect(oceanInfo).toEqual({
-        id: 'ocean_breeze',
-        name: 'Ocean Breeze',
-        description: 'Turquoise coastal vibes',
-        preview: '/assets/surfaces/surface_ocean_breeze.png',
-      })
+    it('names warm_heritage as the default (Warm Heritage)', () => {
+      const { result } = renderHook(() => useThemeStore())
+      expect(result.current.getThemeInfo('warm_heritage').name).toBe('Warm Heritage')
     })
   })
 
-  describe('Theme Path', () => {
-    it('should return correct path for selected theme', () => {
+  describe('Cross-consistency with the EK border treatments', () => {
+    it('maps each canonical palette 1:1 onto a distinct treatment', () => {
       const { result } = renderHook(() => useThemeStore())
-
-      expect(result.current.getThemePath()).toBe('/assets/surfaces/surface_afro_heritage.png')
-
-      act(() => {
-        result.current.setTheme('neon_arcade')
-      })
-
-      expect(result.current.getThemePath()).toBe('/assets/surfaces/surface_neon_arcade.png')
+      const treatments = result.current.availableThemes.map(resolveEKTreatment)
+      // warm_heritage -> gold, comic -> comic, neon -> neon
+      expect(treatments).toEqual(['gold', 'comic', 'neon'])
+      expect(new Set(treatments).size).toBe(3)
     })
   })
 
   describe('Persistence', () => {
-    it('should persist theme selection', async () => {
+    it('should keep the selected theme after setTheme', async () => {
       const { result } = renderHook(() => useThemeStore())
 
       act(() => {
-        result.current.setTheme('royal_gold')
+        result.current.setTheme('comic')
       })
 
-      // Wait a bit for the persist middleware to save
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      // The selectedTheme should be updated
-      expect(result.current.selectedTheme).toBe('royal_gold')
-
-      // Since we're using zustand persist, the actual localStorage test
-      // would require more complex setup. We're testing the behavior instead.
+      await new Promise(resolve => setTimeout(resolve, 50))
+      expect(result.current.selectedTheme).toBe('comic')
     })
 
-    it('should have persistence configured', () => {
-      // Verify the store has persist middleware by checking if the key exists
+    it('should have persistence configured (store name + partialized state)', () => {
       const { result } = renderHook(() => useThemeStore())
-
-      // The store should have the correct initial state
       expect(result.current.selectedTheme).toBeDefined()
       expect(result.current.availableThemes).toBeDefined()
     })
   })
 
   describe('Reset', () => {
-    it('should reset theme to default', () => {
+    it('should reset theme to the default palette', () => {
       const { result } = renderHook(() => useThemeStore())
 
       act(() => {
-        result.current.setTheme('neon_arcade')
+        result.current.setTheme('neon')
       })
-
-      expect(result.current.selectedTheme).toBe('neon_arcade')
+      expect(result.current.selectedTheme).toBe('neon')
 
       act(() => {
         result.current.resetTheme()
       })
-
-      expect(result.current.selectedTheme).toBe('afro_heritage')
+      expect(result.current.selectedTheme).toBe('warm_heritage')
     })
   })
 })

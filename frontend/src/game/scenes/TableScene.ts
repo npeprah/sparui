@@ -15,6 +15,7 @@ import {
   getEKBorderStyle,
   type EKBorderTreatment,
 } from '../constants/cardTheme'
+import { DEFAULT_CALLOUT_STYLE, type CalloutStyle, type CalloutSize } from '../config/callouts'
 import {
   TABLE,
   handFanPositions,
@@ -77,6 +78,7 @@ export class TableScene extends Phaser.Scene {
   private hudLayer?: Phaser.GameObjects.Container
   private ringGraphics?: Phaser.GameObjects.Graphics
   private bannerContainer?: Phaser.GameObjects.Container
+  private bannerBg?: Phaser.GameObjects.Graphics
   private bannerText?: Phaser.GameObjects.Text
   private scoreText?: Phaser.GameObjects.Text
 
@@ -280,45 +282,87 @@ export class TableScene extends Phaser.Scene {
   // =========================================================================
 
   private buildBanner(): void {
-    const palette = this.chromePalette()
     this.bannerContainer = this.add.container(TABLE.centerX, TABLE.height * 0.42).setDepth(900)
     this.bannerContainer.setScale(0)
     this.bannerContainer.setAlpha(0)
 
-    const bg = this.add.graphics()
-    bg.fillStyle(palette.pop, 1)
-    bg.fillRoundedRect(-190, -52, 380, 104, 10)
-    bg.lineStyle(8, palette.ink, 1)
-    bg.strokeRoundedRect(-190, -52, 380, 104, 10)
+    // The banner background + text colours are (re)painted per callout style in
+    // showCallout so each callout reskins with the active palette.
+    this.bannerBg = this.add.graphics()
 
     this.bannerText = this.add
       .text(0, 0, '', {
         fontFamily: 'Impact, "Arial Black", sans-serif',
-        fontSize: '54px',
-        color: this.hex(palette.ink),
+        fontSize: this.calloutFontSize('big'),
       })
       .setOrigin(0.5)
 
-    this.bannerContainer.add([bg, this.bannerText])
+    this.paintBanner(DEFAULT_CALLOUT_STYLE)
+    this.bannerContainer.add([this.bannerBg, this.bannerText])
+  }
+
+  /** Banner font size per callout emphasis. */
+  private calloutFontSize(size: CalloutSize): string {
+    switch (size) {
+      case 'huge':
+        return '64px'
+      case 'normal':
+        return '40px'
+      case 'big':
+      default:
+        return '54px'
+    }
   }
 
   /**
-   * Pop a comic callout banner (POW! / BOOM! / BUSTED! ...). Ticket 15 drives
-   * this from its designer-authored callout config; ticket 13 provides only the
-   * renderer + motion (bouncy pop-in, hold, shrink-out).
+   * Repaint the banner background + text for a callout style, resolved against
+   * the ACTIVE palette. So the same authored style reskins per theme: e.g. an
+   * `accent`-filled callout is gold on Warm Heritage and magenta on Neon.
    */
-  public showCallout(text: string): void {
+  private paintBanner(style: CalloutStyle): void {
+    const palette = this.chromePalette()
+    const fill = {
+      accent: palette.accent,
+      danger: palette.danger,
+      pop: palette.pop,
+      ink: palette.ink,
+    }[style.fill]
+    // Text stays legible against the fill: ink on light fills, pop on the ink fill.
+    const textColor = style.fill === 'ink' ? palette.pop : palette.ink
+
+    if (this.bannerBg) {
+      this.bannerBg.clear()
+      this.bannerBg.fillStyle(fill, 1)
+      this.bannerBg.fillRoundedRect(-190, -52, 380, 104, 10)
+      this.bannerBg.lineStyle(8, palette.ink, 1)
+      this.bannerBg.strokeRoundedRect(-190, -52, 380, 104, 10)
+    }
+    if (this.bannerText) {
+      this.bannerText.setColor(this.hex(textColor))
+      this.bannerText.setFontSize(this.calloutFontSize(style.size))
+    }
+  }
+
+  /**
+   * Pop a comic callout banner (POW! / BOOM! / BUSTED! ...). Words + style come
+   * from the designer-authored callout config (via TableGameController); this
+   * owns only the renderer + motion (bouncy pop-in, hold, shrink-out) and
+   * reskins the banner to the active palette for the given style.
+   */
+  public showCallout(text: string, style: CalloutStyle = DEFAULT_CALLOUT_STYLE): void {
     const banner = this.bannerContainer
     if (!banner || !this.bannerText) return
+    this.paintBanner(style)
     this.bannerText.setText(text)
     this.tweens.killTweensOf(banner)
-    banner.setScale(0).setAlpha(1).setAngle(-8)
+    const startAngle = style.shake ? -10 : -8
+    banner.setScale(0).setAlpha(1).setAngle(startAngle)
     this.tweens.add({
       targets: banner,
       scale: 1,
-      angle: -3,
+      angle: style.shake ? 3 : -3,
       duration: 480,
-      ease: 'Back.easeOut',
+      ease: style.shake ? 'Elastic.easeOut' : 'Back.easeOut',
       onComplete: () => {
         this.tweens.add({
           targets: banner,

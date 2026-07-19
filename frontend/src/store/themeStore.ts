@@ -1,13 +1,36 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type ThemeName = 'afro_heritage' | 'neon_arcade' | 'royal_gold' | 'ocean_breeze'
+/**
+ * The three canonical EK table palettes (ticket 15).
+ *
+ * The table STRUCTURE is fixed (A-layout + B-chrome + C-ring); only the base
+ * PALETTE is swappable in settings. These keys are the single source of truth
+ * for the palette selection and map 1:1 onto the EK border treatments in
+ * `game/constants/cardTheme.ts` (`warm_heritage -> gold`, `comic -> comic`,
+ * `neon -> neon`). Card FACES stay palette-agnostic - only the chrome, borders,
+ * card back and callouts reskin.
+ */
+export type ThemeName = 'warm_heritage' | 'comic' | 'neon'
+
+/** A small palette used to render the settings picker swatch (CSS hex strings). */
+export interface ThemeSwatch {
+  /** Dominant surface / background colour. */
+  base: string
+  /** Chunky ink outline colour. */
+  ink: string
+  /** Accent / highlight colour. */
+  accent: string
+  /** Pop / secondary colour. */
+  pop: string
+}
 
 interface ThemeInfo {
   id: ThemeName
   name: string
   description: string
-  preview: string
+  /** Palette-honest swatch for the settings preview (no image asset needed). */
+  swatch: ThemeSwatch
 }
 
 interface ThemeState {
@@ -15,45 +38,41 @@ interface ThemeState {
   availableThemes: ThemeName[]
   setTheme: (theme: ThemeName) => void
   getThemeInfo: (theme: ThemeName) => ThemeInfo
-  getThemePath: () => string
   resetTheme: () => void
 }
 
+/** The default palette; matches the EK "Warm Heritage" direction. */
+export const DEFAULT_THEME: ThemeName = 'warm_heritage'
+
 const themeData: Record<ThemeName, ThemeInfo> = {
-  afro_heritage: {
-    id: 'afro_heritage',
-    name: 'Afro Heritage',
-    description: 'Traditional Kente patterns with gold accents',
-    preview: '/assets/surfaces/surface_afro_heritage.png',
+  warm_heritage: {
+    id: 'warm_heritage',
+    name: 'Warm Heritage',
+    description: 'Cream, red and gold - the classic EK look (default)',
+    swatch: { base: '#f5e6c8', ink: '#14100c', accent: '#ffd700', pop: '#e4002b' },
   },
-  neon_arcade: {
-    id: 'neon_arcade',
-    name: 'Neon Arcade',
-    description: 'Vibrant neon glow with rainbow energy',
-    preview: '/assets/surfaces/surface_neon_arcade.png',
+  comic: {
+    id: 'comic',
+    name: 'Comic',
+    description: 'Loud pop-art yellow with ink-black panels',
+    swatch: { base: '#ffd400', ink: '#14100c', accent: '#ff5a1f', pop: '#ffffff' },
   },
-  royal_gold: {
-    id: 'royal_gold',
-    name: 'Royal Gold',
-    description: 'Deep purple majesty with golden highlights',
-    preview: '/assets/surfaces/surface_royal_gold.png',
-  },
-  ocean_breeze: {
-    id: 'ocean_breeze',
-    name: 'Ocean Breeze',
-    description: 'Turquoise coastal vibes',
-    preview: '/assets/surfaces/surface_ocean_breeze.png',
+  neon: {
+    id: 'neon',
+    name: 'Neon',
+    description: 'Dark arcade base with cyan and magenta glow',
+    swatch: { base: '#0d0221', ink: '#00f5ff', accent: '#ff006e', pop: '#2a0a4a' },
   },
 }
 
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set, get) => ({
-      selectedTheme: 'afro_heritage',
-      availableThemes: ['afro_heritage', 'neon_arcade', 'royal_gold', 'ocean_breeze'],
+    set => ({
+      selectedTheme: DEFAULT_THEME,
+      availableThemes: ['warm_heritage', 'comic', 'neon'],
 
       setTheme: theme => {
-        // Validate theme before setting
+        // Validate theme before setting.
         if (themeData[theme]) {
           set({ selectedTheme: theme })
         }
@@ -63,13 +82,8 @@ export const useThemeStore = create<ThemeState>()(
         return themeData[theme]
       },
 
-      getThemePath: () => {
-        const currentTheme = get().selectedTheme
-        return `/assets/surfaces/surface_${currentTheme}.png`
-      },
-
       resetTheme: () => {
-        set({ selectedTheme: 'afro_heritage' })
+        set({ selectedTheme: DEFAULT_THEME })
       },
     }),
     {

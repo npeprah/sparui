@@ -282,6 +282,52 @@ describe('TableGameController', () => {
     controller.destroy()
   })
 
+  it('fires the configured comic callouts from the callout config (ticket 15)', () => {
+    useGameStore.getState().initializeFromBackend(backendState())
+    usePlayerStore.getState().setHand([{ suit: 'hearts', rank: '7', id: 'hearts-7' }])
+    const controller = makeController(socket, scene)
+
+    // Big-play beat on the local player's own card -> POW!
+    socket.fire('cardPlayed', {
+      playerId: 'me',
+      card: { suit: 'hearts', rank: '7', id: 'hearts-7' },
+      currentTurn: 'opp',
+    })
+    expect(scene.callouts).toContain('POW!')
+
+    // Round win (no special effect) -> BOOM!
+    socket.fire('roundWon', {
+      winnerId: 'me',
+      roundsWon: { me: 1, opp: 0 },
+      isDry: false,
+      isShowDry: false,
+    })
+    expect(scene.callouts).toContain('BOOM!')
+
+    // A landed flag/challenge -> BUSTED!
+    socket.fire('game:flag_resolved', { correct: true })
+    expect(scene.callouts).toContain('BUSTED!')
+
+    controller.destroy()
+  })
+
+  it('passes the authored callout STYLE through to the scene', () => {
+    const styled: Array<{ text: string; fill?: string }> = []
+    const styleScene = {
+      ...makeScene(),
+      showCallout(text: string, style?: { fill: string }) {
+        styled.push({ text, fill: style?.fill })
+      },
+    }
+    const controller = makeController(socket, styleScene)
+
+    socket.fire('game:flag_resolved', { correct: true })
+    // flagBusted is authored as a danger-filled callout.
+    expect(styled).toContainEqual({ text: 'BUSTED!', fill: 'danger' })
+
+    controller.destroy()
+  })
+
   it('detaches all handlers and clears the play hook on destroy', () => {
     const controller = makeController(socket, scene)
     expect(socket.handlerCount('cardPlayed')).toBe(1)
