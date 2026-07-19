@@ -153,10 +153,9 @@ func TestHandleFlagPlayer(t *testing.T) {
 			if !ok {
 				t.Fatalf("revealedHand missing or wrong type: %T", resolved["revealedHand"])
 			}
-			if len(revealed) != len(gs.GetPlayer("player2").Hand) {
-				// Note: gs is the voided state; its player2 hand is the accused's
-				// pre-void remaining hand, which is what we reveal.
-			}
+			// Note: we only assert the hand is non-empty. gs is the voided state,
+			// so its player2 hand is the accused's pre-void remaining hand, which
+			// is what we reveal - a length equality check would be brittle.
 			if len(revealed) == 0 {
 				t.Error("revealedHand should not be empty")
 			}
@@ -175,6 +174,7 @@ func TestHandleFlagPlayer(t *testing.T) {
 			gamesMu.RUnlock()
 			if fresh == nil {
 				t.Fatal("a fresh game should replace the voided one")
+				return
 			}
 			if fresh.GameID == originalGameID {
 				t.Error("game was not voided/reshuffled - same GameID persists")
