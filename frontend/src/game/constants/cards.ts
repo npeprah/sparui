@@ -13,27 +13,18 @@ export const ALL_RANKS: readonly Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', '
 // Spades has 8 cards: 6-K (no Ace of spades)
 export const SPADES_RANKS: readonly Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const
 
-// Card asset path structure (no leading slash - relative to public directory)
-export const CARD_ASSET_BASE_PATH = 'assets/cards'
-
 /**
- * Generate the asset key for a card
+ * Generate the texture key for a card.
+ *
+ * Card faces are drawn in-engine (ticket 18, see `cardTextureFactory.ts`) - the
+ * key still identifies the texture, but it is now a generated canvas texture
+ * rather than a loaded PNG.
  * @param suit - The card suit
  * @param rank - The card rank
- * @returns Asset key in format: "card_hearts_6"
+ * @returns Texture key in format: "card_hearts_6"
  */
 export function getCardAssetKey(suit: Suit, rank: Rank): string {
   return `card_${suit}_${rank.toLowerCase()}`
-}
-
-/**
- * Generate the file path for a card asset
- * @param suit - The card suit
- * @param rank - The card rank
- * @returns File path: "assets/cards/hearts/hearts_6.png"
- */
-export function getCardAssetPath(suit: Suit, rank: Rank): string {
-  return `${CARD_ASSET_BASE_PATH}/${suit}/${suit}_${rank.toLowerCase()}.png`
 }
 
 /**
@@ -85,23 +76,9 @@ export function generateSparDeck(): Array<{ suit: Suit; rank: Rank }> {
 export const SPAR_DECK_SIZE = 35
 
 /**
- * Card dimensions (original asset size)
- */
-export const CARD_DIMENSIONS = {
-  WIDTH: 512,
-  HEIGHT: 768,
-  ASPECT_RATIO: 512 / 768, // ~0.667
-} as const
-
-/**
- * Card back asset key
+ * Card back texture key (drawn in-engine, see `cardTextureFactory.ts`)
  */
 export const CARD_BACK_KEY = 'card_back'
-
-/**
- * Card back asset file path (designed illustration, no leading slash)
- */
-export const CARD_BACK_ASSET_PATH = `${CARD_ASSET_BASE_PATH}/card_back.png`
 
 /**
  * Card display scales for different contexts

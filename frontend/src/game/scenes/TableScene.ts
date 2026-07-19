@@ -18,6 +18,7 @@ import {
   type EKBorderTreatment,
 } from '../constants/cardTheme'
 import { DEFAULT_CALLOUT_STYLE, type CalloutStyle, type CalloutSize } from '../config/callouts'
+import { getBackdropSpec } from './tableBackdrop'
 import {
   TABLE,
   handFanPositions,
@@ -200,40 +201,95 @@ export class TableScene extends Phaser.Scene {
   // =========================================================================
 
   private buildBackground(): void {
-    // Gradient wash painted in-engine from the active treatment's palette. The
-    // table STRUCTURE is fixed and the base colour reskins per theme, so there
-    // are no per-theme surface image assets to load.
-    const palette = this.chromePalette()
-    const g = this.add.graphics().setDepth(-1000)
-    g.fillGradientStyle(palette.bgTop, palette.bgTop, palette.bgBottom, palette.bgBottom, 1)
-    g.fillRect(0, 0, TABLE.width, TABLE.height)
+    // Backdrop drawn in-engine from the active treatment, faithfully reskinned
+    // per palette the way the 06 prototype's variants differ (warm radial glow /
+    // flat comic wash / deep neon radial). The table STRUCTURE is fixed; only
+    // the backdrop colours + comic texture reskin, so there are no per-theme
+    // surface image assets to load.
+    const spec = getBackdropSpec(this.treatment)
+    const key = `table_backdrop_${this.treatment}`
+
+    // Rasterise the gradient into a canvas texture (Phaser Graphics cannot do a
+    // radial fill). Idempotent across scene restarts.
+    if (!this.textures.exists(key)) {
+      const canvasTex = this.textures.createCanvas(key, TABLE.width, TABLE.height)
+      const ctx = canvasTex?.getContext()
+      if (canvasTex && ctx) {
+        const grad =
+          spec.kind === 'radial'
+            ? ctx.createRadialGradient(
+                TABLE.width * spec.focusX,
+                TABLE.height * spec.focusY,
+                20,
+                TABLE.width * spec.focusX,
+                TABLE.height * spec.focusY,
+                Math.max(TABLE.width, TABLE.height) * 0.8
+              )
+            : ctx.createLinearGradient(0, 0, TABLE.width, TABLE.height)
+        for (const stop of spec.stops) grad.addColorStop(stop.offset, stop.color)
+        ctx.fillStyle = grad
+        ctx.fillRect(0, 0, TABLE.width, TABLE.height)
+        canvasTex.refresh()
+      }
+    }
+
+    if (this.textures.exists(key)) {
+      this.add.image(TABLE.centerX, TABLE.centerY, key).setDepth(-1000)
+    } else {
+      // Headless / unit fallback: flat gradient wash from the palette.
+      const palette = this.chromePalette()
+      const g = this.add.graphics().setDepth(-1000)
+      g.fillGradientStyle(palette.bgTop, palette.bgTop, palette.bgBottom, palette.bgBottom, 1)
+      g.fillRect(0, 0, TABLE.width, TABLE.height)
+    }
   }
 
   private buildChrome(): void {
     const palette = this.chromePalette()
+    const spec = getBackdropSpec(this.treatment)
     this.chromeLayer = this.add.container(0, 0).setDepth(40)
 
-    // Halftone / Ben-Day dots wash (comic chrome), kept faint and behind cards.
-    const dots = this.add.graphics().setDepth(-900)
-    dots.fillStyle(palette.ink, 0.06)
-    const step = 26
-    for (let y = step; y < TABLE.height; y += step) {
-      for (let x = step; x < TABLE.width; x += step) {
-        dots.fillCircle(x, y, 2)
+    // Comic texture over the backdrop: Ben-Day halftone dots (warm/comic) or a
+    // neon scanline grid, matching how the prototype's palette variants differ.
+    const texture = this.add.graphics().setDepth(-900)
+    if (spec.texture === 'scanlines') {
+      texture.lineStyle(2, palette.ink, 0.06)
+      for (let y = 0; y < TABLE.height; y += 40) {
+        texture.lineBetween(0, y, TABLE.width, y)
+      }
+      for (let x = 0; x < TABLE.width; x += 40) {
+        texture.lineBetween(x, 0, x, TABLE.height)
+      }
+    } else {
+      // Dense Ben-Day dots (prototype B: 2px dots on a 14px grid).
+      texture.fillStyle(palette.ink, 0.1)
+      const step = 14
+      for (let y = step; y < TABLE.height; y += step) {
+        for (let x = step; x < TABLE.width; x += step) {
+          texture.fillCircle(x, y, 2)
+        }
       }
     }
 
-    // Comic-panel frame: chunky ink border with an inner pop line.
+    // Comic-panel frame: chunky ink border, a white pop line, then an inner ink
+    // line (the prototype's `border:6px ink; inset 4px #fff, inset 10px ink`).
     const frame = this.add.graphics()
     const inset = 14
     frame.lineStyle(10, palette.ink, 1)
     frame.strokeRect(inset, inset, TABLE.width - inset * 2, TABLE.height - inset * 2)
-    frame.lineStyle(3, palette.pop, 1)
+    frame.lineStyle(4, palette.pop, 1)
     frame.strokeRect(
       inset + 7,
       inset + 7,
       TABLE.width - (inset + 7) * 2,
       TABLE.height - (inset + 7) * 2
+    )
+    frame.lineStyle(3, palette.ink, 1)
+    frame.strokeRect(
+      inset + 11,
+      inset + 11,
+      TABLE.width - (inset + 11) * 2,
+      TABLE.height - (inset + 11) * 2
     )
     this.chromeLayer.add(frame)
 

@@ -5,7 +5,6 @@ import {
   SPADES_RANKS,
   SPAR_DECK_SIZE,
   getCardAssetKey,
-  getCardAssetPath,
   isValidSparCard,
   getValidRanksForSuit,
   generateSparDeck,
@@ -83,40 +82,6 @@ describe('Card Asset Functions', () => {
       const key = getCardAssetKey('hearts', 'J')
       expect(key).toBe('card_hearts_j')
       expect(key).not.toContain('J') // uppercase
-    })
-  })
-
-  describe('getCardAssetPath', () => {
-    it('should generate correct path for number cards', () => {
-      expect(getCardAssetPath('hearts', '6')).toBe('assets/cards/hearts/hearts_6.png')
-      expect(getCardAssetPath('clubs', '10')).toBe('assets/cards/clubs/clubs_10.png')
-    })
-
-    it('should generate the correct lowercase path for the 6 of spades', () => {
-      expect(getCardAssetPath('spades', '6')).toBe('assets/cards/spades/spades_6.png')
-    })
-
-    it('should use lowercase for face-card rank in path (casing)', () => {
-      expect(getCardAssetPath('spades', 'K')).toBe('assets/cards/spades/spades_k.png')
-      expect(getCardAssetPath('hearts', '10')).toBe('assets/cards/hearts/hearts_10.png')
-      expect(getCardAssetPath('spades', 'K')).not.toContain('_K.')
-    })
-
-    it('should generate correct path for face cards', () => {
-      expect(getCardAssetPath('diamonds', 'J')).toBe('assets/cards/diamonds/diamonds_j.png')
-      expect(getCardAssetPath('spades', 'Q')).toBe('assets/cards/spades/spades_q.png')
-      expect(getCardAssetPath('hearts', 'K')).toBe('assets/cards/hearts/hearts_k.png')
-    })
-
-    it('should generate correct path for aces', () => {
-      expect(getCardAssetPath('hearts', 'A')).toBe('assets/cards/hearts/hearts_a.png')
-      expect(getCardAssetPath('clubs', 'A')).toBe('assets/cards/clubs/clubs_a.png')
-    })
-
-    it('should use lowercase for rank in path', () => {
-      const path = getCardAssetPath('hearts', 'J')
-      expect(path).toBe('assets/cards/hearts/hearts_j.png')
-      expect(path).not.toContain('_J.') // uppercase
     })
   })
 })

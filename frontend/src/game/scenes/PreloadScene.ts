@@ -3,12 +3,11 @@ import {
   ALL_SUITS,
   getValidRanksForSuit,
   getCardAssetKey,
-  getCardAssetPath,
   CARD_BACK_KEY,
-  CARD_BACK_ASSET_PATH,
   SPAR_DECK_SIZE,
 } from '../constants/cards'
 import { createParticleTextures } from '../utils/particles'
+import { createCardTextures } from '../utils/cardTextureFactory'
 import { AudioManager } from '../../services/audioManager'
 
 export class PreloadScene extends Phaser.Scene {
@@ -23,7 +22,6 @@ export class PreloadScene extends Phaser.Scene {
   preload() {
     this.createLoadingUI()
     this.setupLoadingEvents()
-    this.loadCardAssets()
     this.loadSoundAssets()
     this.loadParticleAssets()
   }
@@ -31,8 +29,9 @@ export class PreloadScene extends Phaser.Scene {
   create() {
     console.log('[PreloadScene] create() called - creating programmatic textures')
 
-    // The card back is now a loaded PNG (see loadCardAssets). Only the
-    // particle textures are still generated programmatically.
+    // Card faces + the card back are drawn in-engine (ticket 18) rather than
+    // loaded as PNGs, alongside the programmatic particle textures.
+    createCardTextures(this)
     this.createParticleTextures()
 
     console.log('[PreloadScene] Programmatic textures created')
@@ -106,42 +105,6 @@ export class PreloadScene extends Phaser.Scene {
     } else if (type === 'image') {
       console.log(`[PreloadScene] Image file loaded: ${key}`)
     }
-  }
-
-  /**
-   * Load all 35 card faces plus the designed card back
-   */
-  private loadCardAssets(): void {
-    console.log('[PreloadScene] ===== LOADING CARD ASSETS =====')
-    let loadedCount = 0
-    const totalCards = SPAR_DECK_SIZE
-
-    // Load all valid cards from the Spar deck
-    for (const suit of ALL_SUITS) {
-      const validRanks = getValidRanksForSuit(suit)
-      for (const rank of validRanks) {
-        const key = getCardAssetKey(suit, rank)
-        const path = getCardAssetPath(suit, rank)
-
-        console.log(`[PreloadScene] Loading card: ${key} from ${path}`)
-        this.load.image(key, path)
-        loadedCount++
-      }
-    }
-
-    console.log(`[PreloadScene] Queued ${loadedCount} cards for loading`)
-
-    // Verify we're loading exactly SPAR_DECK_SIZE cards
-    if (loadedCount !== totalCards) {
-      console.warn(
-        `[PreloadScene] Expected to load ${totalCards} cards, but loading ${loadedCount}`
-      )
-    }
-
-    // Load the designed card back illustration (replaces the old
-    // procedural graphics-drawn back).
-    console.log(`[PreloadScene] Loading card back: ${CARD_BACK_KEY} from ${CARD_BACK_ASSET_PATH}`)
-    this.load.image(CARD_BACK_KEY, CARD_BACK_ASSET_PATH)
   }
 
   /**
@@ -279,7 +242,7 @@ export class PreloadScene extends Phaser.Scene {
     console.log('[PreloadScene] ===== ALL ASSETS LOADED =====')
     console.log('[PreloadScene] Total files loaded:', this.load.totalComplete)
     console.log(
-      '[PreloadScene] Expected: 35 cards + 1 card back + 16 sounds + 34 particles = 86 total'
+      '[PreloadScene] Loaded: 16 sounds + 34 particles (35 cards + 1 back drawn in-engine)'
     )
   }
 
