@@ -1,36 +1,16 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import PhaserGame from '../components/PhaserGame'
-import { PhaseTransition } from '../game/components/PhaseTransition'
-import { useGameStore } from '../store/gameStore'
 
 function GamePage() {
-  const gamePhase = useGameStore(state => state.gamePhase)
-  const currentRound = useGameStore(state => state.currentRound)
-
-  const [showTransition, setShowTransition] = useState(false)
-  const [prevPhase, setPrevPhase] = useState<typeof gamePhase>(gamePhase)
-  const [transitionFromPhase, setTransitionFromPhase] = useState<typeof gamePhase>(gamePhase)
-
-  // Detect phase changes and trigger transitions
-  useEffect(() => {
-    // Detect phase change
-    if (gamePhase !== prevPhase) {
-      setTransitionFromPhase(prevPhase)
-      setShowTransition(true)
-      setPrevPhase(gamePhase)
-    }
-  }, [gamePhase, prevPhase])
-
-  // Handle transition complete
-  const handleTransitionComplete = () => {
-    setShowTransition(false)
-  }
-
   return (
     // Ticket 19: full-bleed comic table. The whole viewport is the pop-art yellow
     // Variant B table (no dark React header/margins); the Phaser canvas fills it
     // edge-to-edge and any FIT letterbox blends into the same yellow.
+    //
+    // Ticket 19 (iteration 3): the old React `PhaseTransition` dimming modal
+    // (hourglass + "Transitioning..." over a black scrim) has been removed. The
+    // prototype has no such overlay - turns and rounds flow purely through the
+    // Phaser card motion + comic banners, and the table is never dimmed.
     <div className="fixed inset-0 overflow-hidden bg-[#ffd400]">
       <PhaserGame />
 
@@ -43,15 +23,6 @@ function GamePage() {
       >
         Leave
       </Link>
-
-      {/* Phase Transition Overlay */}
-      <PhaseTransition
-        visible={showTransition}
-        phase={gamePhase}
-        fromPhase={transitionFromPhase}
-        roundNumber={currentRound}
-        onComplete={handleTransitionComplete}
-      />
     </div>
   )
 }

@@ -358,12 +358,15 @@ export class TableScene extends Phaser.Scene {
 
   /**
    * Geometry of the timer bar (prototype `#timer-generic`: width 260, height 16).
-   * Ticket 19 delta 2: the bar is floated ~30px higher than the prototype's tight
-   * `bottom:150` so it clears the top edge of the hand fan with a visible gap and
-   * never crosses the middle cards' rank/pip.
+   * Ticket 19 iteration 3 (delta 2): the bar is lowered so its bottom edge sits
+   * right at the top of the middle hand cards (prototype `bottom:150`, where the
+   * bar bottom lands on the card tops with only a hairline gap). The center hand
+   * card's top edge is at ~570 on the 720 canvas; the bar (height 16) is centered
+   * at 720-160 = 560, i.e. bottom at 568 - a ~2px gap above the card tops - so it
+   * nearly touches the fan without crossing the card faces.
    */
   private timerBarGeom(): { x: number; y: number; width: number; height: number } {
-    return { x: TABLE.centerX, y: TABLE.height - 190, width: 260, height: 16 }
+    return { x: TABLE.centerX, y: TABLE.height - 160, width: 260, height: 16 }
   }
 
   private buildTimerBar(): void {
