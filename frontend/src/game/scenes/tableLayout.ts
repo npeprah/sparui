@@ -71,44 +71,6 @@ export function fanSlot(i: number, n: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// bottom hand fan (A-layout: wide arc along the bottom)
-// ---------------------------------------------------------------------------
-
-/** Configuration for the local player's bottom hand fan. */
-export interface HandFanConfig {
-  /** Horizontal center of the fan. */
-  centerX: number
-  /** `y` of the peak (center) card - the highest point of the arc. */
-  baseY: number
-  /** Arc radius: larger = flatter, wider fan. */
-  radius: number
-  /** Total angular spread (degrees) across the whole fan. */
-  spreadDeg: number
-}
-
-/**
- * Positions for the local player's hand, fanned along an upward arc at the
- * bottom of the table. Cards sit on a circle of radius `radius` whose center is
- * `radius` below `baseY`, so the middle card peaks at `baseY` and the outer
- * cards drop away and rotate outward - the classic held-hand fan.
- */
-export function handFanPositions(count: number, cfg: HandFanConfig): CardPlacement[] {
-  const placements: CardPlacement[] = []
-  const pivotY = cfg.baseY + cfg.radius
-  for (let i = 0; i < count; i++) {
-    const t = fanSlot(i, count)
-    const angleDeg = t * cfg.spreadDeg
-    const rad = degToRad(angleDeg)
-    placements.push({
-      x: cfg.centerX + cfg.radius * Math.sin(rad),
-      y: pivotY - cfg.radius * Math.cos(rad),
-      rotationDeg: angleDeg,
-    })
-  }
-  return placements
-}
-
-// ---------------------------------------------------------------------------
 // Variant B hand fan (pixel-exact port of the prototype `fanPos` + `layoutHand`)
 // ---------------------------------------------------------------------------
 
@@ -215,35 +177,8 @@ export function sideRailSeatPositions(
 }
 
 // ---------------------------------------------------------------------------
-// opponent seats across the top + their card-back mini fans
+// opponent card-back mini fans
 // ---------------------------------------------------------------------------
-
-/** Configuration for the row of opponent seats across the top. */
-export interface SeatRowConfig {
-  /** Horizontal center the row is balanced around. */
-  centerX: number
-  /** `y` of each seat's anchor. */
-  topY: number
-  /** Width reserved per seat. */
-  seatWidth: number
-  /** Horizontal gap between adjacent seats. */
-  gap: number
-}
-
-/**
- * Seat anchor points for `count` opponents, evenly distributed and centered
- * horizontally across the top of the table.
- */
-export function opponentSeatPositions(count: number, cfg: SeatRowConfig): Vec2[] {
-  if (count <= 0) return []
-  const totalWidth = count * cfg.seatWidth + (count - 1) * cfg.gap
-  const startX = cfg.centerX - totalWidth / 2 + cfg.seatWidth / 2
-  const seats: Vec2[] = []
-  for (let i = 0; i < count; i++) {
-    seats.push({ x: startX + i * (cfg.seatWidth + cfg.gap), y: cfg.topY })
-  }
-  return seats
-}
 
 /** Configuration for an opponent's card-back mini fan (opens downward). */
 export interface OpponentFanConfig {
@@ -336,17 +271,11 @@ export function pileStackPositions(count: number, cfg: PileConfig): CardPlacemen
 }
 
 // ---------------------------------------------------------------------------
-// countdown timer ring (C: circular ring wrapping the drop zone)
+// countdown timer (remaining-time fraction + arc math)
 // ---------------------------------------------------------------------------
 
-/** Below this remaining fraction the ring switches to its danger colour. */
-export const RING_DANGER_THRESHOLD = 0.3
-
-/** Ring sweeps clockwise from 12 o'clock (top). */
-export const RING_START_ANGLE_RAD = -Math.PI / 2
-
 /**
- * Remaining-time fraction in [0, 1]. A full ring is `1`; an expired or invalid
+ * Remaining-time fraction in [0, 1]. A full timer is `1`; an expired or invalid
  * timer is `0`. `total <= 0` (or non-finite inputs) yields `0`.
  */
 export function timerProgress(remaining: number, total: number): number {
@@ -361,15 +290,6 @@ export function ringSweepRadians(progress: number): number {
   return clamp01(progress) * Math.PI * 2
 }
 
-/**
- * End angle (radians) of the remaining-time arc, sweeping clockwise from
- * `startAngle` (default: 12 o'clock). Feed `startAngle` and this into a Phaser
- * arc to draw the countdown.
- */
-export function ringEndAngle(progress: number, startAngle: number = RING_START_ANGLE_RAD): number {
-  return startAngle + ringSweepRadians(progress)
-}
-
 /** Circumference of the ring for a given radius (for stroke-dash approaches). */
 export function ringCircumference(radius: number): number {
   return 2 * Math.PI * radius
@@ -381,9 +301,4 @@ export function ringCircumference(radius: number): number {
  */
 export function ringDashOffset(progress: number, circumference: number): number {
   return circumference * (1 - clamp01(progress))
-}
-
-/** True when the remaining fraction is in the danger band (< threshold). */
-export function isRingDanger(progress: number): boolean {
-  return clamp01(progress) < RING_DANGER_THRESHOLD
 }

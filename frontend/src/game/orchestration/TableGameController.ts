@@ -50,8 +50,8 @@ export interface TableSceneHooks {
   burstConfetti?(): void
   /** Variant B rising fire-spark burst when a streak lights. */
   burstFireSparks?(): void
-  /** Variant B FLAG reveal: flip an opponent's card-backs to faces. */
-  flagReveal?(): void
+  /** Variant B FLAG reveal: flip the caught opponent's card-backs to faces. */
+  flagReveal?(opponentId: string): void
 }
 
 /** How long the round-win beat holds before the pile clears and the next round starts. */
@@ -276,7 +276,8 @@ export class TableGameController {
     // SFX beats: the round outcome (win/loss from the local player's view) plus
     // the distinct fire/freeze cues layered over it.
     const localId = this.player.getState().playerId
-    this.scene.playSound(winnerId === localId ? 'sound:win_round' : 'sound:lose_round')
+    const localWon = winnerId === localId
+    this.scene.playSound(localWon ? 'sound:win_round' : 'sound:lose_round')
     if (fireStreakPlayer) {
       this.scene.playSound('sound:fire_streak')
     }
@@ -285,6 +286,8 @@ export class TableGameController {
     }
 
     // Callout words + style come from the designer-authored config by event.
+    // freeze/dry describe the round and show to everyone; the second-person
+    // win/fire banners ("YOU TAKE IT!") only pop on the round winner's client.
     if (data.freezeTriggered) {
       this.fireCallout('freeze')
     } else if (isShowDry) {
@@ -292,17 +295,19 @@ export class TableGameController {
     } else if (isDry) {
       this.fireCallout('dry')
     } else if (fireStreakPlayer) {
-      this.fireCallout('fireStreak')
-    } else {
+      if (localWon) this.fireCallout('fireStreak')
+    } else if (localWon) {
       this.fireCallout('roundWin')
     }
 
-    // Variant B celebration beat: rising fire sparks when a streak lights,
-    // otherwise the confetti burst (prototype `beatFire` / `beatWin`).
-    if (fireStreakPlayer) {
-      this.scene.burstFireSparks?.()
-    } else {
-      this.scene.burstConfetti?.()
+    // Variant B celebration beat only for the winner: rising fire sparks when a
+    // streak lights, otherwise the confetti burst (prototype `beatFire`/`beatWin`).
+    if (localWon) {
+      if (fireStreakPlayer) {
+        this.scene.burstFireSparks?.()
+      } else {
+        this.scene.burstConfetti?.()
+      }
     }
 
     this.refreshAffordance()
@@ -402,7 +407,7 @@ export class TableGameController {
     }
     this.fireCallout(data.correct ? 'flagBusted' : 'flagSafe')
     // Variant B FLAG beat: flip the caught opponent's card-backs to faces.
-    if (data.correct) this.scene.flagReveal?.()
+    if (data.correct) this.scene.flagReveal?.(data.accusedId)
   }
 
   private onFlagError(data: { error: string; code?: string }): void {

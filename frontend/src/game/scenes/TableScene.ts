@@ -635,7 +635,7 @@ export class TableScene extends Phaser.Scene {
    * to revealed faces with a per-card stagger. The rail is rebuilt back to backs
    * shortly after (renderOpponents runs on the next opponents change anyway).
    */
-  public flagReveal(): void {
+  public flagReveal(opponentId: string): void {
     const layer = this.opponentLayer
     if (!layer) return
     const reveal: Array<[Suit, string]> = [
@@ -649,6 +649,8 @@ export class TableScene extends Phaser.Scene {
     for (const child of layer.getAll()) {
       const group = child as Phaser.GameObjects.Container
       if (!group.getAll) continue
+      // Only the caught opponent's rail flips; leave every other seat alone.
+      if (group.getData('opponentId') !== opponentId) continue
       const backs = group
         .getAll()
         .filter(
