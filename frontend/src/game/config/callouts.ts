@@ -67,12 +67,12 @@ export const CALLOUTS: Record<CalloutEvent, CalloutSpec> = {
   },
   wait: { word: 'WAIT', style: { fill: 'ink', size: 'normal' }, trigger: 'wait' },
   roundWin: {
-    word: 'BOOM!',
+    word: 'YOU TAKE IT!',
     style: { fill: 'accent', size: 'huge', shake: true },
     trigger: 'roundWin',
   },
   fireStreak: {
-    word: 'ON FIRE!',
+    word: 'ON FIRE!!!',
     style: { fill: 'danger', size: 'huge', shake: true },
     trigger: 'fireStreak',
   },
@@ -80,7 +80,7 @@ export const CALLOUTS: Record<CalloutEvent, CalloutSpec> = {
   dry: { word: 'DRY!', style: { fill: 'pop', size: 'big' }, trigger: 'dry' },
   showDry: { word: 'SHOW DRY!', style: { fill: 'accent', size: 'big' }, trigger: 'showDry' },
   flagBusted: {
-    word: 'BUSTED!',
+    word: 'CAUGHT YOU!',
     style: { fill: 'danger', size: 'huge', shake: true },
     trigger: 'flagBusted',
   },

@@ -46,6 +46,12 @@ export interface TableSceneHooks {
   showCallout(text: string, style?: CalloutStyle): void
   setTurnTotal(seconds: number): void
   playSound(key: SoundKey): void
+  /** Variant B round-win confetti burst (optional so unit fakes can omit it). */
+  burstConfetti?(): void
+  /** Variant B rising fire-spark burst when a streak lights. */
+  burstFireSparks?(): void
+  /** Variant B FLAG reveal: flip an opponent's card-backs to faces. */
+  flagReveal?(): void
 }
 
 /** How long the round-win beat holds before the pile clears and the next round starts. */
@@ -196,10 +202,10 @@ export class TableGameController {
     this.scene.playSound('sound:card_play')
 
     // Local player's own card is authoritative-removed from the hand on echo.
+    // The "POW!/BAM!/WHAP!" burst is popped by the scene as the card lands on the
+    // pile (prototype `.pow`), so there is no center-banner beat on a plain play.
     if (playerId === this.player.getState().playerId) {
       this.player.getState().removeCardFromHand(card.id)
-      // Big-play beat: pop the "POW!" callout when the local player slams a card.
-      this.fireCallout('bigPlay')
     }
 
     // Shrink the player's stored hand so opponent card-back fans lose a card as
@@ -289,6 +295,14 @@ export class TableGameController {
       this.fireCallout('fireStreak')
     } else {
       this.fireCallout('roundWin')
+    }
+
+    // Variant B celebration beat: rising fire sparks when a streak lights,
+    // otherwise the confetti burst (prototype `beatFire` / `beatWin`).
+    if (fireStreakPlayer) {
+      this.scene.burstFireSparks?.()
+    } else {
+      this.scene.burstConfetti?.()
     }
 
     this.refreshAffordance()
@@ -387,6 +401,8 @@ export class TableGameController {
       }
     }
     this.fireCallout(data.correct ? 'flagBusted' : 'flagSafe')
+    // Variant B FLAG beat: flip the caught opponent's card-backs to faces.
+    if (data.correct) this.scene.flagReveal?.()
   }
 
   private onFlagError(data: { error: string; code?: string }): void {

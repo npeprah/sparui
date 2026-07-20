@@ -27,8 +27,8 @@ describe('callout config (ticket 15)', () => {
   describe('resolveCallout', () => {
     it('resolves the ticket example callouts (big play / flag / win)', () => {
       expect(resolveCallout('bigPlay').word).toBe('POW!')
-      expect(resolveCallout('flagBusted').word).toBe('BUSTED!')
-      expect(resolveCallout('roundWin').word).toBe('BOOM!')
+      expect(resolveCallout('flagBusted').word).toBe('CAUGHT YOU!')
+      expect(resolveCallout('roundWin').word).toBe('YOU TAKE IT!')
       expect(resolveCallout('gameWin').word).toBe('GAME OVER!')
     })
 

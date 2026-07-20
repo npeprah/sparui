@@ -109,6 +109,112 @@ export function handFanPositions(count: number, cfg: HandFanConfig): CardPlaceme
 }
 
 // ---------------------------------------------------------------------------
+// Variant B hand fan (pixel-exact port of the prototype `fanPos` + `layoutHand`)
+// ---------------------------------------------------------------------------
+
+/**
+ * Configuration for the Variant B bottom hand fan. Mirrors the prototype's
+ * `layoutHand` cfg B (`{ spread: 28, radius: 360 }`) plus the fixed anchor
+ * (`left:50%; bottom:20px`) and the card's `transform-origin: bottom center`.
+ */
+export interface VariantBHandConfig {
+  /** Horizontal center of the fan (canvas center). */
+  centerX: number
+  /** `y` of each card's BOTTOM edge before the arc dip (prototype `bottom:20px`). */
+  baseY: number
+  /** Total angular spread (degrees) across the whole fan. */
+  spreadDeg: number
+  /** Arc radius controlling horizontal spread + dip (`x = t*radius`). */
+  radius: number
+  /** Half the card's rendered height, used to project bottom-center -> card center. */
+  halfCardHeight: number
+}
+
+/** Vertical arc-dip factor from the prototype (`y = |t| * radius * 0.18`). */
+const VARIANT_B_DIP_FACTOR = 0.18
+
+/**
+ * Card CENTER placements for the Variant B hand, a faithful port of the
+ * prototype's `fanPos(i,n,28,360)` + the `translateX(-50%) translateX(x)
+ * translateY(-y) rotate(angle)` transform applied about each card's
+ * bottom-center origin. Returns each card's center point and z-rotation.
+ */
+export function handFanPositionsVariantB(count: number, cfg: VariantBHandConfig): CardPlacement[] {
+  const placements: CardPlacement[] = []
+  for (let i = 0; i < count; i++) {
+    const t = fanSlot(i, count)
+    const angleDeg = t * cfg.spreadDeg
+    const rad = degToRad(angleDeg)
+    // Bottom-center anchor: outer cards shift out (x) and lift (dip) like the DOM.
+    const bcx = cfg.centerX + t * cfg.radius
+    const bcy = cfg.baseY - Math.abs(t) * cfg.radius * VARIANT_B_DIP_FACTOR
+    // Project the bottom-center point up to the card center through the rotation.
+    placements.push({
+      x: bcx + cfg.halfCardHeight * Math.sin(rad),
+      y: bcy - cfg.halfCardHeight * Math.cos(rad),
+      rotationDeg: angleDeg,
+    })
+  }
+  return placements
+}
+
+// ---------------------------------------------------------------------------
+// Variant B side rails (opponents down the left + right edges, not the top)
+// ---------------------------------------------------------------------------
+
+/** Geometry of the Variant B side rails (prototype `.b-rail`). */
+export interface SideRailConfig {
+  /** Center X of the left rail (prototype `left:30`, rail width 190 => 125). */
+  leftX: number
+  /** Center X of the right rail (prototype `right:30` => 1155). */
+  rightX: number
+  /** Top Y of the rail span (prototype `top:60`). */
+  topY: number
+  /** Bottom Y of the rail span (prototype `bottom:190` => 720-190 = 530). */
+  bottomY: number
+}
+
+/** The default Variant B rail geometry on the 1280x720 canvas. */
+export const VARIANT_B_RAILS: SideRailConfig = {
+  leftX: 125,
+  rightX: 1155,
+  topY: 60,
+  bottomY: 530,
+}
+
+/**
+ * Seat CENTER points for `count` opponents distributed across the two side rails,
+ * matching the prototype (opponent index 1 goes to the RIGHT rail, all others to
+ * the LEFT), each rail spacing its boxes `space-around` down its vertical span.
+ * Returns one point per opponent index.
+ */
+export function sideRailSeatPositions(
+  count: number,
+  cfg: SideRailConfig = VARIANT_B_RAILS
+): Vec2[] {
+  if (count <= 0) return []
+  const leftIdx: number[] = []
+  const rightIdx: number[] = []
+  for (let i = 0; i < count; i++) {
+    if (i === 1) rightIdx.push(i)
+    else leftIdx.push(i)
+  }
+  const seats: Vec2[] = new Array(count)
+  const span = cfg.bottomY - cfg.topY
+  const place = (indices: number[], x: number) => {
+    const m = indices.length
+    indices.forEach((idx, k) => {
+      // space-around: each item centered in its equal slice of the rail span.
+      const y = cfg.topY + (span * (k + 0.5)) / m
+      seats[idx] = { x, y }
+    })
+  }
+  place(leftIdx, cfg.leftX)
+  place(rightIdx, cfg.rightX)
+  return seats
+}
+
+// ---------------------------------------------------------------------------
 // opponent seats across the top + their card-back mini fans
 // ---------------------------------------------------------------------------
 
