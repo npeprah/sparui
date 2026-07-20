@@ -295,26 +295,27 @@ describe('TableGameController', () => {
     usePlayerStore.getState().setHand([{ suit: 'hearts', rank: '7', id: 'hearts-7' }])
     const controller = makeController(socket, scene)
 
-    // Big-play beat on the local player's own card -> POW!
+    // A plain play no longer pops a center banner - the POW!/BAM!/WHAP! burst is
+    // rendered by the scene as the card lands on the pile (Variant B `.pow`).
     socket.fire('cardPlayed', {
       playerId: 'me',
       card: { suit: 'hearts', rank: '7', id: 'hearts-7' },
       currentTurn: 'opp',
     })
-    expect(scene.callouts).toContain('POW!')
+    expect(scene.callouts).not.toContain('POW!')
 
-    // Round win (no special effect) -> BOOM!
+    // Round win (no special effect) -> "YOU TAKE IT!"
     socket.fire('roundWon', {
       winnerId: 'me',
       roundsWon: { me: 1, opp: 0 },
       isDry: false,
       isShowDry: false,
     })
-    expect(scene.callouts).toContain('BOOM!')
+    expect(scene.callouts).toContain('YOU TAKE IT!')
 
-    // A landed flag/challenge -> BUSTED!
+    // A landed flag/challenge -> "CAUGHT YOU!"
     socket.fire('game:flag_resolved', { correct: true })
-    expect(scene.callouts).toContain('BUSTED!')
+    expect(scene.callouts).toContain('CAUGHT YOU!')
 
     controller.destroy()
   })
@@ -331,7 +332,7 @@ describe('TableGameController', () => {
 
     socket.fire('game:flag_resolved', { correct: true })
     // flagBusted is authored as a danger-filled callout.
-    expect(styled).toContainEqual({ text: 'BUSTED!', fill: 'danger' })
+    expect(styled).toContainEqual({ text: 'CAUGHT YOU!', fill: 'danger' })
 
     controller.destroy()
   })

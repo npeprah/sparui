@@ -60,9 +60,9 @@ describe('cardFace pure helpers', () => {
   })
 
   describe('texture dimensions', () => {
-    it('keeps the retired PNG resolution so downstream layout is unchanged', () => {
+    it('matches the prototype Variant B card aspect (92x130 -> 512x724)', () => {
       expect(CARD_TEXTURE_WIDTH).toBe(512)
-      expect(CARD_TEXTURE_HEIGHT).toBe(768)
+      expect(CARD_TEXTURE_HEIGHT).toBe(724)
     })
   })
 })

@@ -7,7 +7,11 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   parent: 'phaser-game',
   width: 1280,
   height: 720,
-  backgroundColor: '#0a5f38', // Table green
+  // Ticket 19 (full-bleed Variant B): the page mounts the canvas edge-to-edge in
+  // the viewport with no dark React chrome. Any FIT letterbox band reads as the
+  // comic-yellow table itself (matches the prototype's pop-art background), so
+  // there is never a dark bar around the table.
+  backgroundColor: '#ffd400', // Comic-panel pop-art yellow (Variant B)
   scene: [PreloadScene, TableScene],
   physics: {
     default: 'arcade',

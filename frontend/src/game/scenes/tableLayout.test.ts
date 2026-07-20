@@ -4,8 +4,6 @@ import {
   clamp01,
   degToRad,
   fanSlot,
-  handFanPositions,
-  opponentSeatPositions,
   visibleOpponentCards,
   opponentFanOffsets,
   pileJitter01,
@@ -13,14 +11,8 @@ import {
   pileStackPositions,
   timerProgress,
   ringSweepRadians,
-  ringEndAngle,
   ringCircumference,
   ringDashOffset,
-  isRingDanger,
-  RING_START_ANGLE_RAD,
-  RING_DANGER_THRESHOLD,
-  type HandFanConfig,
-  type SeatRowConfig,
   type OpponentFanConfig,
   type PileConfig,
 } from './tableLayout'
@@ -51,71 +43,6 @@ describe('tableLayout - math helpers', () => {
   it('TABLE center is derived from dimensions', () => {
     expect(TABLE.centerX).toBe(TABLE.width / 2)
     expect(TABLE.centerY).toBe(TABLE.height / 2)
-  })
-})
-
-describe('tableLayout - hand fan', () => {
-  const cfg: HandFanConfig = { centerX: 640, baseY: 600, radius: 900, spreadDeg: 34 }
-
-  it('returns one placement per card', () => {
-    expect(handFanPositions(5, cfg)).toHaveLength(5)
-    expect(handFanPositions(0, cfg)).toHaveLength(0)
-  })
-
-  it('peaks at the center card (highest = smallest y) and drops outward', () => {
-    const p = handFanPositions(5, cfg)
-    const centerY = p[2].y
-    // center card sits at baseY (the arc peak)
-    expect(centerY).toBeCloseTo(cfg.baseY, 6)
-    // outer cards are lower on screen (larger y)
-    expect(p[0].y).toBeGreaterThan(centerY)
-    expect(p[4].y).toBeGreaterThan(centerY)
-  })
-
-  it('is horizontally symmetric around centerX and fans rotation outward', () => {
-    const p = handFanPositions(5, cfg)
-    expect(p[2].x).toBeCloseTo(cfg.centerX, 6)
-    // mirror pairs
-    expect(p[0].x - cfg.centerX).toBeCloseTo(-(p[4].x - cfg.centerX), 6)
-    expect(p[0].rotationDeg).toBeCloseTo(-p[4].rotationDeg, 6)
-    // spread endpoints span the configured angle
-    expect(p[4].rotationDeg - p[0].rotationDeg).toBeCloseTo(cfg.spreadDeg, 6)
-    // left card leans left (negative), right card leans right (positive)
-    expect(p[0].rotationDeg).toBeLessThan(0)
-    expect(p[4].rotationDeg).toBeGreaterThan(0)
-  })
-
-  it('single card sits centered, unrotated, at baseY', () => {
-    const [only] = handFanPositions(1, cfg)
-    expect(only.x).toBeCloseTo(cfg.centerX, 6)
-    expect(only.y).toBeCloseTo(cfg.baseY, 6)
-    expect(only.rotationDeg).toBe(0)
-  })
-})
-
-describe('tableLayout - opponent seats', () => {
-  const cfg: SeatRowConfig = { centerX: 640, topY: 90, seatWidth: 150, gap: 70 }
-
-  it('returns nothing for no opponents', () => {
-    expect(opponentSeatPositions(0, cfg)).toEqual([])
-  })
-
-  it('centers a single seat on centerX', () => {
-    const [seat] = opponentSeatPositions(1, cfg)
-    expect(seat.x).toBe(cfg.centerX)
-    expect(seat.y).toBe(cfg.topY)
-  })
-
-  it('distributes and centers multiple seats evenly', () => {
-    const seats = opponentSeatPositions(3, cfg)
-    expect(seats).toHaveLength(3)
-    // middle seat centered
-    expect(seats[1].x).toBeCloseTo(cfg.centerX, 6)
-    // symmetric around center
-    expect(seats[0].x - cfg.centerX).toBeCloseTo(-(seats[2].x - cfg.centerX), 6)
-    // equal spacing = seatWidth + gap
-    expect(seats[1].x - seats[0].x).toBeCloseTo(cfg.seatWidth + cfg.gap, 6)
-    expect(seats[2].x - seats[1].x).toBeCloseTo(cfg.seatWidth + cfg.gap, 6)
   })
 })
 
@@ -197,24 +124,11 @@ describe('tableLayout - countdown ring', () => {
     expect(ringSweepRadians(0.25)).toBeCloseTo(Math.PI / 2, 6)
   })
 
-  it('ringEndAngle sweeps clockwise from the top by default', () => {
-    expect(ringEndAngle(0)).toBeCloseTo(RING_START_ANGLE_RAD, 6)
-    expect(ringEndAngle(1)).toBeCloseTo(RING_START_ANGLE_RAD + Math.PI * 2, 6)
-    expect(ringEndAngle(0.5, 0)).toBeCloseTo(Math.PI, 6)
-  })
-
   it('ringCircumference and dash offset agree at the extremes', () => {
     const c = ringCircumference(54)
     expect(c).toBeCloseTo(2 * Math.PI * 54, 6)
     expect(ringDashOffset(1, c)).toBeCloseTo(0, 6) // full ring shown
     expect(ringDashOffset(0, c)).toBeCloseTo(c, 6) // ring hidden
     expect(ringDashOffset(0.5, c)).toBeCloseTo(c / 2, 6)
-  })
-
-  it('isRingDanger trips below the threshold', () => {
-    expect(isRingDanger(RING_DANGER_THRESHOLD - 0.01)).toBe(true)
-    expect(isRingDanger(RING_DANGER_THRESHOLD + 0.01)).toBe(false)
-    expect(isRingDanger(1)).toBe(false)
-    expect(isRingDanger(0)).toBe(true)
   })
 })

@@ -88,7 +88,12 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private ekBorder?: Phaser.GameObjects.Graphics
   /** Graphics that renders the gold playable-affordance ring ABOVE the card face. */
   private ekRing?: Phaser.GameObjects.Graphics
-  /** Active EK border treatment (gold / comic / neon), resolved from themeStore. */
+  /**
+   * Active EK border treatment (gold / comic / neon). Normally resolved from
+   * themeStore; the pixel-exact Variant B table (ticket 19) pins it to `comic`
+   * via the constructor's `forcedTreatment` so the look never depends on the
+   * user's palette selection.
+   */
   private ekTreatment: EKBorderTreatment
   /** Set when the border geometry must be redrawn on the next frame. */
   private ekBorderDirty: boolean = true
@@ -112,7 +117,8 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     y: number,
     suit: Suit,
     rank: Rank,
-    owner: string | null = null
+    owner: string | null = null,
+    forcedTreatment?: EKBorderTreatment
   ) {
     const textureKey = getCardAssetKey(suit, rank)
     console.log(`[CardSprite] Creating card: ${suit} ${rank} with texture key: ${textureKey}`)
@@ -147,9 +153,10 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
 
     // Resolve the EK border treatment from the active theme and render the
     // chunky ink-outline border / comic frame behind the card.
-    this.ekTreatment = resolveEKTreatment(useThemeStore.getState().selectedTheme)
+    this.ekTreatment = forcedTreatment ?? resolveEKTreatment(useThemeStore.getState().selectedTheme)
     this.renderEKBorder()
-    this.subscribeToTheme()
+    // A pinned treatment never reacts to theme changes.
+    if (!forcedTreatment) this.subscribeToTheme()
 
     // Setup interactions
     this.setupInteractions()

@@ -71,37 +71,49 @@ export function fanSlot(i: number, n: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// bottom hand fan (A-layout: wide arc along the bottom)
+// Variant B hand fan (pixel-exact port of the prototype `fanPos` + `layoutHand`)
 // ---------------------------------------------------------------------------
 
-/** Configuration for the local player's bottom hand fan. */
-export interface HandFanConfig {
-  /** Horizontal center of the fan. */
+/**
+ * Configuration for the Variant B bottom hand fan. Mirrors the prototype's
+ * `layoutHand` cfg B (`{ spread: 28, radius: 360 }`) plus the fixed anchor
+ * (`left:50%; bottom:20px`) and the card's `transform-origin: bottom center`.
+ */
+export interface VariantBHandConfig {
+  /** Horizontal center of the fan (canvas center). */
   centerX: number
-  /** `y` of the peak (center) card - the highest point of the arc. */
+  /** `y` of each card's BOTTOM edge before the arc dip (prototype `bottom:20px`). */
   baseY: number
-  /** Arc radius: larger = flatter, wider fan. */
-  radius: number
   /** Total angular spread (degrees) across the whole fan. */
   spreadDeg: number
+  /** Arc radius controlling horizontal spread + dip (`x = t*radius`). */
+  radius: number
+  /** Half the card's rendered height, used to project bottom-center -> card center. */
+  halfCardHeight: number
 }
 
+/** Vertical arc-dip factor from the prototype (`y = |t| * radius * 0.18`). */
+const VARIANT_B_DIP_FACTOR = 0.18
+
 /**
- * Positions for the local player's hand, fanned along an upward arc at the
- * bottom of the table. Cards sit on a circle of radius `radius` whose center is
- * `radius` below `baseY`, so the middle card peaks at `baseY` and the outer
- * cards drop away and rotate outward - the classic held-hand fan.
+ * Card CENTER placements for the Variant B hand, a faithful port of the
+ * prototype's `fanPos(i,n,28,360)` + the `translateX(-50%) translateX(x)
+ * translateY(-y) rotate(angle)` transform applied about each card's
+ * bottom-center origin. Returns each card's center point and z-rotation.
  */
-export function handFanPositions(count: number, cfg: HandFanConfig): CardPlacement[] {
+export function handFanPositionsVariantB(count: number, cfg: VariantBHandConfig): CardPlacement[] {
   const placements: CardPlacement[] = []
-  const pivotY = cfg.baseY + cfg.radius
   for (let i = 0; i < count; i++) {
     const t = fanSlot(i, count)
     const angleDeg = t * cfg.spreadDeg
     const rad = degToRad(angleDeg)
+    // Bottom-center anchor: outer cards shift out (x) and lift (dip) like the DOM.
+    const bcx = cfg.centerX + t * cfg.radius
+    const bcy = cfg.baseY - Math.abs(t) * cfg.radius * VARIANT_B_DIP_FACTOR
+    // Project the bottom-center point up to the card center through the rotation.
     placements.push({
-      x: cfg.centerX + cfg.radius * Math.sin(rad),
-      y: pivotY - cfg.radius * Math.cos(rad),
+      x: bcx + cfg.halfCardHeight * Math.sin(rad),
+      y: bcy - cfg.halfCardHeight * Math.cos(rad),
       rotationDeg: angleDeg,
     })
   }
@@ -109,35 +121,64 @@ export function handFanPositions(count: number, cfg: HandFanConfig): CardPlaceme
 }
 
 // ---------------------------------------------------------------------------
-// opponent seats across the top + their card-back mini fans
+// Variant B side rails (opponents down the left + right edges, not the top)
 // ---------------------------------------------------------------------------
 
-/** Configuration for the row of opponent seats across the top. */
-export interface SeatRowConfig {
-  /** Horizontal center the row is balanced around. */
-  centerX: number
-  /** `y` of each seat's anchor. */
+/** Geometry of the Variant B side rails (prototype `.b-rail`). */
+export interface SideRailConfig {
+  /** Center X of the left rail (prototype `left:30`, rail width 190 => 125). */
+  leftX: number
+  /** Center X of the right rail (prototype `right:30` => 1155). */
+  rightX: number
+  /** Top Y of the rail span (prototype `top:60`). */
   topY: number
-  /** Width reserved per seat. */
-  seatWidth: number
-  /** Horizontal gap between adjacent seats. */
-  gap: number
+  /** Bottom Y of the rail span (prototype `bottom:190` => 720-190 = 530). */
+  bottomY: number
+}
+
+/** The default Variant B rail geometry on the 1280x720 canvas. */
+export const VARIANT_B_RAILS: SideRailConfig = {
+  leftX: 125,
+  rightX: 1155,
+  topY: 60,
+  bottomY: 530,
 }
 
 /**
- * Seat anchor points for `count` opponents, evenly distributed and centered
- * horizontally across the top of the table.
+ * Seat CENTER points for `count` opponents distributed across the two side rails,
+ * matching the prototype (opponent index 1 goes to the RIGHT rail, all others to
+ * the LEFT), each rail spacing its boxes `space-around` down its vertical span.
+ * Returns one point per opponent index.
  */
-export function opponentSeatPositions(count: number, cfg: SeatRowConfig): Vec2[] {
+export function sideRailSeatPositions(
+  count: number,
+  cfg: SideRailConfig = VARIANT_B_RAILS
+): Vec2[] {
   if (count <= 0) return []
-  const totalWidth = count * cfg.seatWidth + (count - 1) * cfg.gap
-  const startX = cfg.centerX - totalWidth / 2 + cfg.seatWidth / 2
-  const seats: Vec2[] = []
+  const leftIdx: number[] = []
+  const rightIdx: number[] = []
   for (let i = 0; i < count; i++) {
-    seats.push({ x: startX + i * (cfg.seatWidth + cfg.gap), y: cfg.topY })
+    if (i === 1) rightIdx.push(i)
+    else leftIdx.push(i)
   }
+  const seats: Vec2[] = new Array(count)
+  const span = cfg.bottomY - cfg.topY
+  const place = (indices: number[], x: number) => {
+    const m = indices.length
+    indices.forEach((idx, k) => {
+      // space-around: each item centered in its equal slice of the rail span.
+      const y = cfg.topY + (span * (k + 0.5)) / m
+      seats[idx] = { x, y }
+    })
+  }
+  place(leftIdx, cfg.leftX)
+  place(rightIdx, cfg.rightX)
   return seats
 }
+
+// ---------------------------------------------------------------------------
+// opponent card-back mini fans
+// ---------------------------------------------------------------------------
 
 /** Configuration for an opponent's card-back mini fan (opens downward). */
 export interface OpponentFanConfig {
@@ -230,17 +271,11 @@ export function pileStackPositions(count: number, cfg: PileConfig): CardPlacemen
 }
 
 // ---------------------------------------------------------------------------
-// countdown timer ring (C: circular ring wrapping the drop zone)
+// countdown timer (remaining-time fraction + arc math)
 // ---------------------------------------------------------------------------
 
-/** Below this remaining fraction the ring switches to its danger colour. */
-export const RING_DANGER_THRESHOLD = 0.3
-
-/** Ring sweeps clockwise from 12 o'clock (top). */
-export const RING_START_ANGLE_RAD = -Math.PI / 2
-
 /**
- * Remaining-time fraction in [0, 1]. A full ring is `1`; an expired or invalid
+ * Remaining-time fraction in [0, 1]. A full timer is `1`; an expired or invalid
  * timer is `0`. `total <= 0` (or non-finite inputs) yields `0`.
  */
 export function timerProgress(remaining: number, total: number): number {
@@ -255,15 +290,6 @@ export function ringSweepRadians(progress: number): number {
   return clamp01(progress) * Math.PI * 2
 }
 
-/**
- * End angle (radians) of the remaining-time arc, sweeping clockwise from
- * `startAngle` (default: 12 o'clock). Feed `startAngle` and this into a Phaser
- * arc to draw the countdown.
- */
-export function ringEndAngle(progress: number, startAngle: number = RING_START_ANGLE_RAD): number {
-  return startAngle + ringSweepRadians(progress)
-}
-
 /** Circumference of the ring for a given radius (for stroke-dash approaches). */
 export function ringCircumference(radius: number): number {
   return 2 * Math.PI * radius
@@ -275,9 +301,4 @@ export function ringCircumference(radius: number): number {
  */
 export function ringDashOffset(progress: number, circumference: number): number {
   return circumference * (1 - clamp01(progress))
-}
-
-/** True when the remaining fraction is in the danger band (< threshold). */
-export function isRingDanger(progress: number): boolean {
-  return clamp01(progress) < RING_DANGER_THRESHOLD
 }

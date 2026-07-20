@@ -31,11 +31,7 @@ function PhaserGame() {
     }
   }, [])
 
-  return (
-    <div className="flex items-center justify-center">
-      <div id="phaser-game" className="rounded-lg overflow-hidden shadow-2xl" />
-    </div>
-  )
+  return <div id="phaser-game" className="absolute inset-0 overflow-hidden" />
 }
 
 export default PhaserGame
