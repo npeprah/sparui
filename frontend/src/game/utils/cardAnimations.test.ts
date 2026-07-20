@@ -3,8 +3,6 @@ import {
   createCardDealAnimation,
   createCardPlayAnimation,
   createSuitSymbolPulseAnimation,
-  createHoverFloatAnimation,
-  createHoverExitAnimation,
   createFireStateAnimation,
   createFrozenStateAnimation,
   applyDisabledState,
@@ -176,48 +174,6 @@ describe('Card Animation Utilities', () => {
       expect(scaleXAnim[0]).toEqual({ value: 1, duration: 0 })
       expect(scaleXAnim[1]).toEqual({ value: 1.05, duration: 1000 })
       expect(scaleXAnim[2]).toEqual({ value: 1, duration: 1000 })
-    })
-  })
-
-  describe('createHoverFloatAnimation()', () => {
-    it('should create hover animation with exact specifications', () => {
-      const card = createMockSprite()
-      const originalY = 500
-      const config = createHoverFloatAnimation(card, originalY)
-
-      expect(config.targets).toBe(card)
-      expect(config.y).toBe(originalY - 30) // translateY: -30px as specified
-      expect(config.scaleX).toBe(1.05) // scale: 1.05 as specified
-      expect(config.scaleY).toBe(1.05)
-      expect(config.skewY).toBe(0.05) // Simulated 3D tilt
-      expect(config.duration).toBe(600) // Exact duration from spec
-      expect(config.ease).toBe('Cubic.easeOut')
-    })
-
-    it('should respect original scale', () => {
-      const card = createMockSprite()
-      const originalScale = 0.8
-      const config = createHoverFloatAnimation(card, 500, originalScale)
-
-      expect(config.scaleX).toBe(originalScale * 1.05)
-      expect(config.scaleY).toBe(originalScale * 1.05)
-    })
-  })
-
-  describe('createHoverExitAnimation()', () => {
-    it('should return card to original state', () => {
-      const card = createMockSprite()
-      const originalY = 500
-      const originalScale = 0.8
-      const config = createHoverExitAnimation(card, originalY, originalScale)
-
-      expect(config.targets).toBe(card)
-      expect(config.y).toBe(originalY)
-      expect(config.scaleX).toBe(originalScale)
-      expect(config.scaleY).toBe(originalScale)
-      expect(config.skewY).toBe(0) // Reset tilt
-      expect(config.duration).toBe(600)
-      expect(config.ease).toBe('Cubic.easeOut')
     })
   })
 

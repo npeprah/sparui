@@ -113,48 +113,6 @@ export function createSuitSymbolPulseAnimation(
 }
 
 /**
- * Hover Float Animation - Exactly as specified
- * Duration: 600ms
- * Easing: cubic-bezier(0.23, 1, 0.32, 1)
- * Properties: translateY: -30px, rotateY: 10deg, scale: 1.05
- */
-export function createHoverFloatAnimation(
-  card: Phaser.GameObjects.Sprite,
-  originalY: number,
-  originalScale: number = 1
-): CardAnimationConfig {
-  return {
-    targets: card,
-    y: originalY - 30, // translateY: -30px as specified
-    scaleX: originalScale * 1.05, // scale: 1.05 as specified
-    scaleY: originalScale * 1.05,
-    // Note: Phaser doesn't support 3D rotateY natively, we simulate with skew
-    skewY: 0.05, // Simulates 3D tilt effect
-    duration: 600, // Exact duration from spec
-    ease: 'Cubic.easeOut', // Closest to cubic-bezier(0.23, 1, 0.32, 1)
-  }
-}
-
-/**
- * Hover Exit Animation - Return to original state
- */
-export function createHoverExitAnimation(
-  card: Phaser.GameObjects.Sprite,
-  originalY: number,
-  originalScale: number = 1
-): CardAnimationConfig {
-  return {
-    targets: card,
-    y: originalY,
-    scaleX: originalScale,
-    scaleY: originalScale,
-    skewY: 0, // Reset tilt
-    duration: 600,
-    ease: 'Cubic.easeOut',
-  }
-}
-
-/**
  * Fire State Border Animation - Animated gradient border
  * Creates pulsing fire effect
  */
