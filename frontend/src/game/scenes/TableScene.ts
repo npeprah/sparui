@@ -1234,8 +1234,9 @@ export class TableScene extends Phaser.Scene {
   }
 
   private pileConfig(): PileConfig {
-    // Prototype B pile: left:50%, top:40% -> center (640, 288).
-    return { centerX: TABLE.centerX, centerY: 288, positionJitter: 10, rotationJitterDeg: 12 }
+    // Prototype B pile: left:50%, top:40% -> center (640, 288). The played card
+    // lands with a small random spin of +/-15deg (prototype `beatPlay`).
+    return { centerX: TABLE.centerX, centerY: 288, positionJitter: 10, rotationJitterDeg: 15 }
   }
 
   // =========================================================================

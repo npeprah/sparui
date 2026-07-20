@@ -14,14 +14,24 @@ import {
   createCardDealAnimation,
   createCardPlayAnimation,
   createSuitSymbolPulseAnimation,
-  createHoverFloatAnimation,
-  createHoverExitAnimation,
   createFireStateAnimation,
   createFrozenStateAnimation,
   applyDisabledState,
   removeDisabledState,
   createGlowEffect,
 } from '../utils/cardAnimations'
+
+/**
+ * Hover affordance (prototype `.card.playable:hover`): a SUBTLE lift only - the
+ * card tweens up by {@link HOVER_LIFT}px (Variant B `layoutHand` cfg `hover:-22`)
+ * with a gentle overshoot, raises its depth to sit above its fan neighbours
+ * (prototype `z-index:50`), and reveals its gold inset ring. There is NO scale
+ * increase on hover (the old code blew the card up from its 0.18 hand scale to
+ * ~1.05, filling the screen).
+ */
+const HOVER_LIFT = 22
+/** Depth a hovered hand card jumps to so it renders above its fan neighbours. */
+const HOVER_DEPTH = 400
 import { applyCardVisualState, transitionToState } from '../utils/cardVisuals'
 import {
   type EKBorderStyle,
@@ -63,6 +73,12 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   private originalScale: number = 1
   private suitPulseTween?: Phaser.Tweens.Tween
   private stateTween?: Phaser.Tweens.Tween
+  /** Depth to restore when a hover ends (the card's resting fan depth). */
+  private restingDepth: number = 0
+  /** The rock-back-and-forth "on fire" wiggle tween (prototype `firewiggle`). */
+  private fireWiggleTween?: Phaser.Tweens.Tween
+  /** Rest angle captured when the fire wiggle starts, restored when it stops. */
+  private fireBaseAngle: number = 0
 
   // Event callbacks
   public onCardClick?: (card: CardSprite) => void
@@ -337,8 +353,13 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
   }
 
   /**
-   * Hover enter effect - using exact specifications from design doc
-   * Duration: 600ms, translateY: -30px, scale: 1.05
+   * Hover enter effect - a SUBTLE lift only, matching the prototype's
+   * `.card.playable:hover { transform: translateY(-18px); z-index: 50 }` (Variant
+   * B `layoutHand` cfg `hover:-22`). The card tweens UP by {@link HOVER_LIFT}px
+   * with a gentle overshoot, jumps its depth above the fan neighbours, and shows
+   * its gold inset ring (via `_hovered`, read by {@link syncEKVisuals}). There is
+   * deliberately NO scale change - the old code scaled to ~1.05 which, against the
+   * 0.18 hand scale, blew the card up to fill the screen.
    */
   private onHoverEnter(): void {
     // Don't hover if in disabled state
@@ -353,16 +374,24 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.hoverTween.stop()
     }
 
-    // Use exact hover animation from design spec
-    const hoverConfig = createHoverFloatAnimation(this, this.originalY, this.originalScale)
-    this.hoverTween = this.scene.tweens.add(hoverConfig)
+    // Raise above neighbouring fan cards (prototype `z-index:50`). Guard against a
+    // repeated pointerover clobbering the remembered resting depth.
+    if (this.depth !== HOVER_DEPTH) this.restingDepth = this.depth
+    this.setDepth(HOVER_DEPTH)
+    this.updateChromeDepth()
+    this.parentContainer?.sort('depth')
 
-    // Add glow effect
-    this.showHoverGlow()
+    // Subtle lift only (no scale), with an overshoot bounce (`--bounce`).
+    this.hoverTween = this.scene.tweens.add({
+      targets: this,
+      y: this.originalY - HOVER_LIFT,
+      duration: 220,
+      ease: 'Back.easeOut',
+    })
   }
 
   /**
-   * Hover exit effect - return to original position
+   * Hover exit effect - settle back to the resting slot and depth.
    */
   private onHoverExit(): void {
     // Hide the gold playable ring again once the pointer leaves.
@@ -373,42 +402,19 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.hoverTween.stop()
     }
 
-    // Use exact exit animation from design spec
-    const exitConfig = createHoverExitAnimation(this, this.originalY, this.originalScale)
-    this.hoverTween = this.scene.tweens.add(exitConfig)
-
-    // Remove glow
-    this.hideHoverGlow()
-  }
-
-  /**
-   * Show hover glow effect
-   */
-  private showHoverGlow(): void {
-    if (this.glowEffect) {
-      this.glowEffect.destroy()
-    }
-
-    this.glowEffect = this.scene.add.graphics()
-    this.glowEffect.lineStyle(4, 0xffd700, 0.8) // Gold glow
-    this.glowEffect.strokeRoundedRect(
-      this.x - this.displayWidth / 2 - 4,
-      this.y - this.displayHeight / 2 - 4,
-      this.displayWidth + 8,
-      this.displayHeight + 8,
-      12
-    )
-    this.glowEffect.setDepth(this.depth - 1) // Behind card
-  }
-
-  /**
-   * Hide hover glow effect
-   */
-  private hideHoverGlow(): void {
-    if (this.glowEffect) {
-      this.glowEffect.destroy()
-      this.glowEffect = undefined
-    }
+    this.hoverTween = this.scene.tweens.add({
+      targets: this,
+      y: this.originalY,
+      duration: 200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        if (!this.scene || !this.active) return
+        // Drop back to the resting fan depth once settled.
+        this.setDepth(this.restingDepth)
+        this.updateChromeDepth()
+        this.parentContainer?.sort('depth')
+      },
+    })
   }
 
   /**
@@ -752,6 +758,9 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     }
     if (this.stateTween) {
       this.stateTween.stop()
+    }
+    if (this.fireWiggleTween) {
+      this.fireWiggleTween.stop()
     }
 
     // Clean up glow effect
@@ -1107,18 +1116,37 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
       this.setState('fire')
       this.clearStateEffects()
 
-      // Create fire glow effect
+      // Create fire glow effect (orange, prototype `box-shadow: 0 0 ... #ff7a00`).
       this.glowEffect = createGlowEffect(this.scene, this, 'fire')
 
       // Animate the fire glow
       const fireConfig = createFireStateAnimation(this.glowEffect)
       this.stateTween = this.scene.tweens.add(fireConfig)
 
+      // Prototype `firewiggle`: the on-fire card rocks -2..2deg around its rest
+      // angle on a ~0.28s cycle (140ms each way, yoyo). Captured base restored on
+      // disable so the settled pile card returns to its landed rotation.
+      this.fireWiggleTween?.stop()
+      this.fireBaseAngle = this.angle
+      this.fireWiggleTween = this.scene.tweens.add({
+        targets: this,
+        angle: { from: this.fireBaseAngle - 2, to: this.fireBaseAngle + 2 },
+        duration: 140,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1,
+      })
+
       // Emit fire sound
       emitSoundEvent(this.scene, 'FIRE_STREAK')
     } else if (!enabled && this._visualState === 'fire') {
       this.setState('default')
       this.clearStateEffects()
+      if (this.fireWiggleTween) {
+        this.fireWiggleTween.stop()
+        this.fireWiggleTween = undefined
+        this.setAngle(this.fireBaseAngle)
+      }
     }
 
     return this
