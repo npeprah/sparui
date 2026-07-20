@@ -19,13 +19,15 @@
 import type { Suit, Rank } from '../../store/types'
 
 /**
- * Face texture resolution. Kept identical to the retired painterly PNGs
- * (512x768) so every downstream scale, layout placement, overlay anchor and EK
- * border margin stays byte-for-byte unchanged when we swap loaded art for the
- * drawn face.
+ * Face texture resolution. Ticket 19 pins the aspect to the prototype Variant B
+ * card (`--card-w:92px; --card-h:130px`, ratio 0.708) so a uniform display scale
+ * renders a 92x130 card instead of a stretched-taller 92x138. Width stays 512
+ * (92/512 -> the 0.18 hand scale); height is 512 * 130/92 = 724, which crops the
+ * excess vertical whitespace while keeping the centred pip round and the corner
+ * ranks at their inset - it is NOT a vertical squish.
  */
 export const CARD_TEXTURE_WIDTH = 512
-export const CARD_TEXTURE_HEIGHT = 768
+export const CARD_TEXTURE_HEIGHT = 724
 
 /** Cream card body, from the prototype `.card { background: #fffdf7 }`. */
 export const CARD_FACE_CREAM = '#fffdf7'

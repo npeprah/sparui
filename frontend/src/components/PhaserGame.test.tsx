@@ -76,7 +76,8 @@ describe('PhaserGame Component', () => {
 
     const gameContainer = container.querySelector('#phaser-game')
     expect(gameContainer).toBeInTheDocument()
-    expect(gameContainer).toHaveClass('rounded-lg', 'overflow-hidden', 'shadow-2xl')
+    // Ticket 19: the canvas host fills the viewport edge-to-edge (full-bleed).
+    expect(gameContainer).toHaveClass('absolute', 'inset-0', 'overflow-hidden')
   })
 
   describe('HMR Handling', () => {

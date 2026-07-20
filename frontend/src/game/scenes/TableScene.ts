@@ -11,6 +11,7 @@ import type { OverlayStateSlice, DryZoneConfig } from '../overlays/overlayDecisi
 import { getPlayableCards } from '../utils/sparRules'
 import { TableGameController } from '../orchestration/TableGameController'
 import { CARD_BACK_KEY, getCardAssetKey } from '../constants/cards'
+import { CARD_TEXTURE_HEIGHT } from '../utils/cardFace'
 import { type EKBorderTreatment } from '../constants/cardTheme'
 import { DEFAULT_CALLOUT_STYLE, type CalloutStyle, type CalloutSize } from '../config/callouts'
 import { getBackdropSpec, type BackdropSpec } from './tableBackdrop'
@@ -87,7 +88,7 @@ export class TableScene extends Phaser.Scene {
   private treatment: EKBorderTreatment = 'comic'
 
   // --- Variant B card sizing (prototype: 92x130 hand cards, 40x56 backs) ---
-  /** Face texture is 512x768; 92/512 gives the prototype's 92px-wide hand card. */
+  /** Face texture is 512x724 (ticket 19); 92/512 -> the prototype's 92x130 card. */
   private readonly HAND_SCALE = 0.18
   /** Pile cards render at the same full size as hand cards in Variant B. */
   private readonly PILE_SCALE = 0.18
@@ -325,22 +326,25 @@ export class TableScene extends Phaser.Scene {
     // "THE PILE!" label: a white box with a 3px ink border, Impact, rotated -3deg,
     // sitting just above the offset drop zone (prototype `.pilelabel`).
     const pile = this.pileConfig()
+    // Ticket 19 delta 4: two stacked lines ("THE" / "PILE!") in a slightly larger
+    // Impact box, matching the prototype `.pilelabel`. The white box hugs the text
+    // with the prototype's 2px/12px padding so it grows with the bigger type.
+    const labelText = this.add
+      .text(0, 0, 'THE\nPILE!', {
+        fontFamily: 'Impact, "Arial Black", sans-serif',
+        fontSize: '26px',
+        color: this.hex(palette.ink),
+        align: 'center',
+        lineSpacing: 3,
+      })
+      .setOrigin(0.5)
+    const lw = Math.ceil(labelText.width) + 24
+    const lh = Math.ceil(labelText.height) + 12
     const labelBox = this.add.graphics()
-    const lw = 96
-    const lh = 52
     labelBox.fillStyle(palette.pop, 1)
     labelBox.fillRect(-lw / 2, -lh / 2, lw, lh)
     labelBox.lineStyle(3, palette.ink, 1)
     labelBox.strokeRect(-lw / 2, -lh / 2, lw, lh)
-    const labelText = this.add
-      .text(0, 0, 'THE\nPILE!', {
-        fontFamily: 'Impact, "Arial Black", sans-serif',
-        fontSize: '20px',
-        color: this.hex(palette.ink),
-        align: 'center',
-        lineSpacing: 2,
-      })
-      .setOrigin(0.5)
     const label = this.add
       .container(pile.centerX, pile.centerY - 138, [labelBox, labelText])
       .setAngle(-3)
@@ -352,9 +356,14 @@ export class TableScene extends Phaser.Scene {
   // countdown timer BAR (Variant B) - horizontal gradient bar above the hand
   // =========================================================================
 
-  /** Geometry of the timer bar (prototype `#timer-generic`: width 260, bottom 150). */
+  /**
+   * Geometry of the timer bar (prototype `#timer-generic`: width 260, height 16).
+   * Ticket 19 delta 2: the bar is floated ~30px higher than the prototype's tight
+   * `bottom:150` so it clears the top edge of the hand fan with a visible gap and
+   * never crosses the middle cards' rank/pip.
+   */
   private timerBarGeom(): { x: number; y: number; width: number; height: number } {
-    return { x: TABLE.centerX, y: TABLE.height - 158, width: 260, height: 16 }
+    return { x: TABLE.centerX, y: TABLE.height - 190, width: 260, height: 16 }
   }
 
   private buildTimerBar(): void {
@@ -1210,7 +1219,7 @@ export class TableScene extends Phaser.Scene {
       baseY: 700,
       spreadDeg: 28,
       radius: 360,
-      halfCardHeight: (768 * this.HAND_SCALE) / 2,
+      halfCardHeight: (CARD_TEXTURE_HEIGHT * this.HAND_SCALE) / 2,
     }
   }
 
