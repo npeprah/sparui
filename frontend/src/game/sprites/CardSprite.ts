@@ -471,7 +471,7 @@ export class CardSprite extends Phaser.GameObjects.Sprite {
     // Store starting position
     this.dragStartY = pointer.y
     this.dragStartX = pointer.x
-    this.originalDepth = this.depth
+    this.originalDepth = this._hovered ? this.restingDepth : this.depth
 
     // Don't set isDragging yet - wait for movement
     // This allows us to distinguish between click and drag
